@@ -1,0 +1,114 @@
+
+#ifndef _SOC_DEFS_H_
+#define _SOC_DEFS_H_
+
+#define IO_VA_ADDRESS(x)	(x)	 /*Currently IO has 1:1 Mapping*/
+
+/* INTERRUPTS */
+#define INTC_BASE 0x48200000
+#define INTC_SOURCE_COUNT 128
+
+#define INTC_SIR_IRQ_ADR 0x10
+#define INTC_SIR_FIQ_ADR 0x11
+#define INTC_CONTROL     0x12
+
+#define INTC_CONTROL_NEWIRQAGR (1 << 0)
+#define INTC_CONTROL_NEWFIQAGR (1 << 1)
+#define INTC_SYSCONFIG_RESET (1UL << 1)
+#define INTC_SYSSTATUS_RESET_DONE (1UL << 0)
+
+/* SOC interrupt sources */
+#define INTC_IRQ_TIMER0 66
+#define INTC_IRQ_TIMER1_MS 67
+#define INTC_IRQ_TIMER2 68
+#define INTC_IRQ_TIMER3 69
+#define INTC_IRQ_TIMER4 92
+#define INTC_IRQ_TIMER5 93
+#define INTC_IRQ_TIMER6 94
+#define INTC_IRQ_TIMER7 95
+
+#define INTC_IRQ_EDMACOMP 12 /* DMA completition */
+#define INTC_IRQ_EDMAMPERR 13 /* DMA memory protection error */
+#define INTC_IRQ_EDMAERRINT 14 /* DMA error */
+
+
+/* UART DEFINITIONS */
+#define UART0_BASE 0x44E09000
+#define UART1_BASE 0x48022000
+#define UART2_BASE 0x48024000
+#define UART3_BASE 0x481A6000
+#define UART4_BASE 0x481A8000
+#define UART5_BASE 0x481AA000
+
+#define UART_RHR 0
+#define UART_THR 0
+#define UART_LSR 5
+
+#define UART_LSR_TX_FIFO_E (1UL << 5)
+#define UART_LSR_RX_FIFO_E (1UL << 0)
+
+#define UART_SYSC_SOFTRESET (1UL << 1)
+
+#define UART_SYSS_RESETDONE (1UL << 0)
+
+#define UART_LCR_MODE_OP 0
+#define UART_LCR_MODE_A 0x80
+#define UART_LCR_MODE_B 0xBF
+
+#define UART_LCR_LENGTH_5 ( 0UL << 0)
+#define UART_LCR_LENGTH_6 ( 1UL << 0)
+#define UART_LCR_LENGTH_7 ( 2UL << 0)
+#define UART_LCR_LENGTH_8 ( 3UL << 0)
+
+#define UART_LCR_STOP_1  (0UL << 2)
+#define UART_LCR_STOP_15 (1UL << 2)
+
+#define UART_LCR_PARITY_EN (1UL << 3)
+#define UART_LCR_PARITY_ODD  (0UL << 4)
+#define UART_LCR_PARITY_EVEN (1UL << 4)
+#define UART_LCR_BREAK_EN (1UL << 6)
+#define UART_LCR_DIV_EN (1UL << 7)
+
+#define UART_MCR_DTR ( 1UL << 0)
+#define UART_MCR_RTS ( 1UL << 1)
+
+#define UART_FCR_FIFO_EN  (1UL << 0)
+#define UART_FCR_RX_CLEAR (1UL << 1)
+#define UART_FCR_TX_CLEAR (1UL << 2)
+
+#define UART_MDR1_MODE_DISABLE 7
+#define UART_MDR1_MODE_UART16 0
+
+#define UART_IER_SLEEP (1UL << 4)
+
+#define UART_EFR_ENHANCED_EN (1U << 4)
+
+
+
+
+/* Control module */
+#define CONTROL_MODULE_BASE 0x44E10000
+
+#define CONTROL_MODULE_PADCONFG_PULL_ENABLE (1UL << 3)
+#define CONTROL_MODULE_PADCONFG_PULL_UP (1UL << 4)
+#define CONTROL_MODULE_PADCONFG_INPUT_ENABLE (1UL << 5)
+
+
+/* CLOCKS */
+#define CLOCK_PER 0x44E00000
+#define CLOCK_WAKEUP 0x44E00400
+
+#define CLOCK_PER_MODE_DISABLED (0UL << 0)
+#define CLOCK_PER_MODE_ENABLED  (2UL << 0)
+#define CLOCK_PER_MODE_MASK (3UL << 0)
+#define CLOCK_PER_STATUS_MASK (3UL << 16)
+#define CLOCK_PER_STANDBY (1UL << 18)
+
+/* GPIO */
+#define CONTROL_MODULE_PADCONFIG_UART0_CTSN 90
+#define CONTROL_MODULE_PADCONFIG_UART0_RTSN 91
+#define CONTROL_MODULE_PADCONFIG_UART0_RDX 92
+#define CONTROL_MODULE_PADCONFIG_UART0_TXD 93
+
+
+#endif /* _SOC_DEFS_H_ */
