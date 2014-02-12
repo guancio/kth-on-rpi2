@@ -5,7 +5,7 @@ extern virtual_machine *curr_vm;
 
 void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hypercall_number)
 {
-
+    
 	/*TODO Added check that controls if it comes from user space, makes it pretty inefficient, remake later*/
 	/*Testing RPC from user space, remove later*/
 	if(curr_vm->current_guest_mode == HC_GM_TASK){

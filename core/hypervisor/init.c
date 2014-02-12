@@ -89,7 +89,7 @@ void memory_init()
 		if(list->flags & MLF_LAST) break;
 		list++;
 	}
-
+    
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */
     pt_map(0xFFFF0000,(uint32_t)GET_PHYS(&_interrupt_vector_table),0x1000, MLT_USER_ROM);
 

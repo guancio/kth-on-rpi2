@@ -36,11 +36,11 @@ ASFLAGS += $(INC_FLAGS)
 LFLAGS += $(foreach dir,$(LIB_DIRS), -L$(dir))
 LFLAGS += $(foreach file,$(LIB_FILES), -l$(file))
 
-CFLAGS += -O0 -g3 -Wall \
+CFLAGS += -O3 -g3 -Wall \
 #	-pedantic -Wall -Werror\
 #	-O3 -fno-inline -finline-limit=1 --param max-unroll-times=0
 
-ASFLAGS += -O0 -g3 -c
+ASFLAGS += -O3 -g3 -c
 LFLAGS += $(shell $(CC) -print-libgcc-file-name)
 
 
