@@ -9,3 +9,6 @@ PLATFORM=beagleboard
 #SOFTWARE=minimal
 SOFTWARE = trusted linux
 #SOFTWARE = linux
+
+#Enable this if you want to compile for OVP 
+#SIMULATION_OVP = 1
