@@ -8,7 +8,7 @@
 #include <utillib.h>
 #include "hyper_config.h"
 
-#include "soc_defs.h" //Maybe put IO_VA_ADDRESS() macro somewhere else?
+//#include "soc_defs.h" //Maybe put IO_VA_ADDRESS() macro somewhere else?
 
 #define GET_VIRT_ARRAY(phy)  ((uint32_t *) GET_VIRT(phy))
 

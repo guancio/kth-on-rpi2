@@ -77,7 +77,9 @@ void cpu_irq_get_current()
 
 void soc_interrupt_init()
 {
-    int i;    
+    /*Needs to be rewritten*/
+#if 0
+    int i;
     memspace_t * ms_expv, *ms_aic;
     
     /* allocate the relocated exception page */
@@ -100,6 +102,6 @@ void soc_interrupt_init()
         cpu_irq_set_enable(i, FALSE);
         cpu_irq_set_handler(i, (cpu_callback)default_handler);
     }
-    
+#endif
 }
 

@@ -1,4 +1,5 @@
 #include "hw.h"
+#include "mmu.h"
 #include "hyper.h"
 #include "hyp_cache.h"
 

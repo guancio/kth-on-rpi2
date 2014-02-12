@@ -79,3 +79,8 @@ void mem_cache_invalidate(BOOL inst_inv, BOOL data_inv, BOOL data_writeback)
         COP_WRITE(COP_SYSTEM, COP_ICACHE_INVALIDATE_ALL, tmp);
     } 
 }
+
+void mem_cache_dcache_area(addr_t va, uint32_t size, uint32_t op)
+{
+	/*Dummy not yet implemented*/
+}

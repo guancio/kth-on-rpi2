@@ -3,6 +3,8 @@
 
 void soc_clocks_init()
 {        
+	/*Needs to be rewritten*/
+#if 0
     powersaving_registers * power;
     memspace_t *ms_power;
     
@@ -30,5 +32,6 @@ void soc_clocks_init()
 
 #else
     env_memspace_free(PROC_TYPE_HYPERVISOR, ms_power, TRUE);    
+#endif
 #endif
 }

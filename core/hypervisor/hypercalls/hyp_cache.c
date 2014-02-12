@@ -59,7 +59,10 @@ void hypercall_tlb_invalidate_mva(addr_t va)
 
 void hypercall_tlb_invalidate_asid(uint32_t asid)
 {
+/*ARM 926 does not have this function*/
+#if ARM_ARCH > 5
 	COP_WRITE(COP_SYSTEM, COP_TLB_INVALIDATE_ASID, asid);
+#endif
 
 }
 
