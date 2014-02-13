@@ -1,7 +1,8 @@
 # -*- Makefile -*-
 
 #SUBDIRS = simulation library core drivers
-SUBDIRS = utils library simulation drivers guests test core
+#SUBDIRS = utils library simulation drivers guests test core
+SUBDIRS = utils library drivers guests test core
 #SUBDIRS = library simulation guests core
 
 all:
