@@ -6,6 +6,6 @@
 PLATFORM=beagleboard
 #PLATFORM=beaglebone
 
-#SOFTWARE=minimal
-SOFTWARE = trusted linux
+SOFTWARE=minimal
+#SOFTWARE = trusted linux
 #SOFTWARE = linux
