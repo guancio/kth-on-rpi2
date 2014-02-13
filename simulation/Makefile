@@ -1,6 +1,8 @@
+include ../target
 
-
-SUBDIRS = ovp_integratorCP ovp_arm9 generic_a8 
+ifeq ($(SIMULATION_OVP),1)
+		SUBDIRS = ovp_integratorCP ovp_arm9 generic_a8
+endif
 
 all:
 	 set -e; for d in $(SUBDIRS); do $(MAKE) -C $$d ; done

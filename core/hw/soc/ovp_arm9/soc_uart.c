@@ -36,6 +36,7 @@ extern int stdio_can_read()
 /**********************************************************************/
 void soc_uart_init()
 {
+#if 0
     memspace_t *ms_uart;
     
     
@@ -63,6 +64,6 @@ void soc_uart_init()
     
     /* now enable in/out */
     usart0->cr = 0x050;        
-    
+#endif
 }
     

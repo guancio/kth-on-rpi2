@@ -59,7 +59,7 @@ void memory_init()
 	/*Setup heap pointer*/
 	core_mem_init();
 
-    uint32_t j;
+    uint32_t j, va_offset;
     
     cpu_type type;
     cpu_model model;
@@ -81,9 +81,12 @@ void memory_init()
 			pt_create_coarse (flpt_va,IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
 		else if (list->type != MLT_NONE){
 			j = (list->page_start) >> 8; /*Get L1 Page index */
+			va_offset = 0;
+			if(list->type == MLT_HYPER_RAM || list->type == MLT_TRUSTED_RAM)
+				va_offset = (uint32_t)HAL_OFFSET;
 			for(; j < ((list->page_count) >> 8); j++ ){
-				/*Creates 1:1 Mapping */
-				pt_create_section(flpt_va, (j << 20) , j << 20, list->type);
+
+				pt_create_section(flpt_va, (j << 20) - va_offset , j << 20, list->type);
 			}
 		}
 		if(list->flags & MLF_LAST) break;
@@ -135,10 +138,6 @@ void guests_init()
 #endif
 #ifdef TRUSTED
     get_guest(guest++);
-    pt_create_section(flpt_va,
-                      0xF0100000,
-                      0x00100000 + HAL_PHYS_START,
-                      MLT_TRUSTED_RAM);
     curr_vm->mode_states[HC_GM_TRUSTED].ctx.sp = curr_vm->config->rpc_handlers->sp;
     curr_vm->mode_states[HC_GM_TRUSTED].ctx.psr= ARM_INTERRUPT_MASK | ARM_MODE_USER;
 #endif
