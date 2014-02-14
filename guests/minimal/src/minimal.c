@@ -22,9 +22,15 @@ int current_task;
 
 void task1()
 {
-    int i, j;
+  int i, j, k;
+  // ok now the guest fail to read the second mapping
+     //(*((int*)(0x00100000))) = 666;
     for(i = 0; ;i++ ) {
         printf("TASK 1, round %d\n", i);
+	k = (*((int*)(0xc0100000)));
+	// correctly abort
+	//k = (*((int*)(0xc0500000)));
+        printf("VALUE 1, round %d\n", k);
         for(j = 0; j < 500000; j++) asm("nop");
 
         asm("mov r0, #1");

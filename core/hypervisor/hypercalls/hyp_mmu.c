@@ -9,6 +9,47 @@ extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
 
 
+/* val unmap_pageTable_l2_def = Define ` */
+/* unmap_pageTable_l2 (c1, c2, c3, mem, pgtype:bool[20]->bool[2], pgrefs:bool[20]->bool[30]) baseAddr = */
+/*   if ~((pgtype(w2w(baseAddr >>> 12):bool[20]) = 0b10w) /\ (baseAddr = baseAddr && 0xFFFFF000w) )  */
+/*   then  */
+/*       (c1, c2, c3, mem, pgtype, pgrefs) */
+/*   else */
+/*    (*there are references from other page tables*) */
+/*      if ((pgrefs (w2w(baseAddr >>> 12):bool[20])) > 0w) */
+/*      then */
+/*         (c1, c2, c3, mem, pgtype, pgrefs) (*Error: unchanged*) */
+/*      else  */
+/*          let pt = MAP (\n. read_mem32 ((baseAddr + n2w(n)) , mem)) (GENLIST (\n. n) 1024) in  */
+/*                 let pgrefs' = FOLDL (\inPgrefs.\ptDesc.     */
+/*          	        let l2_type = ptDesc && 0x00000003w in */
+/*                         if l2_type = 0b00w then inPgrefs */
+/*                         else if ((l2_type = 0b10w) \/ (l2_type = 0b11w)) */
+/*                              then */
+/*                              let l2_pt_desc = rec'l2SmallT ptDesc in */
+/*                              let old_pointed_ph_page = l2_pt_desc.addr in  */
+/*                              if l2_pt_desc.ap = 0b011w (* implies by the invariant that is data *) */
+/*                              then */
+/*                                let old_refs:bool[30] = inPgrefs (w2w((old_pointed_ph_page && 0xFFFFF000w)>>12):bool[20]) in */
+/*                                    (old_pointed_ph_page =+ (old_refs - 1w)) inPgrefs  */
+/* 			     else */
+/* 				 inPgrefs */
+/* 			else */
+/* 			    inPgrefs */
+/* 				     ) pgrefs pt */
+/* 	        in  */
+/*        	        let pt' = MAP (\ptDesc. (ptDesc && 0xFFFFFFFCw)) pt in */
+/*                 let mem' = FOLDL(\inMem.\indx. */
+/*                                  write_mem32((baseAddr + n2w(indx)), inMem, (EL indx pt'))  */
+/* 				) mem (GENLIST (\n. n) 1024) */
+/* 		in  */
+/*                 let pgtype' = (( (w2w ((baseAddr && 0xFFFFF000w) >> 12):bool[20])=+ 0b00w ) pgtype) in */
+/* 		              (c1, c2, c3, mem', pgtype', pgrefs') */       
+/* `; */
+
+
+
+
 /*Create a MB Section page
  *Guest can only map to its own domain and to its own physical addresses
  */

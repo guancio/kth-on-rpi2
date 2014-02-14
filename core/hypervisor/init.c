@@ -35,6 +35,8 @@ extern uint32_t l2_index_p;
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
+uint32_t page_states[3*256];
+
 
 extern memory_layout_entry * memory_padr_layout;
 
@@ -126,12 +128,78 @@ void guests_init()
     get_guest(guest++);
     linux_init();
 #else
+    /* GUANCIO CHANGES */
+    /* - The hypervisor must be always able to read/write the guest PTs */
+    /*   we constraint that for the minimal guests, the page tables */
+    /*   are between 0x01000000 and 0x012FFFFF (that are the three megabytes of the guest) */
+    /*   of memory reserved to the guest */
+    /*   these address are mapped by the virtual address  0x00000000 and 0x002FFFFF */
+    /*   TODO: this must be accessible only to the hypervisor */
+    pt_create_section(flpt_va, 0x00000000, 0x01000000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
+    pt_create_section(flpt_va, 0x00100000, 0x01100000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
+    pt_create_section(flpt_va, 0x00200000, 0x01200000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
+    
+    /* Invalidate the new created entries */
+    uint32_t offset;
+    uint32_t *pmd;
+    offset = ((0x00000000 >> MMU_L1_SECTION_SHIFT)*4);
+    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
+    offset = ((0x00100000 >> MMU_L1_SECTION_SHIFT)*4);
+    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
+    offset = ((0x00200000 >> MMU_L1_SECTION_SHIFT)*4);
+    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
+
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+    mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+
+    /* - Create a copy of the master page table for the guest in the physical address: 0x01200000 + HAL_PHYS_START*/
+    uint32_t *guest_pt_va;
+    uint32_t *guest_pt_pa;
+    uint32_t index;
+    uint32_t value;
+    guest_pt_pa = 0x01200000 + HAL_PHYS_START;
+    guest_pt_va = ((uint32_t)guest_pt_pa) - (0x01000000 + HAL_PHYS_START);
+    for (index=0; index<4096; index++) {
+      value = *(flpt_va + index);
+      *(guest_pt_va + index) = value;
+    }
+    
+    /* activate the guest page table */
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+    COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); // Set TTB0
+    isb();
+    mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+    mem_cache_set_enable(TRUE);
+
     vm_0.config = &minimal_config;
     get_guest(guest++);
-    pt_create_section(flpt_va,
-                      0xc0000000,
-                      0x01000000 + HAL_PHYS_START,
-                      MLT_USER_RAM);
+    //pt_create_section(guest_pt_pa, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
+    pt_create_section(guest_pt_va, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
+    for (index=0; index<256; index++) {
+      page_states[0*256 + index] = (0x0 << 30) || (0x1);
+    }
+    //pt_create_section(guest_pt_pa, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
+    pt_create_section(guest_pt_va, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
+    for (index=0; index<256; index++) {
+      page_states[1*256 + index] = (0x0 << 30) || (0x1);
+    }
+
+    for (index=0; index<256; index++) {
+      page_states[2*256 + index] = (0x0 << 30) || (0x0);
+    }
+    page_states[2*256 + 0] = (0x1 << 30) || (0x0);
+    page_states[2*256 + 1] = (0x1 << 30) || (0x0);
+    page_states[2*256 + 2] = (0x1 << 30) || (0x0);
+    page_states[2*256 + 3] = (0x1 << 30) || (0x0);
+
+    
+
+    /* END GUANCIO CHANGES */
+
 #endif
 #ifdef TRUSTED
     get_guest(guest++);
