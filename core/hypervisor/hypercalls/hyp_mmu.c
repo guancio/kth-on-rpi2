@@ -8,46 +8,171 @@ extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
 
+/* This is a container which keeps track of each individual page's type and reference counter
+ * main memory has been divided to 2^20 pages
+ * 20 must significant of each address is the index of page which has that address inside    */
+extern struct page_info ph_block_state[3*256];
 
-/* val unmap_pageTable_l2_def = Define ` */
-/* unmap_pageTable_l2 (c1, c2, c3, mem, pgtype:bool[20]->bool[2], pgrefs:bool[20]->bool[30]) baseAddr = */
-/*   if ~((pgtype(w2w(baseAddr >>> 12):bool[20]) = 0b10w) /\ (baseAddr = baseAddr && 0xFFFFF000w) )  */
-/*   then  */
-/*       (c1, c2, c3, mem, pgtype, pgrefs) */
-/*   else */
-/*    (*there are references from other page tables*) */
-/*      if ((pgrefs (w2w(baseAddr >>> 12):bool[20])) > 0w) */
-/*      then */
-/*         (c1, c2, c3, mem, pgtype, pgrefs) (*Error: unchanged*) */
-/*      else  */
-/*          let pt = MAP (\n. read_mem32 ((baseAddr + n2w(n)) , mem)) (GENLIST (\n. n) 1024) in  */
-/*                 let pgrefs' = FOLDL (\inPgrefs.\ptDesc.     */
-/*          	        let l2_type = ptDesc && 0x00000003w in */
-/*                         if l2_type = 0b00w then inPgrefs */
-/*                         else if ((l2_type = 0b10w) \/ (l2_type = 0b11w)) */
-/*                              then */
-/*                              let l2_pt_desc = rec'l2SmallT ptDesc in */
-/*                              let old_pointed_ph_page = l2_pt_desc.addr in  */
-/*                              if l2_pt_desc.ap = 0b011w (* implies by the invariant that is data *) */
-/*                              then */
-/*                                let old_refs:bool[30] = inPgrefs (w2w((old_pointed_ph_page && 0xFFFFF000w)>>12):bool[20]) in */
-/*                                    (old_pointed_ph_page =+ (old_refs - 1w)) inPgrefs  */
-/* 			     else */
-/* 				 inPgrefs */
-/* 			else */
-/* 			    inPgrefs */
-/* 				     ) pgrefs pt */
-/* 	        in  */
-/*        	        let pt' = MAP (\ptDesc. (ptDesc && 0xFFFFFFFCw)) pt in */
-/*                 let mem' = FOLDL(\inMem.\indx. */
-/*                                  write_mem32((baseAddr + n2w(indx)), inMem, (EL indx pt'))  */
-/* 				) mem (GENLIST (\n. n) 1024) */
-/* 		in  */
-/*                 let pgtype' = (( (w2w ((baseAddr && 0xFFFFF000w) >> 12):bool[20])=+ 0b00w ) pgtype) in */
-/* 		              (c1, c2, c3, mem', pgtype', pgrefs') */       
+
+/* val unmap_L1_pageTable_entry_def = Define ` */
+/* unmap_L1_pageTable_entry (c1, c2, c3, mem, (pgtype:bool[20]->bool[2]), (pgrefs:bool[20]->bool[30])) (va:word32) = */
+/*   let l1Base_add = mmu_tbl_base_addr c2       in */
+/*   let l1_idx = va >>> 20                 in */
+/*   let l1_desc_add = l1Base_add !! (l1_idx ≪ 2)in */
+/*   let l1_desc  = read_mem32(l1_desc_add, mem)     in */
+/*   let l1_type  = mmu_l1_decode_type(l1_desc)   in */
+/*   if(l1_type = 0b01w) */
+/*   then */
+/*       let l1_pt_desc = rec'l1PTT l1_desc                   in */
+/*       let old_pointed_pt_page = l1_pt_desc.addr            in */
+/*       let unmap_l1_desc = l1_desc && 0xfffffffcw           in */
+/*       let mem' = write_mem32(l1_desc_add, mem, unmap_l1_desc) in */
+/*       let old_refs:bool[30] = pgrefs (w2w(old_pointed_pt_page >>> 2):bool[20]) in */
+/*       let pgrefs' = ((w2w(old_pointed_pt_page >>> 2):bool[20]) =+ (old_refs - 1w)) pgrefs in */
+/*           (c1, c2, c3, mem', pgtype, pgrefs')  */
+/*   else  */
+/*       let l1_sec_desc = rec'l1SecT l1_desc in */
+/*       let old_pointed_sec_page = w2w(l1_sec_desc.addr):word20 << 8 in */
+/*       let unmap_l1_desc = l1_desc && 0xfffffffcw in */
+/*       let mem' = write_mem32(l1_desc_add, mem, unmap_l1_desc) in */
+/*       if((l1_type = 0b10w) /\ (l1_sec_desc.typ = 0b01w)) */
+/*       then */
+/*       	  let pgrefs' = */
+/* 	      (if (l1_sec_desc.ap = 0b011w) */
+/*       	      then */
+/* 		  let old_sec_refs = */
+/*       		     AYMAP (\n. (pgrefs (w2w(old_pointed_sec_page !! n):bool[20]), n)) */
+/*       		    	   (GENARRAY (\x :bool[8].(w2w (x)):bool[20])) in */
+/*       	  	          AYFOLDLI(\inPgref.\refs. */
+/*       		      	    ((w2w (old_pointed_sec_page !! (SND refs)):bool[20]) =+ ((FST refs) - 1w)) inPgref */
+/*       		    	  ) pgrefs old_sec_refs   */
+/* 	      else  */
+/* 		  pgrefs) in */
+/*       	      (c1, c2, c3, mem', pgtype, pgrefs') */
+/*       else */
+/*       	  (c1, c2, c3, mem, pgtype, pgrefs) */
 /* `; */
 
+#define DESC_TYPE_MASK 0b11
 
+#define VA_TO_L1_IDX(va) (va >> 20)
+#define L1_IDX_TO_PA(l1_base, idx) (l1_base | (idx << 2))
+#define PA_PT_ADD_VA(pa) (pa - (0x01000000 + HAL_PHYS_START))
+
+#define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
+
+#define UNMAP_L1_SECTION(l1_desc) (l1_desc && 0b00)
+#define GET_L1_AP(sec) (((sec->ap_3b) << 2) | (sec->ap_0_1bs))
+
+#define START_PA_OF_SECTION(sec) ((sec->addr) << 20)
+
+/*register l1PTT :: bits(32)
+{
+  31-10:        addr
+  8-5:          dom
+  4:            sbz
+  3:            ns
+  2:            pxn
+  1-0:          typ
+}*/
+typedef struct l1PTT_
+{
+  uint32_t typ          : 2;
+  uint32_t pxn          : 1;
+  uint32_t ns           : 1;
+  uint32_t sbz          : 1;
+  uint32_t dom          : 4;
+  uint32_t dummy        : 1;
+  uint32_t addr         : 22;
+} l1PTT;
+
+/*register l1SecT :: bits(32)
+{
+  31-20:        addr
+  19:           ns
+  18,1:         typ
+  17:           ng
+  16:           s
+  15,11-10:     ap
+  14-12:        tex
+  8-5:          dom
+  4:            xn
+  3:            c
+  2:            b
+  0:            pxn
+}*/
+typedef struct l1SecT_
+{
+  uint32_t pxn          : 1;
+  uint32_t typ          : 1;
+  uint32_t b            : 1;
+  uint32_t c            : 1;
+  uint32_t xn           : 1;
+  uint32_t dom          : 4;
+  uint32_t dummy        : 1;
+  uint32_t ap_0_1bs     : 2;
+  uint32_t tex          : 3;
+  uint32_t ap_3b        : 1;
+  uint32_t s            : 1;
+  uint32_t ng           : 1;
+  uint32_t secIndic     : 1;
+  uint32_t ns           : 1;
+  uint32_t addr         : 12;
+}l1SecT;
+
+
+uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)
+{
+        uint32_t l1_base_add;
+        uint32_t l1_idx;
+	uint32_t l1_desc_pa_add;
+	uint32_t l1_desc_va_add;
+	uint32_t l1_desc;
+	uint32_t l1_type;
+
+        /*Check that the guest does not override the virtual addresses used by the hypervisor */
+	// HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
+        if( va >= HAL_VIRT_START)
+	  return ERR_HYP_RESERVED_VA;
+
+        if( va >= INITIAL_PT_FIXED_MAP_VA && va <= END_PT_FIXED_MAP_VA)
+	  return ERR_HYP_RESERVED_VA;
+	
+
+        COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
+        l1_idx = VA_TO_L1_IDX(va);
+	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
+	l1_desc_va_add = PA_PT_ADD_VA(l1_desc_pa_add);
+        l1_desc = *((uint32_t *) l1_desc_va_add);
+	l1_type = L1_TYPE(l1_desc);
+	// We are unmapping a PT
+	if (l1_type == 1) {
+	}
+	// We are unmapping a section
+        if ((l1_type == 2) && (((l1SecT *) (&l1_desc))->secIndic == 0)) {
+	  l1SecT *l1_sec_desc = (l1SecT *) (&l1_desc);
+	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_SECTION(l1_desc);
+	  uint32_t ap = GET_L1_AP(l1_sec_desc);
+	  int secIdx;
+	  if(ap == 3)
+	    for(secIdx = 0; secIdx < 256; secIdx++)  {
+	      uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (secIdx);
+	      if (ph_block < 3*256)
+		ph_block_state[ph_block].refs -= 1;
+	    }
+	}
+	// nothing, since the entry was already unmapped
+	else {
+	  return ERR_HYP_ENTRY_UNMAPPED;
+	}
+
+	isb();
+	mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	mem_cache_set_enable(TRUE);
+
+        return 0;
+}
 
 
 /*Create a MB Section page

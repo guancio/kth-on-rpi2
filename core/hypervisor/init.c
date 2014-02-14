@@ -35,8 +35,10 @@ extern uint32_t l2_index_p;
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
-uint32_t page_states[3*256];
-
+// We allocate only the blocks required to manage from
+//0x01000000 + HAL_PHYS_START to
+//0x012FFFFF + HAL_PHYS_START
+struct page_info ph_block_state[3*256];
 
 extern memory_layout_entry * memory_padr_layout;
 
@@ -113,6 +115,20 @@ void setup_handlers()
 }
 
 
+void temporary_create_hyper_section(addr_t *l1, addr_t va, addr_t pa) 
+{
+  uint32_t index = (va >> 20);
+  uint32_t val;
+  uint32_t domain, ap;
+
+  val = pa | 0x12; // 0b1--10
+  val |= MMU_AP_SUP_RW << MMU_SECTION_AP_SHIFT;
+  val = (val & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT)  ;
+  l1[index] = val;
+  return;
+}
+
+
 void guests_init()
 {
 	uint32_t i, guest = 0;
@@ -135,9 +151,10 @@ void guests_init()
     /*   of memory reserved to the guest */
     /*   these address are mapped by the virtual address  0x00000000 and 0x002FFFFF */
     /*   TODO: this must be accessible only to the hypervisor */
-    pt_create_section(flpt_va, 0x00000000, 0x01000000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
-    pt_create_section(flpt_va, 0x00100000, 0x01100000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
-    pt_create_section(flpt_va, 0x00200000, 0x01200000 + HAL_PHYS_START, MLT_TRUSTED_RAM);
+    // this must be a loop
+    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00000000, 0x01000000 + HAL_PHYS_START);
+    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00100000, 0x01100000 + HAL_PHYS_START);
+    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00200000, 0x01200000 + HAL_PHYS_START);
     
     /* Invalidate the new created entries */
     uint32_t offset;
@@ -179,24 +196,44 @@ void guests_init()
     get_guest(guest++);
     //pt_create_section(guest_pt_pa, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
     pt_create_section(guest_pt_va, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
-    for (index=0; index<256; index++) {
-      page_states[0*256 + index] = (0x0 << 30) || (0x1);
+      for (index=0; index<256; index++) {
+      ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].refs = 1;
+      ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
     }
+
     //pt_create_section(guest_pt_pa, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
     pt_create_section(guest_pt_va, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
     for (index=0; index<256; index++) {
-      page_states[1*256 + index] = (0x0 << 30) || (0x1);
+      ph_block_state[PA_TO_PH_BLOCK(0x01100000 + HAL_PHYS_START) + index].refs = 1;
+      ph_block_state[PA_TO_PH_BLOCK(0x01100000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
     }
 
+    // map the third page, but only readable by the hypervisor
+    temporary_create_hyper_section(guest_pt_va, 0xc0200000, 0x01200000 + HAL_PHYS_START);
     for (index=0; index<256; index++) {
-      page_states[2*256 + index] = (0x0 << 30) || (0x0);
+      ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + index].refs = 0;
+      ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
     }
-    page_states[2*256 + 0] = (0x1 << 30) || (0x0);
-    page_states[2*256 + 1] = (0x1 << 30) || (0x0);
-    page_states[2*256 + 2] = (0x1 << 30) || (0x0);
-    page_states[2*256 + 3] = (0x1 << 30) || (0x0);
+    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 0].type = PAGE_INFO_TYPE_L1PT;
+    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 1].type = PAGE_INFO_TYPE_L1PT;
+    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 2].type = PAGE_INFO_TYPE_L1PT;
+    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 3].type = PAGE_INFO_TYPE_L1PT;
 
-    
+    // test the hypercall
+    //uint32_t res;
+    // I can not unmap 0, since it is reserved by the hypervisor to access the guest page tables
+    //res = hypercall_unmap_L1_pageTable_entry(0);
+    // I can not unmap 0xf0000000, since it is reserved by the hypervisor code
+    //res = hypercall_unmap_L1_pageTable_entry(0xf0000000);
+    // Unmapping 0xc0300000 has no effect, since this page is unmapped
+    //res = hypercall_unmap_L1_pageTable_entry(0xc0300000);
+    // Unmapping 0xc0200000 is ok, since it is the page containing the active page table
+    //res = hypercall_unmap_L1_pageTable_entry(0xc0200000);
+    // Unmapping 0xc0100000 is ok, but the guest will not be able to write in this part of the memory
+    //res = hypercall_unmap_L1_pageTable_entry(0xc0100000);
+    // Unmapping 0xc0000000 is ok, but this is the page where the guest code resides
+    //res = hypercall_unmap_L1_pageTable_entry(0xc0000000);
+
 
     /* END GUANCIO CHANGES */
 

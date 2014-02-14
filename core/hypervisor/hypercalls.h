@@ -84,4 +84,27 @@ void hypercall_end_rpc();
 #define HYPERCALL_END_RPC				1021
 
 
+/*NEW MEMORY MANAGEMENT*/
+#define HYPERCALL_MMU_L1_UNMAP				1022
+
+/* WARNING: TODO, this stuff must be in a configuration file */
+#define INITIAL_PT_FIXED_MAP_VA (0x00000000)
+#define END_PT_FIXED_MAP_VA     (0x002FFFFF)
+
+#define PA_TO_PH_BLOCK(pa) ((pa - (0x01000000 + HAL_PHYS_START)) >> 12)
+
+#define ERR_HYP_RESERVED_VA (1)
+#define ERR_HYP_ENTRY_UNMAPPED (2)
+
+#define PAGE_INFO_TYPE_DATA 0
+#define PAGE_INFO_TYPE_L1PT 1
+#define PAGE_INFO_TYPE_L2PT 2
+#define PAGE_INFO_TYPE_INVALID 3
+
+struct page_info {
+    unsigned int refs : 30;
+    unsigned int type : 2;
+};
+
+
 #endif /* HYPERCALLS_H_ */

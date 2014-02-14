@@ -19,6 +19,88 @@ context tasks[4];
 uint32_t stacks[1024 * 4];
 int current_task;
 
+uint32_t h_l1_unnmap(uint32_t va) {
+  uint32_t res;
+  asm("mov  r0, %[value] \n\t"
+      :
+      :[value] "r" (va)/*input*/
+      : /* No clobbers */);
+  asm("SWI #1022");
+	
+  asm("mov  %[result],r0 \n\t"
+      :[result] "=r" (res)
+      : /*input*/
+      : /* No clobbers */);
+  return res;
+}
+
+void test_l1_unnmap()
+{
+  int i, j, k;
+    for(i = 0; ;i++ ) {
+        printf("test_l1_unnmap, round %d\n", i);
+        for(j = 0; j < 500000; j++) asm("nop");
+
+	uint32_t va, res;
+	// I can not unmap 0, since it is reserved by the hypervisor to access the guest page tables
+	va = 0x0;
+	res = h_l1_unnmap(va);
+	if (res == 1)
+	  printf("test 0: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 0: FAIL, add %x, res %d\n", va, res);
+
+	// I can not unmap 0xf0000000, since it is reserved by the hypervisor code
+	va = 0xf0000000;
+	res = h_l1_unnmap(va);
+	if (res == 1)
+	  printf("test 1: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 1: FAIL, add %x, res %d\n", va, res);
+
+	// Unmapping 0xc0300000 has no effect, since this page is unmapped
+	va = 0xc0300000;
+	res = h_l1_unnmap(va);
+	if (res == 2)
+	  printf("test 2: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 2: FAIL, add %x, res %d\n", va, res);
+
+	// Unmapping 0xc0200000 is ok, since it is the page containing the active page table
+	va = 0xc0200000;
+	res = h_l1_unnmap(va);
+	if (res == 0)
+	  printf("test 3: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 3: FAIL, add %x, res %d\n", va, res);
+
+	// Unmapping 0xc0100000 is ok, but the guest will not be able to write in this part of the memory
+	// Additional test: the access must work initially
+	// k = (*((int*)(0xc0100000)));
+	// printf("test 4: PRE OK, I'm still accessing the page\n");
+	va = 0xc0100000;
+	res = h_l1_unnmap(va);
+	if (res == 0)
+	  printf("test 4: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 4: FAIL, add %x, res %d\n", va, res);
+	// Additional test: the access must fails
+	// k = (*((int*)(0xc0100000)));
+	// printf("test 4: FAIL, I'm still accessing the page\n");
+
+	// Unmapping 0xc0000000 is ok, but this is the page where the guest code resides
+	printf("test 5: THIS WILL BRAKE THE GUEST\n");
+	va = 0xc0000000;
+	res = h_l1_unnmap(va);
+	if (res == 0)
+	  printf("test 5: SUCCESS, add %x, res %d\n", va, res);
+	else
+	  printf("test 5: FAIL, add %x, res %d\n", va, res);
+
+        printf("test_l1_unnmap, continued...\n");
+        for(j = 0; j < 500000; j++) asm("nop");
+    }
+}
 
 void task1()
 {
@@ -42,6 +124,9 @@ void task1()
 
     }
 }
+
+
+
 
 void task2()
 {
@@ -161,7 +246,7 @@ void _main()
     asm("mov R3, #13");
 #endif
     //Start task1 to begin with, scheduler take care of rest
-    task1();
+    test_l1_unnmap();
     //Will never reach here
     for(;;)
         ;

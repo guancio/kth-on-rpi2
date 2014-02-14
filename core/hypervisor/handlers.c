@@ -73,6 +73,8 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 	}
 	else if(curr_vm->current_guest_mode != HC_GM_TASK){
 	//    printf("\tHypercallnumber: %d (%x, %x) called\n", hypercall_number, param0, param);
+	  uint32_t res;
+	  
 		switch(hypercall_number){
 			/*	case HYPERCALL_REGISTER_HANDLER:
 				hypercall_register_handler(param0);
@@ -134,6 +136,12 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_END_RPC:
 				hypercall_end_rpc();
 				return;
+			/****************************/
+			/*NEW MEMORY MANAGEMENT*/
+		        case HYPERCALL_MMU_L1_UNMAP:
+			  res = hypercall_unmap_L1_pageTable_entry (param0);
+			  curr_vm->current_mode_state->ctx.reg[0] = res;
+			  return;
 			default:
 				hypercall_num_error(hypercall_number);
 		}
