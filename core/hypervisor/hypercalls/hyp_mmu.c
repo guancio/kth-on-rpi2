@@ -61,10 +61,11 @@ extern struct page_info ph_block_state[3*256];
 
 #define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
 
-#define UNMAP_L1_SECTION(l1_desc) (l1_desc && 0b00)
+#define UNMAP_L1_ENTRY(l1_desc) (l1_desc && 0b00)
 #define GET_L1_AP(sec) (((sec->ap_3b) << 2) | (sec->ap_0_1bs))
 
 #define START_PA_OF_SECTION(sec) ((sec->addr) << 20)
+#define PA_OF_POINTED_PT(pt) ((pt->addr) << 10)
 
 /*register l1PTT :: bits(32)
 {
@@ -147,11 +148,15 @@ uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)
 	l1_type = L1_TYPE(l1_desc);
 	// We are unmapping a PT
 	if (l1_type == 1) {
+	  l1PTT *l1_pt_desc = (l1PTT *) (&l1_desc);
+	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
+	  uint32_t ph_block = PA_TO_PH_BLOCK(PA_OF_POINTED_PT(l1_pt_desc));
+	  ph_block_state[ph_block].refs -= 1;
 	}
 	// We are unmapping a section
         if ((l1_type == 2) && (((l1SecT *) (&l1_desc))->secIndic == 0)) {
 	  l1SecT *l1_sec_desc = (l1SecT *) (&l1_desc);
-	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_SECTION(l1_desc);
+	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 	  uint32_t ap = GET_L1_AP(l1_sec_desc);
 	  int secIdx;
 	  if(ap == 3)
