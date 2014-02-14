@@ -142,6 +142,11 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			  res = hypercall_unmap_L1_pageTable_entry (param0);
 			  curr_vm->current_mode_state->ctx.reg[0] = res;
 			  return;
+		        case HYPERCALL_MMU_L1_SEC_MAP:
+			  res = hypercall_map_l1_section(param0, param1, param2);
+			  curr_vm->current_mode_state->ctx.reg[0] = res;
+			  return;
+ 	
 			default:
 				hypercall_num_error(hypercall_number);
 		}

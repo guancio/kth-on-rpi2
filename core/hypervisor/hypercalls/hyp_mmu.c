@@ -54,6 +54,11 @@ extern struct page_info ph_block_state[3*256];
 /* `; */
 
 #define DESC_TYPE_MASK 0b11
+#define UNMAPPED_ENTRY 0
+
+
+#define L1_SEC_DESC_MASK 0xFFF00000
+#define L1_SEC_DESC_ATTR_MASK 0x000BFFFC
 
 #define VA_TO_L1_IDX(va) (va >> 20)
 #define L1_IDX_TO_PA(l1_base, idx) (l1_base | (idx << 2))
@@ -62,10 +67,15 @@ extern struct page_info ph_block_state[3*256];
 #define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
 
 #define UNMAP_L1_ENTRY(l1_desc) (l1_desc && 0b00)
+#define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) || (L1_SEC_DESC_ATTR_MASK & y) || (0b10)
 #define GET_L1_AP(sec) (((sec->ap_3b) << 2) | (sec->ap_0_1bs))
+
 
 #define START_PA_OF_SECTION(sec) ((sec->addr) << 20)
 #define PA_OF_POINTED_PT(pt) ((pt->addr) << 10)
+
+
+#define MAX_30BIT 0x3fffffff
 
 /*register l1PTT :: bits(32)
 {
@@ -158,10 +168,11 @@ uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)
 	  l1SecT *l1_sec_desc = (l1SecT *) (&l1_desc);
 	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 	  uint32_t ap = GET_L1_AP(l1_sec_desc);
-	  int secIdx;
+	  int sec_idx;
 	  if(ap == 3)
-	    for(secIdx = 0; secIdx < 256; secIdx++)  {
-	      uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (secIdx);
+	    for(sec_idx = 0; sec_idx < 256; sec_idx++)  {
+	      // TODO: fix also for negative numbers
+	      uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
 	      if (ph_block < 3*256)
 		ph_block_state[ph_block].refs -= 1;
 	    }
@@ -180,6 +191,80 @@ uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)
 }
 
 
+uint32_t hypercall_map_l1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
+{
+       uint32_t l1_base_add;
+       uint32_t l1_idx;
+       uint32_t l1_desc;
+       uint32_t l1_desc_va_add;
+       uint32_t l1_desc_pa_add;
+       uint32_t ap;
+    
+      /*Check that the guest does not override the virtual addresses used by the hypervisor */
+      // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
+      if( va >= HAL_VIRT_START)
+         return ERR_HYP_RESERVED_VA;
+
+      if( va >= INITIAL_PT_FIXED_MAP_VA && va <= END_PT_FIXED_MAP_VA)
+         return ERR_HYP_RESERVED_VA;
+      /*Check that the guest does not override the physical addresses outside its range*/
+
+      uint32_t guest_start_pa = curr_vm->guest_info.phys_offset;
+      uint32_t guest_size = curr_vm->guest_info.guest_size;
+      printf("gadds %x %x\n", guest_start_pa, guest_size);
+      if(!(sec_base_add >= (guest_start_pa) && sec_base_add < (guest_start_pa + guest_size )))
+          return ERR_HYP_OUT_OF_RANGE_PA;             
+
+      COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
+      l1_idx = VA_TO_L1_IDX(va);
+      l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
+      l1_desc_va_add = PA_PT_ADD_VA(l1_desc_pa_add);
+      l1_desc = *((uint32_t *) l1_desc_va_add);
+      if(L1_TYPE(l1_desc) != UNMAPPED_ENTRY)
+          return ERR_HYP_SECTION_NOT_UNMAPPED;
+
+      // Access permission from the give attribute
+      l1_desc = CREATE_L1_SEC_DESC(sec_base_add, attrs);
+      l1SecT *l1_sec_desc = (l1SecT *) (&l1_desc);
+      ap = GET_L1_AP(l1_sec_desc); 
+
+      if((ap != 2) && (ap != 3))
+           return ERR_HYP_AP_UNSUPPORTED;
+      if(ap == 2)
+      {
+        // Updating memory with the new descriptor
+         *((uint32_t *) l1_desc_va_add) = l1_sec_desc;
+      }
+      else if(ap == 3)
+       {
+        int sec_idx;
+       BOOL sanity_check = TRUE;
+        for(sec_idx = 0; sec_idx < 256; sec_idx++)
+        {
+          // TODO: fix also for negative numbers
+	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
+          if (ph_block < 3*256)
+	  {
+          if((ph_block_state[ph_block].refs == MAX_30BIT) || (ph_block_state[ph_block].type != PAGE_INFO_TYPE_DATA))
+           {
+             sanity_check = FALSE;
+           }
+	  }
+	  else {
+	     sanity_check = FALSE;
+	  }
+        }
+       if(!sanity_check)
+          return ERR_HYP_PH_BLOCK_NOT_WRITABLE;
+       for(sec_idx = 0; sec_idx < 256; sec_idx++)
+        {
+   	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
+          ph_block_state[ph_block].refs += 1;
+        }
+	*((uint32_t *) l1_desc_va_add) = l1_sec_desc;
+       }
+       return 0;     	
+}
 /*Create a MB Section page
  *Guest can only map to its own domain and to its own physical addresses
  */
