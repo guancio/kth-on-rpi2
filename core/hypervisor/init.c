@@ -201,11 +201,23 @@ void guests_init()
     // This must be changed to use the MMU_APIs
     // This also works, but it is an error due to the guest 1-1 mapping
     //pt_create_section(guest_pt_pa, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
+    /*
     pt_create_section(guest_pt_va, 0xc0000000, HAL_PHYS_START + 0x01000000, MLT_USER_RAM);
     for (index=0; index<256; index++) {
       bft[PA_TO_PH_BLOCK(HAL_PHYS_START + 0x01000000) + index].refcnt = 1;
       bft[PA_TO_PH_BLOCK(HAL_PHYS_START + 0x01000000) + index].type = PAGE_INFO_TYPE_DATA;
     }
+    */
+    // create the attribute that allow the guest to read/write/execute
+    uint32_t attrs;
+    attrs = 0x12; // 0b1--10
+    attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+    attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+    dmmu_map_L1_section(0xc0000000, HAL_PHYS_START + 0x01000000, attrs);
+
+    mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+    mem_cache_set_enable(TRUE);
 
     /* END GUANCIO CHANGES */
 

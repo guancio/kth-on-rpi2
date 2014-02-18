@@ -13,8 +13,6 @@ extern uint32_t *slpt_va;
  * main memory has been divided to 2^20 pages
  * 20 must significant of each address is the index of page which has that address inside    */
 
-#define MAX_30BIT 0x3fffffff
-
 #if 0
 
 uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)

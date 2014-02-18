@@ -38,7 +38,7 @@ typedef __PACKED struct l1_pt
   uint32_t addr         : 22;
 } l1_pt_t;
 
-typedef __PACKED struct l1_sec
+typedef struct l1_sec
 {
   uint32_t pxn          : 1;
   uint32_t typ          : 1;
@@ -74,13 +74,14 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 #define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
 
 #define UNMAP_L1_ENTRY(l1_desc) (l1_desc && 0b00)
-#define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) || (L1_SEC_DESC_ATTR_MASK & y) || (0b10)
-#define GET_L1_AP(sec) (((sec->ap_3b) << 2) | (sec->ap_0_1bs))
+#define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) | (L1_SEC_DESC_ATTR_MASK & y) | (0b10)
+#define GET_L1_AP(sec) ((((uint32_t) sec->ap_3b) << 2) | ((uint32_t) sec->ap_0_1bs))
 
-#define START_PA_OF_SECTION(sec) ((sec->addr) << 20)
-#define PA_OF_POINTED_PT(pt) ((pt->addr) << 10)
+#define START_PA_OF_SECTION(sec) (((uint32_t)sec->addr) << 20)
+#define PA_OF_POINTED_PT(pt) (((uint32_t)pt->addr) << 10)
 
 #define SECTION_SIZE (0x00100000)
+#define MAX_30BIT 0x3fffffff
 
 #define PA_TO_PH_BLOCK(pa) (pa >> 12)
 
