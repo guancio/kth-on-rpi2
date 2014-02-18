@@ -62,7 +62,6 @@ typedef __PACKED struct l1_sec
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
 int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 
-
 #define DESC_TYPE_MASK 0b11
 #define UNMAPPED_ENTRY 0
 
@@ -82,4 +81,4 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 #define PA_OF_POINTED_PT(pt) ((pt->addr) << 10)
 
 
-#endif
+#endif /* _DMMU_H_ */

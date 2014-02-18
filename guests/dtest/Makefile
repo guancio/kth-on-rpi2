@@ -1,8 +1,8 @@
 TARGET=dtest
 SRC_DIRS += src 
 
-DEPENDS = ../../library/uc ../../library/guest
-LIB_FILES=guest uc
+DEPENDS = ../../library/uc ../../drivers ../../library/guest
+LIB_FILES=guest uc drivers
 
 LDSCRIPT = ../../library/guest/default.ld
 
