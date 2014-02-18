@@ -3,6 +3,8 @@
 #include "guest_blob.h"
 #include "mmu.h"
 #include "hw_core_mem.h"
+#include "dmmu.h"
+
 
 
 /*
@@ -149,61 +151,71 @@ void guests_init()
 #else
     vm_0.config = &minimal_config;
     get_guest(guest++);
-#if 0
+
     /* GUANCIO CHANGES */
     /* - The hypervisor must be always able to read/write the guest PTs */
     /*   we constraint that for the minimal guests, the page tables */
-    /*   are between 0x01000000 and 0x012FFFFF (that are the three megabytes of the guest) */
+    /*   are between physical addresses 0x01000000 and 0x012FFFFF (that are the three megabytes of the guest) */
     /*   of memory reserved to the guest */
     /*   these address are mapped by the virtual address  0x00000000 and 0x002FFFFF */
     /*   TODO: this must be accessible only to the hypervisor */
     // this must be a loop
-    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00000000, 0x01000000 + HAL_PHYS_START);
-    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00100000, 0x01100000 + HAL_PHYS_START);
-    temporary_create_hyper_section(flpt_va, INITIAL_PT_FIXED_MAP_VA + 0x00200000, 0x01200000 + HAL_PHYS_START);
-    
-    /* Invalidate the new created entries */
-    uint32_t offset;
-    uint32_t *pmd;
-    offset = ((0x00000000 >> MMU_L1_SECTION_SHIFT)*4);
-    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
-    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
-    offset = ((0x00100000 >> MMU_L1_SECTION_SHIFT)*4);
-    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
-    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
-    offset = ((0x00200000 >> MMU_L1_SECTION_SHIFT)*4);
-    pmd = (uint32_t *)((uint32_t)flpt_va + offset);
-    COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
+    uint32_t va_offset;
+    for (va_offset = 0;
+	 va_offset <= vm_0.config->reserved_va_for_pt_access_end - vm_0.config->reserved_va_for_pt_access_start;
+	 va_offset += SECTION_SIZE) {
+      uint32_t offset;
+      uint32_t *pmd;
+      uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
+      pt_create_section(flpt_va,  va,
+			vm_0.config->pa_for_pt_access_start + va_offset,
+			MLT_HYPER_RAM);
+
+      /* Invalidate the new created entries */
+      offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
+      pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+      COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
+    }
 
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 
-    /* - Create a copy of the master page table for the guest in the physical address: 0x01200000 + HAL_PHYS_START*/
-    uint32_t *guest_pt_va;
-    uint32_t *guest_pt_pa;
+    // now the master page table is ready
+    // it contains
+    // - the virtual mapping to the hypervisor code and data
+    // - a fixed virtual mapping to the guest PT
+    // - some reserved mapping that for now we ignore, e.g. IO‌REGS
+    // - a 1-1 mapping to the guest memory (as defined in the board_mem.c) writable and readable by the user
+    // - THIS‌SETUP‌MUST‌BE‌FIXED, SINCE‌THE‌GUEST‌IS‌NOT‌ALLOWED‌TO‌WRITE‌INTO‌IT ‌WHOLE‌ MEMORY
+
+    /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
     uint32_t index;
     uint32_t value;
-    guest_pt_pa = 0x01200000 + HAL_PHYS_START;
-    guest_pt_va = ((uint32_t)guest_pt_pa) - (0x01000000 + HAL_PHYS_START);
+    uint32_t *guest_pt_va;
+    guest_pt_va = mmu_guest_pa_to_va(vm_0.config->pa_initial_l1, &(vm_0.config));
     for (index=0; index<4096; index++) {
       value = *(flpt_va + index);
       *(guest_pt_va + index) = value;
     }
-    
+  
     /* activate the guest page table */
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-    COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); // Set TTB0
+    COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, vm_0.config->pa_initial_l1); // Set TTB0
     isb();
     mem_mmu_tlb_invalidate_all(TRUE, TRUE);
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
+    // This also works, but it is an error due to the guest 1-1 mapping
     //pt_create_section(guest_pt_pa, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
-    pt_create_section(guest_pt_va, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
-      for (index=0; index<256; index++) {
+    pt_create_section(guest_pt_va, 0xc0000000, HAL_PHYS_START + 0x01000000, MLT_USER_RAM);
+#if 0
+    for (index=0; index<256; index++) {
       ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].refs = 1;
       ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
     }
+    
+
 
     //pt_create_section(guest_pt_pa, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
     pt_create_section(guest_pt_va, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
@@ -222,27 +234,7 @@ void guests_init()
     ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 1].type = PAGE_INFO_TYPE_L1PT;
     ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 2].type = PAGE_INFO_TYPE_L1PT;
     ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 3].type = PAGE_INFO_TYPE_L1PT;
-#else
-	pt_create_section(flpt_va,
-                      0xc0000000,
-                      0x01000000 + HAL_PHYS_START,
-                      MLT_USER_RAM);
 #endif
-    // test the hypercall
-    //uint32_t res;
-    // I can not unmap 0, since it is reserved by the hypervisor to access the guest page tables
-    //res = hypercall_unmap_L1_pageTable_entry(0);
-    // I can not unmap 0xf0000000, since it is reserved by the hypervisor code
-    //res = hypercall_unmap_L1_pageTable_entry(0xf0000000);
-    // Unmapping 0xc0300000 has no effect, since this page is unmapped
-    //res = hypercall_unmap_L1_pageTable_entry(0xc0300000);
-    // Unmapping 0xc0200000 is ok, since it is the page containing the active page table
-    //res = hypercall_unmap_L1_pageTable_entry(0xc0200000);
-    // Unmapping 0xc0100000 is ok, but the guest will not be able to write in this part of the memory
-    //res = hypercall_unmap_L1_pageTable_entry(0xc0100000);
-    // Unmapping 0xc0000000 is ok, but this is the page where the guest code resides
-    //res = hypercall_unmap_L1_pageTable_entry(0xc0000000);
-
 
     /* END GUANCIO CHANGES */
 

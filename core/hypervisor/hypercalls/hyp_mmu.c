@@ -13,8 +13,6 @@ extern uint32_t *slpt_va;
  * main memory has been divided to 2^20 pages
  * 20 must significant of each address is the index of page which has that address inside    */
 
-#define PA_PT_ADD_VA(pa) (pa - (0x01000000 + HAL_PHYS_START))
-
 #define MAX_30BIT 0x3fffffff
 
 #if 0
