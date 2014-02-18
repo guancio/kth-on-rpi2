@@ -8,7 +8,7 @@
 #include <utillib.h>
 #include "hyper_config.h"
 
-#include "soc_defs.h" //Maybe put IO_VA_ADDRESS() macro somewhere else?
+//#include "soc_defs.h" //Maybe put IO_VA_ADDRESS() macro somewhere else?
 
 #define GET_VIRT_ARRAY(phy)  ((uint32_t *) GET_VIRT(phy))
 
@@ -88,7 +88,13 @@ BOOL pt_create_section( addr_t *l1, addr_t va, addr_t pa, uint32_t mem_type)
 //            printf("CREATED section for TRUSTED%d, val = %x\n", index, val);
             return TRUE;
         }
-
+        if(mem_type == MLT_HYPER_RAM){
+            val = (val & (~0x10)) | 0xC | (HC_DOM_DEFAULT << MMU_L1_DOMAIN_SHIFT);
+            l1[index] = val;
+//          printf("CREATED section for HYPER%d, val = %x\n", index, val);
+            return TRUE;
+        }
+    
     }
     printf("Could not allocate section, index=%d va adr=%x pa adr=%x type=%d\n", index, va,pa, type);
     return FALSE;

@@ -5,7 +5,7 @@ extern virtual_machine *curr_vm;
 
 void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hypercall_number)
 {
-
+    
 	/*TODO Added check that controls if it comes from user space, makes it pretty inefficient, remake later*/
 	/*Testing RPC from user space, remove later*/
 	if(curr_vm->current_guest_mode == HC_GM_TASK){
@@ -72,14 +72,14 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 		}
 	}
 	else if(curr_vm->current_guest_mode != HC_GM_TASK){
-	//    printf("\tHypercallnumber: %d (%x, %x) called\n", hypercall_number, param0, param);
+	  //    printf("\tHypercallnumber: %d (%x, %x) called\n", hypercall_number, param0, param);
 	  uint32_t res;
-	  
-		switch(hypercall_number){
-			/*	case HYPERCALL_REGISTER_HANDLER:
-				hypercall_register_handler(param0);
+	  switch(hypercall_number){				 
+	    /* TEMP: DMMU TEST */
+  	        case 666:
+		        res = dmmu_handler(param0, param1, param2);
+		        curr_vm->current_mode_state->ctx.reg[0] = res;
 				return;
-				*/
 			case HYPERCALL_GUEST_INIT:
 				hypercall_guest_init(param0);
 				return;
@@ -92,7 +92,6 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_CACHE_OP:
 				hypercall_cache_op(param0, param1, param2);
 				return;
-
 			case HYPERCALL_SET_TLS_ID:
 				hypercall_set_tls(param0);
 				return;
@@ -136,17 +135,6 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_END_RPC:
 				hypercall_end_rpc();
 				return;
-			/****************************/
-			/*NEW MEMORY MANAGEMENT*/
-		        case HYPERCALL_MMU_L1_UNMAP:
-			  res = hypercall_unmap_L1_pageTable_entry (param0);
-			  curr_vm->current_mode_state->ctx.reg[0] = res;
-			  return;
-		        case HYPERCALL_MMU_L1_SEC_MAP:
-			  res = hypercall_map_l1_section(param0, param1, param2);
-			  curr_vm->current_mode_state->ctx.reg[0] = res;
-			  return;
- 	
 			default:
 				hypercall_num_error(hypercall_number);
 		}

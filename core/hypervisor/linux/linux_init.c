@@ -1,6 +1,7 @@
 #include "linux_signal.h"
 #include "hyper_config.h"
 #include "hyper.h"
+#include "mmu.h"
 
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;

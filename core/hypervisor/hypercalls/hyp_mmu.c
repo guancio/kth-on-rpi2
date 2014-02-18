@@ -1,4 +1,5 @@
 #include "hw.h"
+#include "mmu.h"
 #include "hyper.h"
 #include "hyp_cache.h"
 
@@ -11,126 +12,12 @@ extern uint32_t *slpt_va;
 /* This is a container which keeps track of each individual page's type and reference counter
  * main memory has been divided to 2^20 pages
  * 20 must significant of each address is the index of page which has that address inside    */
-extern struct page_info ph_block_state[3*256];
 
-
-/* val unmap_L1_pageTable_entry_def = Define ` */
-/* unmap_L1_pageTable_entry (c1, c2, c3, mem, (pgtype:bool[20]->bool[2]), (pgrefs:bool[20]->bool[30])) (va:word32) = */
-/*   let l1Base_add = mmu_tbl_base_addr c2       in */
-/*   let l1_idx = va >>> 20                 in */
-/*   let l1_desc_add = l1Base_add !! (l1_idx ≪ 2)in */
-/*   let l1_desc  = read_mem32(l1_desc_add, mem)     in */
-/*   let l1_type  = mmu_l1_decode_type(l1_desc)   in */
-/*   if(l1_type = 0b01w) */
-/*   then */
-/*       let l1_pt_desc = rec'l1PTT l1_desc                   in */
-/*       let old_pointed_pt_page = l1_pt_desc.addr            in */
-/*       let unmap_l1_desc = l1_desc && 0xfffffffcw           in */
-/*       let mem' = write_mem32(l1_desc_add, mem, unmap_l1_desc) in */
-/*       let old_refs:bool[30] = pgrefs (w2w(old_pointed_pt_page >>> 2):bool[20]) in */
-/*       let pgrefs' = ((w2w(old_pointed_pt_page >>> 2):bool[20]) =+ (old_refs - 1w)) pgrefs in */
-/*           (c1, c2, c3, mem', pgtype, pgrefs')  */
-/*   else  */
-/*       let l1_sec_desc = rec'l1SecT l1_desc in */
-/*       let old_pointed_sec_page = w2w(l1_sec_desc.addr):word20 << 8 in */
-/*       let unmap_l1_desc = l1_desc && 0xfffffffcw in */
-/*       let mem' = write_mem32(l1_desc_add, mem, unmap_l1_desc) in */
-/*       if((l1_type = 0b10w) /\ (l1_sec_desc.typ = 0b01w)) */
-/*       then */
-/*       	  let pgrefs' = */
-/* 	      (if (l1_sec_desc.ap = 0b011w) */
-/*       	      then */
-/* 		  let old_sec_refs = */
-/*       		     AYMAP (\n. (pgrefs (w2w(old_pointed_sec_page !! n):bool[20]), n)) */
-/*       		    	   (GENARRAY (\x :bool[8].(w2w (x)):bool[20])) in */
-/*       	  	          AYFOLDLI(\inPgref.\refs. */
-/*       		      	    ((w2w (old_pointed_sec_page !! (SND refs)):bool[20]) =+ ((FST refs) - 1w)) inPgref */
-/*       		    	  ) pgrefs old_sec_refs   */
-/* 	      else  */
-/* 		  pgrefs) in */
-/*       	      (c1, c2, c3, mem', pgtype, pgrefs') */
-/*       else */
-/*       	  (c1, c2, c3, mem, pgtype, pgrefs) */
-/* `; */
-
-#define DESC_TYPE_MASK 0b11
-#define UNMAPPED_ENTRY 0
-
-
-#define L1_SEC_DESC_MASK 0xFFF00000
-#define L1_SEC_DESC_ATTR_MASK 0x000BFFFC
-
-#define VA_TO_L1_IDX(va) (va >> 20)
-#define L1_IDX_TO_PA(l1_base, idx) (l1_base | (idx << 2))
 #define PA_PT_ADD_VA(pa) (pa - (0x01000000 + HAL_PHYS_START))
-
-#define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
-
-#define UNMAP_L1_ENTRY(l1_desc) (l1_desc && 0b00)
-#define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) || (L1_SEC_DESC_ATTR_MASK & y) || (0b10)
-#define GET_L1_AP(sec) (((sec->ap_3b) << 2) | (sec->ap_0_1bs))
-
-
-#define START_PA_OF_SECTION(sec) ((sec->addr) << 20)
-#define PA_OF_POINTED_PT(pt) ((pt->addr) << 10)
-
 
 #define MAX_30BIT 0x3fffffff
 
-/*register l1PTT :: bits(32)
-{
-  31-10:        addr
-  8-5:          dom
-  4:            sbz
-  3:            ns
-  2:            pxn
-  1-0:          typ
-}*/
-typedef struct l1PTT_
-{
-  uint32_t typ          : 2;
-  uint32_t pxn          : 1;
-  uint32_t ns           : 1;
-  uint32_t sbz          : 1;
-  uint32_t dom          : 4;
-  uint32_t dummy        : 1;
-  uint32_t addr         : 22;
-} l1PTT;
-
-/*register l1SecT :: bits(32)
-{
-  31-20:        addr
-  19:           ns
-  18,1:         typ
-  17:           ng
-  16:           s
-  15,11-10:     ap
-  14-12:        tex
-  8-5:          dom
-  4:            xn
-  3:            c
-  2:            b
-  0:            pxn
-}*/
-typedef struct l1SecT_
-{
-  uint32_t pxn          : 1;
-  uint32_t typ          : 1;
-  uint32_t b            : 1;
-  uint32_t c            : 1;
-  uint32_t xn           : 1;
-  uint32_t dom          : 4;
-  uint32_t dummy        : 1;
-  uint32_t ap_0_1bs     : 2;
-  uint32_t tex          : 3;
-  uint32_t ap_3b        : 1;
-  uint32_t s            : 1;
-  uint32_t ng           : 1;
-  uint32_t secIndic     : 1;
-  uint32_t ns           : 1;
-  uint32_t addr         : 12;
-}l1SecT;
-
+#if 0
 
 uint32_t hypercall_unmap_L1_pageTable_entry (addr_t  va)
 {
@@ -265,6 +152,9 @@ uint32_t hypercall_map_l1_section(addr_t va, addr_t sec_base_add, uint32_t attrs
        }
        return 0;     	
 }
+
+#endif
+
 /*Create a MB Section page
  *Guest can only map to its own domain and to its own physical addresses
  */

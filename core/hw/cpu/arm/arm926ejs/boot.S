@@ -74,8 +74,8 @@ impl_reset:
     
     /* setup real stacks now, run core init and reclaim the initial stacks */
     bl arm_setup_initial_stack
-    bl core_init
-    bl arm_reclaim_initial_pt 
+    #bl core_init
+    #bl arm_reclaim_initial_pt
 
     bl cpu_init
     bl soc_init

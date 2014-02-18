@@ -32,6 +32,9 @@ void hypercall_end_rpc();
 // ASM macros
 **************/
 
+#define STR(x) #x
+#define HYPERCALL_NUM(n) "#"STR(n)
+
 #define ISSUE_HYPERCALL(num) \
 	asm volatile ( \
 		"SWI " HYPERCALL_NUM((num)) "         \n\t" \
@@ -52,7 +55,12 @@ void hypercall_end_rpc();
 
 /*
  * Hypercalls
+ *
+ * *** important NOTE ***
+ * If you change anything here, make sure the corresponding lines
+ * in library/guest/include/hypercalls.h is also modified
  */
+  
 
 #define HYPERCALL_GUEST_INIT			1000
 
@@ -94,12 +102,6 @@ void hypercall_end_rpc();
 
 #define PA_TO_PH_BLOCK(pa) ((pa - (0x01000000 + HAL_PHYS_START)) >> 12)
 
-#define ERR_HYP_RESERVED_VA (1)
-#define ERR_HYP_ENTRY_UNMAPPED (2)
-#define ERR_HYP_OUT_OF_RANGE_PA (3)
-#define ERR_HYP_SECTION_NOT_UNMAPPED (4)
-#define ERR_HYP_PH_BLOCK_NOT_WRITABLE (5)
-#define ERR_HYP_AP_UNSUPPORTED (6)
 
 #define PAGE_INFO_TYPE_DATA 0
 #define PAGE_INFO_TYPE_L1PT 1

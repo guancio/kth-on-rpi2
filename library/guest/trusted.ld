@@ -2,14 +2,14 @@ __page_size__ = 0x1000; /*4KB page size*/
 
 MEMORY
 {
-    RAM : org = 0xf0100000, l = 127M
+    RAM : org = 0xf0500000, l = 127M
 }
 
 ENTRY(_start)
 
 SECTIONS
 {
-    . = 0xf0100000;
+    . = 0xf0500000;
 
 	.startup : {
 		__startup_start__ = .;
@@ -38,7 +38,7 @@ SECTIONS
 
     /* heap: up to 104K */    
     __trusted_heap_start__ = .;    
-    . = 0xf0200000 - 1024 * (64 + 32 + 8);
+    . = 0xf0600000 - 1024 * (64 + 32 + 8);
     __trusted_heap_end__ = .;
     
     /* stack */
