@@ -37,11 +37,6 @@ extern uint32_t l2_index_p;
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
-// We allocate only the blocks required to manage from
-//0x01000000 + HAL_PHYS_START to
-//0x012FFFFF + HAL_PHYS_START
-struct page_info ph_block_state[3*256];
-
 extern memory_layout_entry * memory_padr_layout;
 
 
@@ -120,20 +115,6 @@ void setup_handlers()
 }
 
 
-void temporary_create_hyper_section(addr_t *l1, addr_t va, addr_t pa) 
-{
-  uint32_t index = (va >> 20);
-  uint32_t val;
-  uint32_t domain, ap;
-
-  val = pa | 0x12; // 0b1--10
-  val |= MMU_AP_SUP_RW << MMU_SECTION_AP_SHIFT;
-  val = (val & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT)  ;
-  l1[index] = val;
-  return;
-}
-
-
 void guests_init()
 {
 	uint32_t i, guest = 0;
@@ -206,35 +187,25 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
+    // Initialize the datastructures with the tyoe for the initial L1
+    // This shoud be done by MMU_CREATE_L1
+    dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
+
+    bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 0].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 1].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 2].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 3].type = PAGE_INFO_TYPE_L1PT;
+
+
+    // Map one section for the guest
+    // This must be changed to use the MMU_APIs
     // This also works, but it is an error due to the guest 1-1 mapping
     //pt_create_section(guest_pt_pa, 0xc0000000, 0x01000000 + HAL_PHYS_START, MLT_USER_RAM);
     pt_create_section(guest_pt_va, 0xc0000000, HAL_PHYS_START + 0x01000000, MLT_USER_RAM);
-#if 0
     for (index=0; index<256; index++) {
-      ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].refs = 1;
-      ph_block_state[PA_TO_PH_BLOCK(0x01000000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
+      bft[PA_TO_PH_BLOCK(HAL_PHYS_START + 0x01000000) + index].refcnt = 1;
+      bft[PA_TO_PH_BLOCK(HAL_PHYS_START + 0x01000000) + index].type = PAGE_INFO_TYPE_DATA;
     }
-    
-
-
-    //pt_create_section(guest_pt_pa, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
-    pt_create_section(guest_pt_va, 0xc0100000, 0x01100000 + HAL_PHYS_START, MLT_USER_RAM);
-    for (index=0; index<256; index++) {
-      ph_block_state[PA_TO_PH_BLOCK(0x01100000 + HAL_PHYS_START) + index].refs = 1;
-      ph_block_state[PA_TO_PH_BLOCK(0x01100000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
-    }
-
-    // map the third page, but only readable by the hypervisor
-    temporary_create_hyper_section(guest_pt_va, 0xc0200000, 0x01200000 + HAL_PHYS_START);
-    for (index=0; index<256; index++) {
-      ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + index].refs = 0;
-      ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + index].type = PAGE_INFO_TYPE_DATA;
-    }
-    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 0].type = PAGE_INFO_TYPE_L1PT;
-    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 1].type = PAGE_INFO_TYPE_L1PT;
-    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 2].type = PAGE_INFO_TYPE_L1PT;
-    ph_block_state[PA_TO_PH_BLOCK(0x01200000 + HAL_PHYS_START) + 3].type = PAGE_INFO_TYPE_L1PT;
-#endif
 
     /* END GUANCIO CHANGES */
 
