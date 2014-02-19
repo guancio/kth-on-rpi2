@@ -38,7 +38,7 @@ typedef __PACKED struct l1_pt
   uint32_t addr         : 22;
 } l1_pt_t;
 
-typedef struct l1_sec
+typedef __PACKED struct l1_sec
 {
   uint32_t pxn          : 1;
   uint32_t typ          : 1;
@@ -57,6 +57,20 @@ typedef struct l1_sec
   uint32_t addr         : 12;
 } l1_sec_t;
 
+typedef __PACKED struct l1_small
+{
+    uint32_t xn           : 1;
+    uint32_t cnst         : 1; // cnst = 1
+    uint32_t b            : 1;
+    uint32_t c            : 1;
+    uint32_t ap_0_1bs     : 2;
+    uint32_t tex          : 3;
+    uint32_t ap_3b        : 1;
+    uint32_t s            : 1;
+    uint32_t ng           : 1;
+    uint32_t addr         : 20;
+} l1_small_t;
+
 
 /* in tranelate.c */
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
@@ -67,6 +81,7 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 
 #define L1_SEC_DESC_MASK 0xFFF00000
 #define L1_SEC_DESC_ATTR_MASK 0x000BFFFC
+#define L2_BASE_MASK 0xFFFFF000
 
 #define VA_TO_L1_IDX(va) (va >> 20)
 #define L1_IDX_TO_PA(l1_base, idx) (l1_base | (idx << 2))

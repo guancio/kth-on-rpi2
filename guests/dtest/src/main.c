@@ -6,7 +6,7 @@
 
 // TEMP STUFF
 enum dmmu_command {
-    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY
+    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT
 };
 
 extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
@@ -180,6 +180,37 @@ void dmmu_unmap_L1_pageTable_entry_()
 */
 
 }
+
+uint32_t l2[1024] __attribute__ ((aligned (4 * 1024)));
+void dmmu_create_L2_pt_()
+{
+	//ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, 0, 0, 0);
+	  uint32_t pa, va, attrs, res;
+	  attrs = 0x12; // 0b1--10
+	  attrs |= 3 << 10;
+	  attrs = (attrs & (~0x10)) | 0xC | (1 << 5);
+	  va = 0xc0300000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+
+	  printf("pa is %x\n", pa);
+	  int j;
+	  for(j = 0; j < 1024; j++)
+	    //l2[j] = ((uint32_t)0x31);
+		  l2[j] = ((uint32_t)0x32);
+	  memcpy((void*)va, l2, sizeof l2);
+// ref > 0 it should generate error
+//	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+//	  if (res == 3)
+//		  printf("test 11: SUCCESS, add %x, res %d\n", va, res);
+//	  else
+//		  printf("test 11: FAIL, add %x, res %d\n", va, res);
+
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+
+}
+
 void _main()
 {
   int j;
@@ -193,8 +224,9 @@ void _main()
     // ISSUE_HYPERCALL_REG1(HYPERCALL_NEW_PGD, 0x01234567);
   for(;;) {
     for(j = 0; j < 500000; j++) asm("nop");
-    dmmu_map_L1_section_();
-    dmmu_unmap_L1_pageTable_entry_();
+    //dmmu_map_L1_section_();
+    //dmmu_unmap_L1_pageTable_entry_();
+    dmmu_create_L2_pt_();
     printf("running\n");
   }
 }
