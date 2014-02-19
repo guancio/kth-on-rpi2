@@ -95,6 +95,72 @@ int dmmu_create_L1_pt(addr_t pgd_va, addr_t pgd_py)
 }
 #endif
 
+/* -------------------------------------------------------------------
+ * Freeing an entry of the given L1 page table
+ *  ------------------------------------------------------------------- */
+uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
+{
+    uint32_t l1_base_add;
+    uint32_t l1_idx;
+	uint32_t l1_desc_pa_add;
+	uint32_t l1_desc_va_add;
+	uint32_t l1_desc;
+	uint32_t l1_type;
+
+     /*Check that the guest does not override the virtual addresses used by the hypervisor */
+	 // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
+    if( va >= HAL_VIRT_START)
+    	return ERR_MMU_RESERVED_VA;
+
+    if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
+      return ERR_MMU_RESERVED_VA;
+
+
+    COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
+    l1_idx = VA_TO_L1_IDX(va);
+	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
+	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);//PA_PT_ADD_VA(l1_desc_pa_add);
+	l1_desc = *((uint32_t *) l1_desc_va_add);
+	l1_type = L1_TYPE(l1_desc);
+	// We are unmapping a PT
+	if (l1_type == 1) {
+	  l1_pt_t *l1_pt_desc = (l1_pt_t *) (&l1_desc);
+	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
+	  uint32_t ph_block = PA_TO_PH_BLOCK(PA_OF_POINTED_PT(l1_pt_desc));
+	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+	  bft_entry->refcnt -= 1;
+	}
+	// We are unmapping a section
+	if ((l1_type == 2) && (((l1_sec_t *) (&l1_desc))->secIndic == 0)) {
+		l1_sec_t *l1_sec_desc = (l1_sec_t *) (&l1_desc);
+		*((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
+		uint32_t ap = GET_L1_AP(l1_sec_desc);
+		int sec_idx;
+		if(ap == 3)
+			for(sec_idx = 0; sec_idx < 256; sec_idx++)  {
+				// TODO: fix also for negative numbers
+				uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
+				dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+				bft_entry->refcnt -= 1;
+			}
+		}
+	// nothing, since the entry was already unmapped
+	else {
+	  return ERR_MMU_ENTRY_UNMAPPED;
+	}
+
+	isb();
+	mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	mem_cache_set_enable(TRUE);
+
+        return 0;
+}
+
+/* -------------------------------------------------------------------
+ * Mapping a given section base to the specified entry of L1
+ *  -------------------------------------------------------------------*/
+
 uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
 {
   uint32_t l1_base_add;
@@ -168,14 +234,18 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
 // ----------------------------------------------------------------
 // TEMP STUFF
 enum dmmu_command {
-    CMD_CREATE_L1
+	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY
 };
 
-int dmmu_handler(uint32_t p0, uint32_t p1, uint32_t p2)
+int dmmu_handler(uint32_t p0, uint32_t p1, uint32_t p2, uint32_t p3)
 {
-    printf("DMMU %x %x %x\n", p0, p1, p2);
+    printf("DMMU %x %x %x\n", p1, p2, p3);
     
     switch(p0) {
+    case CMD_UNMAP_L1_PT_ENTRY:
+        	return dmmu_unmap_L1_pageTable_entry(p1);
+    case CMD_MAP_L1_SECTION:
+    	return dmmu_map_L1_section(p1,p2,p3);
     default:
         return ERR_MMU_UNIMPLEMENTED;
     }
