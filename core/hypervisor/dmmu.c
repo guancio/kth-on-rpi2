@@ -237,15 +237,18 @@ enum dmmu_command {
 	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY
 };
 
-int dmmu_handler(uint32_t p0, uint32_t p1, uint32_t p2, uint32_t p3)
+int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
 {
+	uint32_t p0 = p03 & 0xF;
+	uint32_t p3 = p03 >> 4;
+
     printf("DMMU %x %x %x\n", p1, p2, p3);
     
     switch(p0) {
-    case CMD_UNMAP_L1_PT_ENTRY:
-        	return dmmu_unmap_L1_pageTable_entry(p1);
     case CMD_MAP_L1_SECTION:
     	return dmmu_map_L1_section(p1,p2,p3);
+    case CMD_UNMAP_L1_PT_ENTRY:
+        	return dmmu_unmap_L1_pageTable_entry(p1);
     default:
         return ERR_MMU_UNIMPLEMENTED;
     }

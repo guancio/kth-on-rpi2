@@ -77,7 +77,8 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 	  switch(hypercall_number){				 
 	    /* TEMP: DMMU TEST */
   	        case 666:
-		        res = dmmu_handler(param0, param1, param2, curr_vm->current_mode_state->ctx.reg[3]);
+		        //res = dmmu_handler(param0, param1, param2, curr_vm->current_mode_state->ctx.reg[3]);
+  	        	res = dmmu_handler(param0, param1, param2);
 		        curr_vm->current_mode_state->ctx.reg[0] = res;
 				return;
 			case HYPERCALL_GUEST_INIT:
