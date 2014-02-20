@@ -6,7 +6,7 @@
 
 // TEMP STUFF
 enum dmmu_command {
-    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT
+    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT
 };
 
 extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
@@ -204,7 +204,8 @@ void dmmu_create_L2_pt_()
 	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);*/
 
-	  // #1 : Guest can not write its own l2 page table in an unmapped area
+
+	  // #0 : Guest can not write its own l2 page table in an unmapped area
 	  // This test will break the system (Dabort)
 	  /*
 	  attrs = 0;
@@ -215,6 +216,31 @@ void dmmu_create_L2_pt_()
 		  l2[j] = ((uint32_t)0x32);
 	  memcpy((void*)va, l2, sizeof l2);
 	   */
+
+
+	  // #1 : Guest can not write its own l2 page table in a physical address outside the allowed range
+	  // This test should fail because physical address 0x0 is not accessible by guest
+
+	  attrs = 0xc2e;
+	  va = 0xc0300000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x32);
+	  memcpy((void*)va, l2, sizeof l2);
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  pa = 0x0; // setting pa to an address which will case a failure
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+		asm("mov  %[result],r0 \n\t"
+				:[result] "=r" (res)
+				: /*input*/
+				: /* No clobbers */);
+
+	  if (res != 3)
+		  printf("create_L2_pt 1: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 1: FAIL, add %x, res %d\n", pa, res);
+
 
 	  // #2: Guest can not use an address which is not 4KB aligned to create an L2
 	  // this test should fail because we are only allowed to create l2 in 4KB aligned address
@@ -365,6 +391,58 @@ void dmmu_create_L2_pt_()
 		  printf("create_L2_pt 8: FAIL, add %x, res %d\n", pa, res);
 }
 
+void dmmu_l1_pt_map_()
+{
+	uint32_t pa, va, attrs, res;
+	int j;
+
+	// Creating an L1 to map
+	attrs = 0xc2e;
+	va = 0xc0300000;
+	pa = 0x81100000;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	for(j = 0; j < 1024; j++)
+		l2[j] = ((uint32_t)0x32);
+	memcpy((void*)va, l2, sizeof l2);
+    ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+    // end of L2 page table creation
+
+	attrs = 0xc21;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs); // this call should fail because the entry has already been mapped
+
+
+	// #1: I can not map 0, since it is reserved by the hypervisor to access the guest page tables
+ 	attrs = 0x0;
+	va = 0x0;
+	pa = 0x0;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
+	asm("mov  %[result],r0 \n\t"
+	      :[result] "=r" (res)
+	      : /*input*/
+	      : /* No clobbers */);
+	if (res != 1)
+		printf("l1_pt_map 1: SUCCESS, add %x, res %d\n", va, res);
+	else
+		printf("l1_pt_map 1: FAIL, add %x, res %d\n", va, res);
+
+	// #2: mapping 0xc0200000 is ok, since it is the page containing the active page table
+	// This test should fail, because we are not allowed to map in a physical address outside the guest allowed range
+	attrs = 0x0;
+	va = 0xc0200000;
+	pa = 0x0;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
+	asm("mov  %[result],r0 \n\t"
+	      :[result] "=r" (res)
+	      : /*input*/
+	      : /* No clobbers */);
+	if (res != 3)
+		printf("l1_pt_map 2: SUCCESS, add %x, res %d\n", va, res);
+	else
+		printf("l1_pt_map 2: FAIL, add %x, res %d\n", va, res);
+
+}
 void _main()
 {
   int j;
@@ -380,7 +458,8 @@ void _main()
     for(j = 0; j < 500000; j++) asm("nop");
     //dmmu_map_L1_section_();
     //dmmu_unmap_L1_pageTable_entry_();
-    dmmu_create_L2_pt_();
+    //dmmu_create_L2_pt_();
+    dmmu_l1_pt_map_();
     printf("running\n");
   }
 }

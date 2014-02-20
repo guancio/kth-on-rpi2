@@ -15,6 +15,10 @@ extern virtual_machine *curr_vm;
 #define ERR_MMU_ALREADY_L2_PT (9)
 #define ERR_MMU_REFERENCED_OR_PT_REGION (10)
 #define ERR_MMU_NO_UPDATE (11)
+#define ERR_MMU_IS_NOT_L2_PT (12)
+#define ERR_MMU_XN_BIT_IS_ON (13)
+#define ERR_MMU_PT_NOT_UNMAPPED (14)
+#define ERR_MMU_REF_OVERFLOW (15)
 #define ERR_MMU_UNIMPLEMENTED (-1)
 
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
@@ -123,7 +127,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
     return ERR_MMU_RESERVED_VA;
 
   /*Check that the guest does not override the physical addresses outside its range*/
-  // TODO, where we take the guest assigned phisical memory?
+  // TODO, where we take the guest assigned physical memory?
   uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
   uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
   if(!(sec_base_add >= (guest_start_pa) && sec_base_add <= guest_end_pa))
@@ -132,7 +136,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
   COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
   l1_idx = VA_TO_L1_IDX(va);
   l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
-  l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
+  l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, (curr_vm->config));
   l1_desc = *((uint32_t *) l1_desc_va_add);
   if(L1_TYPE(l1_desc) != UNMAPPED_ENTRY)
     return ERR_MMU_SECTION_NOT_UNMAPPED;
@@ -367,12 +371,68 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     return 0;
 }
 
+/* -------------------------------------------------------------------
+ * Mapping a given L2 to the specified entry of L1
+ *  -------------------------------------------------------------------*/
+#define L1_PT_DESC_MASK 0xFFFFFC00
+#define L1_PT_DESC_ATTR_MASK 0x000003FC
+#define CREATE_L1_PT_DESC(x, y) (L1_PT_DESC_MASK & x) | (L1_PT_DESC_ATTR_MASK & y) | (0b01)
+#define L1_DESC_PXN(x) ((x & 0x4) >> 2)
+
+int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
+{
+    uint32_t l1_base_add;
+    uint32_t l1_idx;
+    uint32_t l1_desc_pa_add;
+    uint32_t l1_desc_va_add;
+    uint32_t l1_desc;
+    uint32_t page_desc;
+
+    // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
+    /*Check that the guest does not override the virtual addresses used by the hypervisor */
+    if( va >= HAL_VIRT_START)
+    	return ERR_MMU_RESERVED_VA;
+
+    if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
+    	return ERR_MMU_RESERVED_VA;
+
+    uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+    uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+    /*Check that the guest does not override the physical addresses outside its range*/
+    if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
+    	return ERR_MMU_OUT_OF_RANGE_PA;
+
+    uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
+    dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+
+    if(bft_entry->type != PAGE_INFO_TYPE_L2PT)
+        return ERR_MMU_IS_NOT_L2_PT;
+
+    COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
+    l1_idx = VA_TO_L1_IDX(va);
+    l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
+    l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, (curr_vm->config));
+    l1_desc = *((uint32_t *) l1_desc_va_add);
+    if(L1_DESC_PXN(attrs))
+    	return ERR_MMU_XN_BIT_IS_ON;
+    //checks if the L1 entry is unmapped or not
+    if((l1_desc & DESC_TYPE_MASK) != 0)
+    	return ERR_MMU_PT_NOT_UNMAPPED;
+
+    if(bft_entry->refcnt == MAX_30BIT)
+    	return ERR_MMU_REF_OVERFLOW;
+    bft_entry->refcnt += 1;
+    // Updating memory with the new descriptor
+    l1_desc = CREATE_L1_PT_DESC(l2_base_pa_add, attrs);
+    *((uint32_t *) l1_desc_va_add) = l1_desc;
+	return 0;
+}
 
 
 // ----------------------------------------------------------------
 // TEMP STUFF
 enum dmmu_command {
-	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT
+	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT
 };
 
 int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
@@ -389,6 +449,8 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
     	return dmmu_unmap_L1_pageTable_entry(p1);
     case CMD_CREATE_L2_PT:
     	return dmmu_create_L2_pt(p1);
+    case CMD_MAP_L1_PT:
+    	return dmmu_l1_pt_map(p1, p2, p3);
     default:
         return ERR_MMU_UNIMPLEMENTED;
     }
