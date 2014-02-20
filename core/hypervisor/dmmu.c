@@ -315,8 +315,8 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     uint32_t l2_type;
     uint32_t l2_idx;
     uint32_t l2_base_va_add = mmu_guest_pa_to_va(l2_base_pa_add, curr_vm->config);
-    //dmmu_entry_t *l2_pg[1];
 
+      //TODO: do we need the following check over vritual addresses range??
 //    /*Check that the guest does not override the virtual addresses used by the hypervisor */
 //    // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
 //    if( l2_base_va_add >= HAL_VIRT_START)
@@ -324,6 +324,7 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
 //
 //    if( l2_base_va_add >= curr_vm->config->reserved_va_for_pt_access_start && l2_base_va_add <= curr_vm->config->reserved_va_for_pt_access_end)
 //    	return ERR_MMU_RESERVED_VA;
+
     /*Check that the guest does not override the physical addresses outside its range*/
      // TODO, where we take the guest assigned physical memory?
      uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
@@ -341,7 +342,7 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     if(bft_entry->type == PAGE_INFO_TYPE_L2PT)
         return ERR_MMU_ALREADY_L2_PT;
 
-    // try to allocate a PT in physical address
+    // try to allocate a PT in either a PT page physical address or a referenced data page physical address
     if(bft_entry->type == PAGE_INFO_TYPE_L1PT ||
       ((bft_entry->type == PAGE_INFO_TYPE_DATA) && (bft_entry->refcnt != 0)))
     	return ERR_MMU_REFERENCED_OR_PT_REGION;

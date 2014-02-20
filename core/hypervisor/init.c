@@ -133,7 +133,7 @@ void guests_init()
     vm_0.config = &minimal_config;
     get_guest(guest++);
 
-    /* GUANCIO CHANGES */
+    /* KTH CHANGES */
     /* - The hypervisor must be always able to read/write the guest PTs */
     /*   we constraint that for the minimal guests, the page tables */
     /*   are between physical addresses 0x01000000 and 0x012FFFFF (that are the three megabytes of the guest) */
@@ -167,7 +167,7 @@ void guests_init()
     // - a fixed virtual mapping to the guest PT
     // - some reserved mapping that for now we ignore, e.g. IO‌REGS
     // - a 1-1 mapping to the guest memory (as defined in the board_mem.c) writable and readable by the user
-    // - THIS‌SETUP‌MUST‌BE‌FIXED, SINCE‌THE‌GUEST‌IS‌NOT‌ALLOWED‌TO‌WRITE‌INTO‌IT ‌WHOLE‌ MEMORY
+    // - THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE ‌IN TO ‌ITS ‌WHOLE‌ MEMORY
 
     /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
     uint32_t index;
@@ -219,7 +219,7 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
-    /* END GUANCIO CHANGES */
+    /* END KTH CHANGES */
 
 #endif
 #ifdef TRUSTED

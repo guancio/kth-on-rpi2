@@ -184,9 +184,9 @@ void dmmu_unmap_L1_pageTable_entry_()
 uint32_t l2[1024] __attribute__ ((aligned (4 * 1024)));
 void dmmu_create_L2_pt_()
 {
-	//ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, 0, 0, 0);
 	  uint32_t pa, va, attrs, res;
-	  attrs = 0x12; // 0b1--10
+	  int j;
+/*	  attrs = 0x12; // 0b1--10
 	  attrs |= 3 << 10;
 	  attrs = (attrs & (~0x10)) | 0xC | (1 << 5);
 	  va = 0xc0300000;
@@ -194,21 +194,175 @@ void dmmu_create_L2_pt_()
 	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 
 	  printf("pa is %x\n", pa);
-	  int j;
 	  for(j = 0; j < 1024; j++)
 	    //l2[j] = ((uint32_t)0x31);
+		//l2[j] = ((uint32_t)0x32);
+		//l2[j] = ((uint32_t)0x81100032); //self reference with ap = 3, it successfully failed
+		//l2[j] = ((uint32_t)0x81100022); //self reference with ap = 2, it succeed
+		//l2[j] = ((uint32_t)0x81200032); // pointing to guest initial l1 with ap = 3, it successfully failed
+	  memcpy((void*)va, l2, sizeof l2);
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);*/
+
+	  // #1 : Guest can not write its own l2 page table in an unmapped area
+	  // This test will break the system (Dabort)
+	  /*
+	  attrs = 0;
+	  va = 0xc0300000;
+	  pa = 0x81100000;
+	  //ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
 		  l2[j] = ((uint32_t)0x32);
 	  memcpy((void*)va, l2, sizeof l2);
-// ref > 0 it should generate error
-//	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-//	  if (res == 3)
-//		  printf("test 11: SUCCESS, add %x, res %d\n", va, res);
-//	  else
-//		  printf("test 11: FAIL, add %x, res %d\n", va, res);
+	   */
 
+	  // #2: Guest can not use an address which is not 4KB aligned to create an L2
+	  // this test should fail because we are only allowed to create l2 in 4KB aligned address
+	  attrs = 0xc2e;
+	  va = 0xc0300000;
+	  pa = 0x81100100; // this address is not 4KB aligned
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x32);
+	  memcpy((void*)va, l2, sizeof l2);
 	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+		asm("mov  %[result],r0 \n\t"
+				:[result] "=r" (res)
+				: /*input*/
+				: /* No clobbers */);
 
+	  if (res != 7)
+		  printf("create_L2_pt 2: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 2: FAIL, add %x, res %d\n", pa, res);
+
+//	  // #3: Guest can not create a new L2 in a region which already contains an L2
+//	  attrs = 0xc2e;
+//	  va = 0xc0310000;
+//	  pa = 0x81100000;
+//	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+//	  for(j = 0; j < 1024; j++)
+//	  	l2[j] = ((uint32_t)0x32);
+//	  memcpy((void*)va, l2, sizeof l2);
+//	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+//	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+//	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0); // this should fail
+//		asm("mov  %[result],r0 \n\t"
+//				:[result] "=r" (res)
+//				: /*input*/
+//				: /* No clobbers */);
+//
+//	  if (res != 9)
+//		  printf("create_L2_pt 3: SUCCESS, add %x, res %d\n", pa, res);
+//	  else
+//		  printf("create_L2_pt 3: FAIL, add %x, res %d\n", pa, res);
+
+	  // #4: Guest can not create a new L2 in a region which already contains an L1 or a referenced data page
+	  attrs = 0xc2e;
+	  va = 0xc0200000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+	  	l2[j] = ((uint32_t)0x32);
+	  memcpy((void*)va, l2, sizeof l2);
+	  // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
+	  //ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	  asm("mov  %[result],r0 \n\t"
+	  			:[result] "=r" (res)
+	  			: /*input*/
+	  			: /* No clobbers */);
+
+	  if (res != 10)
+		  printf("create_L2_pt 4: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 4: FAIL, add %x, res %d\n", pa, res);
+
+	  // #5: Guest can not create a new L2 with an unsupported descriptor type (0b11)
+	  attrs = 0xc2e;
+	  va = 0xc0200000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+	  	l2[j] = ((uint32_t)0x31);
+	  memcpy((void*)va, l2, sizeof l2);
+	  // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	  asm("mov  %[result],r0 \n\t"
+	  			:[result] "=r" (res)
+	  			: /*input*/
+	  			: /* No clobbers */);
+
+	  if (res != 11)
+		  printf("create_L2_pt 5: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 5: FAIL, add %x, res %d\n", pa, res);
+
+	  // #6: Guest can not create a new L2 with an entry which point to L2 page table itself with a writable  access permission
+	  attrs = 0xc2e;
+	  va = 0xc0200000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x81100032); //self reference with ap = 3, it successfully failed
+	  memcpy((void*)va, l2, sizeof l2);
+	  // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	  asm("mov  %[result],r0 \n\t"
+	  			:[result] "=r" (res)
+	  			: /*input*/
+	  			: /* No clobbers */);
+
+	  if (res != 11)
+		  printf("create_L2_pt 6: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 6: FAIL, add %x, res %d\n", pa, res);
+
+//	  // Repeatiting the following test will break system
+//	  //TODO: this can be fixed using l2 free  API
+//	  // #7: Guest can create a new L2 with an entry which point to another page table with a readonly  access permission
+//	  attrs = 0xc2e;
+//	  va = 0xc0300000;
+//	  pa = 0x81100000;
+//	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+//	  for(j = 0; j < 1024; j++)
+//		  l2[j] = ((uint32_t)0x81100022); //self reference with ap = 2, it succeed
+//	  memcpy((void*)va, l2, sizeof l2);
+//	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+//	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+//	  asm("mov  %[result],r0 \n\t"
+//	  			:[result] "=r" (res)
+//	  			: /*input*/
+//	  			: /* No clobbers */);
+//
+//	  if (res == 0)
+//		  printf("create_L2_pt 7: SUCCESS, add %x, res %d\n", pa, res);
+//	  else
+//		  printf("create_L2_pt 7: FAIL, add %x, res %d\n", pa, res);
+
+	  // #8: Guest can not create a new L2 with an entry which point to another page table with a writable access permission
+	  attrs = 0xc2e;
+	  va = 0xc0200000;
+	  pa = 0x81100000;
+	  ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	  for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x81200032); // pointing to guest initial l1 with ap = 3, it successfully failed
+	  memcpy((void*)va, l2, sizeof l2);
+	  // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
+	  ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	  asm("mov  %[result],r0 \n\t"
+	  			:[result] "=r" (res)
+	  			: /*input*/
+	  			: /* No clobbers */);
+
+	  if (res != 11)
+		  printf("create_L2_pt 8: SUCCESS, add %x, res %d\n", pa, res);
+	  else
+		  printf("create_L2_pt 8: FAIL, add %x, res %d\n", pa, res);
 }
 
 void _main()
