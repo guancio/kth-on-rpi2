@@ -2,7 +2,7 @@ TARGET= guest
 SRC_DIRS += src 
 INC_DIRS += include
 
-#DEPENDS = ../../library/uc ../../library/mem
+DEPENDS = ../../library/uc ../../library/mem
 
 # get platform dependent flags
 include ../../target

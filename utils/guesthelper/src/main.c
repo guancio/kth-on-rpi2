@@ -7,7 +7,8 @@
 
 struct guest_data {
     const char *filename;
-    unsigned long adr;
+    unsigned long padr;
+    unsigned long vadr;
 };
 
 
@@ -15,6 +16,12 @@ struct guest_data guests[MAX_GUESTS];
 int guest_cnt;
 
 /* ---------------------------------------------------------- */
+int parse_long(char *str, unsigned long *ret)
+{
+    sscanf(str, "0x%x", ret); /* strtol wont work */
+    return 1;    
+}
+
 void parse_guests(int cnt, char **data)
 {
     unsigned long tmp;
@@ -25,24 +32,26 @@ void parse_guests(int cnt, char **data)
         
         /* separate file and adr */
         char *file = data[i];
-        char *adr = strchr(file, ':');
-        if(!adr) {
+        
+        char *padr = strchr(file, ':');
+        if(!padr) {
             fprintf(stderr, "Invalid guest format: '%s'\n", file);
             exit(20);
         }
-        *adr++ = '\0';
-        
-        /* get the number */
-        if(adr[0] != '0' || adr[1] != 'x') {
-            fprintf(stderr, "Invalid number format: '%s'\n", adr);
-            exit(20);            
-        }
-        adr += 2;
-        tmp = strtol(adr, NULL, 16);
-        
-        /* save the extracted data */
-        guests[guest_cnt].filename = file;
-        guests[guest_cnt].adr = tmp;
+        *padr++ = '\0';
+            
+        char *vadr = strchr(padr, ':');
+        if(!vadr) {
+            fprintf(stderr, "Invalid guest format: '%s'\n", file);
+            exit(20);
+        }        
+        *vadr++ = '\0';
+                       
+        /* save the extracted data */        
+        if(!parse_long(padr, & guests[guest_cnt].padr) || 
+           !parse_long(vadr, & guests[guest_cnt].vadr))
+            exit(20);
+        guests[guest_cnt].filename = file;        
         guest_cnt++;
         
         if(guest_cnt >= MAX_GUESTS) {
@@ -55,7 +64,7 @@ void parse_guests(int cnt, char **data)
     for(j = 0; j < guest_cnt-1; j++) {
         int min = j;
         for(i = j + 1; i < guest_cnt; i++) {
-            if(guests[i].adr > guests[min].adr) {
+            if(guests[i].padr > guests[min].padr) {
                 min = i;
             }
         }
@@ -107,10 +116,12 @@ void print_asm()
                "@@ Guest #%d\n"
                "\t.word 2f - 1f @@ SIZE\n"
                "\t.word 0x%08lx @@ PADR\n"               
+               "\t.word 0x%08lx @@ VADR\n"               
                "1:\t.incbin \"%s.bin\"\n"
                "2:\n",
                i + 1,
-               guests[i].adr,               
+               guests[i].padr,               
+               guests[i].vadr,               
                guests[i].filename);
     }
     
@@ -127,7 +138,7 @@ void print_positions()
     for(i = 0; i < guest_cnt; i++) {
         printf("%s0x%08lx",
                i == 0 ? "" : ",",
-               guests[i].adr
+               guests[i].padr
                );
     }
     fflush(stdout);

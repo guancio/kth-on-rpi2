@@ -11,7 +11,11 @@
 #define MAX_CYCLES 0x0FFFFFFF
 #define MEMORY_DUMP_SIZE 32
 
-extern void createPlatform(int debug, int verbose, icmProcessorP *cpu_, icmBusP *bus_) ;
+#define DEFAULT_RAM_BASE 0x00000000
+#define DEFAULT_RAM_SIZE 0x10000000
+
+extern void createPlatform(const char *cpuname, unsigned long, unsigned long,
+                           int debug, int verbose, icmProcessorP *cpu_, icmBusP *bus_) ;
 
 extern void doLoadSymbols(const char *filename);
 
@@ -881,8 +885,7 @@ int doLoadBinary(icmProcessorP processor, char *filename )
         char *type = strrchr(filename , '.');
         char *at;
         int adr = 0;
-        
-        
+                
         if(type == 0) {
             fprintf(stderr, "Unknown file type: '%s'\n", filename);
             return 0;
@@ -913,8 +916,9 @@ int doLoadBinary(icmProcessorP processor, char *filename )
             
             if(need_start_binary) {
                 need_start_binary = False;                
-                icmWriteReg(processor, "R15", (Addr) (0xFFFFFFFF & adr));   
-                printf("INFO: focring cpu to start at 0x%08lx\n", adr);
+                // icmWriteReg(processor, "R15", (Addr) (0xFFFFFFFF & adr));
+                icmSetPC(processor, (Addr) (0xFFFFFFFF & adr));                
+                printf("INFO: forcing cpu to start at 0x%08lx\n", adr);
             }
             
             
@@ -923,15 +927,15 @@ int doLoadBinary(icmProcessorP processor, char *filename )
                 c |= (0xFF & fgetc(fp)) << 0;
                 c |= (0xFF & fgetc(fp)) << 8;
                 c |= (0xFF & fgetc(fp)) << 16;
-                c |= (0xFF & fgetc(fp)) << 24;                
+                c |= (0xFF & fgetc(fp)) << 24;
                 if(!icmDebugWriteProcessorMemory( processor, (Addr) (0xFFFFFFFF & adr), &c, 4, 1, ICM_HOSTENDIAN_HOST)) {    
-                    fprintf(stderr, "Could to write '%s' to address %08lx\n", filename, adr);
+                    fprintf(stderr, "Could not write '%s' to address %08lx\n", filename, adr);
                     return 0;
                 }
                 adr += 4;
             }
             fclose(fp);
-            
+                
             return 1;
         } else if(!strcasecmp(type, ".elf")) {
             //processor, ELF file, virtual address, enable debug, start execution spec in object file
@@ -1009,7 +1013,7 @@ void doDataOperation(icmProcessorP proc)
 
 void doShowHelp()
 {
-    printf("Valid commands are\n"
+    printf("Valid commands are\n"          
            "  n [c | -f | -r]          Next c instructions, out of function, until return\n"
            "  c                        Next instruction until an ARM mode change is detected\n"
            "  g [c]                    Go\n"           
@@ -1182,6 +1186,20 @@ void notify_exception()
 }
 #endif
 
+
+void show_help(char *exe)
+{
+    fprintf(stderr, 
+            "Usage: %s [options] <ELF file> [<additional elf files>]\n"
+            "Options are:\n"
+            "\t-p <cpu>       set CPU model\n"
+            "\t-b <address>   set RAM base address\n"
+            "\t-s <address>   set RAM size\n"            
+            "\t-d             use GDB\n"
+            "\t-V             verbose\n",
+            exe);
+    exit(3);
+}
 /***********************************************************
  * main
  ***********************************************************/
@@ -1194,9 +1212,13 @@ int main(int argc, const char **argv)
     int binaries_count = 0;
     int normalrun = 0;
     
+    unsigned long ram_base = DEFAULT_RAM_BASE;
+    unsigned long ram_size = DEFAULT_RAM_SIZE;
+    
 #define LINE_SIZE (1024 * 2)    
     char buffer[LINE_SIZE];
     char buffer_last[LINE_SIZE];
+    char *cpu_name = "Cortex-A8";
     
     /* parse args */
     for(i = 1; i < argc; i++) {
@@ -1209,33 +1231,50 @@ int main(int argc, const char **argv)
                 verbose = 1;
             else if(!strcmp(arg, "-normalrun") || !strcmp(arg, "-n") )
             	normalrun = 1;
+            else if(!strcmp(arg, "-cpu") || !strcmp(arg, "-p") )
+                cpu_name = argv[++i];
+            else if(!strcmp(arg, "-b"))
+                sscanf(argv[++i], "0x%08lx", & ram_base);
+            else if(!strcmp(arg, "-s"))
+                sscanf(argv[++i], "0x%08lx", & ram_size);            
             else {
                 fprintf(stderr, "Unknown option: %s\n", arg);
-                return 3;
+                show_help(argv[0]);
             }
         } else {
             if(binaries_count < 31)
                 binaries[binaries_count++] = arg;
         }
     }
-    
+        
     if(binaries_count == 0) {
-        fprintf(stderr, "Usage: %s [-d] [-V] <ELF file> [<additional elf files>]\n", argv[0]);
-        return 3;        
+        show_help(argv[0]);
     }
     
     icmBusP bus;
     icmProcessorP processor;
     
+    printf("\n"
+           "***********************************************\n"           
+           "Configuration:\n"
+           " Binary = %s\n"
+           " Debug = %d, Verbose = %d\n"
+           " CPU = %s. RAM = %08lx - %08lx\n"
+           "***********************************************\n",           
+           binaries[0], debug, verbose,
+           cpu_name, ram_base, ram_base + ram_size               
+           );
+        
+    
     /* load the platform with the first binary */
-    createPlatform(debug, verbose, &processor, &bus);
+    createPlatform(cpu_name, ram_base, ram_size, debug, verbose, &processor, &bus);
     
     /* load the remaining binaries */
     for(i = 0; i < binaries_count; i++) {
         if(!doLoadBinary(processor, binaries[i])) {
             fprintf(stderr, "ERROR: unable to load the binary '%s'\n", binaries[i]);
             return 20;
-        }
+        }                
     }
     
     icmSimulationStarting();
@@ -1251,8 +1290,7 @@ int main(int argc, const char **argv)
     
     
     if(debug || normalrun) {
-        icmSimulatePlatform();    
-        
+        icmSimulatePlatform();        
     } else {
         Bool done = False;
         
@@ -1260,12 +1298,8 @@ int main(int argc, const char **argv)
                "***********************************************\n"
                " Welcome to the SICS ARM debugger, where we\n"
                " keep things _really_ simple...\n"
-               "\n"
-               " Binary = %s, Debug = %d, Verbose = %d\n"
                "***********************************************\n"
-               "\n",
-               binaries[0], debug, verbose
-               );
+               "\n");
         
         /*
          * set this as late as possible so OVP can't override

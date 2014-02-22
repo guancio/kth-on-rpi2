@@ -40,6 +40,7 @@ foreach_guest:
     /* get size & padr. make sure size is 4 alligned */
     ldr r3, [r0], #4    @@ SIZE
     ldr r4, [r0], #4    @@ PADR
+    ldr r8, [r0], #4    @@ VADR
     ldr r5, =HAL_PHYS_START
     add r4, r4, r5
     add r3, r3, #3
@@ -48,13 +49,12 @@ foreach_guest:
     /* update guest_db */
     ldr r6, [r2]
     
-    mov r7, #12
-    mul r7, r6, r7
-    add r7, r7, r2
+    add r7, r2, r6, LSL #2
     str r4, [r7, #4]!        @@ ptr_phy
     str r0, [r7, #4]!        @@ ptr_phy_tmp
+    str r8, [r7, #4]!        @@ ptr_va
     str r3, [r7, #4]         @@ size
-    
+  
     add r6, #1
     cmp r6, #MAX_GUESTS    
     bge fail  @ no more room :(    

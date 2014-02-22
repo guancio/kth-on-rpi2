@@ -2,7 +2,7 @@
 SUBDIRS = guesthelper
 
 all:
-	 -set -e; for d in $(SUBDIRS); do $(MAKE) -C $$d ; done
+	 set -e; for d in $(SUBDIRS); do $(MAKE) -C $$d ; done
 
 
 clean:
