@@ -13,10 +13,6 @@ extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
 #define ISSUE_DMMU_HYPERCALL(type, p0, p1, p2) \
 		syscall_dmmu(type | (p2 << 4), p0, p1);
 
-
-uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
-
-
 void dmmu_map_L1_section_()
 {
 	uint32_t va, pa, attrs, res;
@@ -183,7 +179,7 @@ void dmmu_unmap_L1_pageTable_entry_()
 uint32_t l2[1024] __attribute__ ((aligned (4 * 1024)));
 void dmmu_create_L2_pt_()
 {
-	  uint32_t pa, va, attrs, res;
+	  uint32_t pa, va, sec_va, attrs, res;
 	  int j;
 /*	  attrs = 0x12; // 0b1--10
 	  attrs |= 3 << 10;
@@ -204,17 +200,17 @@ void dmmu_create_L2_pt_()
 	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);*/
 
 
-	  // #0 : Guest can not write its own l2 page table in an unmapped area
+
+/*	  // #0 : Guest can not write its own l2 page table in an unmapped area
 	  // This test will break the system (Dabort)
-	  /*
+	  sec_va = 0x300000;
 	  attrs = 0;
 	  va = 0xc0300000;
 	  pa = 0x81100000;
-	  //ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	  for(j = 0; j < 1024; j++)
 		  l2[j] = ((uint32_t)0x32);
-	  memcpy((void*)va, l2, sizeof l2);
-	   */
+	  memcpy((void*)sec_va, l2, sizeof l2);*/
+
 
 
 	  // #1 : Guest can not write its own l2 page table in a physical address outside the allowed range
@@ -293,7 +289,7 @@ void dmmu_create_L2_pt_()
 	  memcpy((void*)va, l2, sizeof l2);
 	  // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
 	  //ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	  ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0); //referenced data page
 	  asm("mov  %[result],r0 \n\t"
 	  			:[result] "=r" (res)
 	  			: /*input*/
@@ -702,10 +698,11 @@ void dmmu_l2_map_entry_()
 
 void dmmu_l2_unmap_entry_()
 {
-	// idx is the index of a entry we want to map pga into
+	// this test is done in combination with l2_pt_map API
+	// idx is the index of a entry we want to unmap it
 	uint32_t pa, idx, res;
 
-	// #0: L2 base address is can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
+	// #0: L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
 	idx = 0xc2;
 	pa = 0x0;
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
@@ -718,7 +715,7 @@ void dmmu_l2_unmap_entry_()
 	else
 		printf("l2_pt_map 0: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
 
-	// #1: The page guest is trying to unmap one of its entry can not be a data page
+	// #1: The guest is trying to unmap entry of a data page
 	// This test should fail because the l2 base address is not pointing to a valid page table(L2)
 	idx = 0xc2;
 	pa = 0x81110000;
@@ -732,7 +729,7 @@ void dmmu_l2_unmap_entry_()
 	else
 		printf("l2_pt_map 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
 
-	// #1: The entry guest is trying to unmap it should be mapped
+	// #1: The entry guest is trying to unmap should be mapped
 	// This test should fail because the L2 page table entry which guest tries to unmap is not mapped beforehand
 	idx = 0xe2;
 	pa = 0x81100000;
@@ -777,6 +774,7 @@ void dmmu_l2_unmap_entry_()
 
 void unmap_L2_pt_()
 {
+	// this test has been using l2_create and l2_pt_map
 	uint32_t pa, va, attrs, res;
 
 	// #0: this test should fail because L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
@@ -803,7 +801,7 @@ void unmap_L2_pt_()
 	else
 		printf("unmap_L2_pt 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
 
-	// #2: if the base address is not 4KB aligned, in our model, for sure there is not valid L2 inside
+	// #2: if the base address is not 4KB aligned, in our model, for sure there is not valid L2 inside the page frame pointed by that address
 
 	// #3: this test should fail because guest is trying to free a referenced L2
     //dmmu_l2_map_entry_();
@@ -834,10 +832,9 @@ void unmap_L2_pt_()
 		printf("unmap_L2_pt 0: SUCCESS, l2_base %x, res %d\n", pa, res);
 	else
 		printf("unmap_L2_pt 0: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
-
-
-
 }
+
+uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
 void dmmu_create_L1_pt_()
 {
 	uint32_t pa, va, attrs, res;
