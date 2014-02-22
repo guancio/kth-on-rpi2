@@ -81,16 +81,24 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 
 #define L1_SEC_DESC_MASK 0xFFF00000
 #define L1_SEC_DESC_ATTR_MASK 0x000BFFFC
+#define L1_BASE_MASK 0xFFFFC000
 #define L2_BASE_MASK 0xFFFFF000
+#define L1_PT_DESC_MASK 0xFFFFFC00
+#define L1_PT_DESC_ATTR_MASK 0x000003FC
 
 #define VA_TO_L1_IDX(va) (va >> 20)
-#define L1_IDX_TO_PA(l1_base, idx) (l1_base | (idx << 2))
+#define L1_IDX_TO_PA(l1_base, idx) ((l1_base & 0xFFFFC000) | (idx << 2))
+#define L2_IDX_TO_PA(l2_base, idx) ((l2_base & 0xFFFFF000) | (idx << 2))
 
 #define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
 
 #define UNMAP_L1_ENTRY(l1_desc) (l1_desc && 0b00)
+#define UNMAP_L2_ENTRY(l2_desc) (l2_desc && 0b00)
 #define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) | (L1_SEC_DESC_ATTR_MASK & y) | (0b10)
 #define GET_L1_AP(sec) ((((uint32_t) sec->ap_3b) << 2) | ((uint32_t) sec->ap_0_1bs))
+#define GET_L2_AP(attrs) ((attrs >> 7) & 0b100) | (((attrs >> 4) & 0b11))
+#define CREATE_L1_PT_DESC(x, y) (L1_PT_DESC_MASK & x) | (L1_PT_DESC_ATTR_MASK & y) | (0b01)
+#define L1_DESC_PXN(x) ((x & 0x4) >> 2)
 
 #define START_PA_OF_SECTION(sec) (((uint32_t)sec->addr) << 20)
 #define PA_OF_POINTED_PT(pt) (((uint32_t)pt->addr) << 10)
@@ -99,6 +107,7 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 #define MAX_30BIT 0x3fffffff
 
 #define PA_TO_PH_BLOCK(pa) (pa >> 12)
+#define PT_PA_TO_PH_BLOCK(pa) (pa >> 2)
 
 #define PAGE_INFO_TYPE_DATA 0
 #define PAGE_INFO_TYPE_L1PT 1
