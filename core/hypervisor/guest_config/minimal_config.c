@@ -86,6 +86,6 @@ hc_config minimal_config = {
 		.reserved_va_for_pt_access_start = 0x0,
 		.reserved_va_for_pt_access_end = 0x002fffff,
 		.pa_for_pt_access_start = HAL_PHYS_START + 0x01000000,
-		.pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff,
+		.pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff,
 		.pa_initial_l1 = HAL_PHYS_START + 0x01000000 + 0x00200000 // Initial address + 2MB
 };
