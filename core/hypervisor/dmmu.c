@@ -264,24 +264,28 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
        bft_entry[0]->refcnt != 0 ||
        bft_entry[0]->refcnt != 0)
         return ERR_MMU_REFERENCED_OR_PT_REGION;
-
+    uint32_t sanity_check = TRUE;
     for(l1_idx = 0; l1_idx < 4096; l1_idx++)
     {
     	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
     	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
     	l1_desc = *((uint32_t *) l1_desc_va_add);
     	l1_type = l1_desc & DESC_TYPE_MASK;
-        if(l1Desc_validityChecker_dispatcher(l1_type, l1_desc, l1_base_pa_add))
+        if(!(l1Desc_validityChecker_dispatcher(l1_type, l1_desc, l1_base_pa_add)))
         {
-        	create_L1_refs_update(l1_base_pa_add);
-        	for(pt_idx = 0; pt_idx < 4; pt_idx++)
-        	{
-        		bft_entry[pt_idx]->type = PAGE_INFO_TYPE_L1PT;
-        	}
+        	sanity_check = FALSE;
         }
-        else
-        	return 2;
     }
+    if(sanity_check)
+    {
+    	create_L1_refs_update(l1_base_pa_add);
+        for(pt_idx = 0; pt_idx < 4; pt_idx++)
+        {
+        	bft_entry[pt_idx]->type = PAGE_INFO_TYPE_L1PT;
+        }
+    }
+    else
+    	return ERR_MMU_ENTRY_UNMAPPED;
     // TODO: setup_hyper_address(pgd);
     return 0; // TODO
 }
