@@ -1059,7 +1059,47 @@ void dmmu_create_L1_pt_()
 	else
 		printf("create_L2_pt 10: FAIL, add %x, res %d\n", pa, res);
 
-	//ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+
+}
+
+void dmmu_switch_mm_()
+{
+	uint32_t pa, va, attrs, res;
+	int j;
+
+
+
+	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+	pa = 0x80000000;
+	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+
+	// #1: this test should fail because L1 base is not aligned
+	pa = 0x81101000;
+	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+
+	// #2: this test should fail because guest is trying to switch into a non-page table page
+	pa = 0x81100000;
+	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+
+
+	// start: creating an L1
+	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
+	attrs = 0xc2e;
+	va = 0xc0500000;
+	pa = 0x81300000;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	// after this test I changed minimal_config.c file to its previous value ".pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff"
+	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
+	for(j = 0; j < 4096; j++)
+		l1[j] = ((uint32_t)0x0);
+    va = 0x100000;
+	memcpy((void*)va, l1, sizeof l1);
+
+	pa = 0x81100000; // L1 base address
+	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	// end: creating an L1
+	pa = 0x81100000;
+	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
 }
 void _main()
 {
@@ -1082,7 +1122,8 @@ void _main()
     ///dmmu_l2_map_entry_();
     //dmmu_l2_unmap_entry_();
     ///unmap_L2_pt_();
-    dmmu_create_L1_pt_();
+    //dmmu_create_L1_pt_();
+    dmmu_switch_mm_();
     printf("running\n");
   }
 }
