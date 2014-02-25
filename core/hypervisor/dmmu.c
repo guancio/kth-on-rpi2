@@ -802,11 +802,87 @@ int dmmu_switch_mm(addr_t l1_base_pa_add)
 	return 0;
 }
 
+/* -------------------------------------------------------------------
+ * Freeing a given L1 page table
+ *  ------------------------------------------------------------------- */
+int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
+{
+	uint32_t l1_idx, pt_idx, sec_idx;
+	uint32_t l1_desc;
+	uint32_t l1_desc_va_add;
+	uint32_t l1_desc_pa_add;
+	uint32_t l1_type;
+	uint32_t ap;
+	dmmu_entry_t *bft_entry[4];
+	int i;
 
+	/*Check that the guest does not override the physical addresses outside its range*/
+	// TODO, where we take the guest assigned physical memory?
+	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	for(i = 0; i < 4; i++)
+	{
+		if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
+			return ERR_MMU_OUT_OF_RANGE_PA;
+		uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
+		bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
+	}
+
+	  /* 16KB aligned ? */
+	if(l1_base_pa_add & (16 * 1024 -1))
+		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+
+
+	if(bft_entry[0]->type == PAGE_INFO_TYPE_L1PT  &&
+		bft_entry[1]->type == PAGE_INFO_TYPE_L1PT &&
+		bft_entry[2]->type == PAGE_INFO_TYPE_L1PT &&
+		bft_entry[3]->type == PAGE_INFO_TYPE_L1PT) {
+      // TODO: active_guest_pt();
+		return ERR_MMU_ALREADY_L1_PT;
+	}
+
+    //unmap_L1_pt_ref_update
+	for(l1_idx = 0; l1_idx < 4096; l1_idx++)
+	{
+		uint32_t l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
+		uint32_t l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
+		uint32_t l1_desc = *((uint32_t *) l1_desc_va_add);
+		uint32_t l1_type = l1_desc & DESC_TYPE_MASK;
+		if(l1_type == 0)
+			continue;
+		if(l1_type == 1)
+		{
+			l1_pt_t  *pt = (l1_pt_t *) (&l1_desc) ;
+			dmmu_entry_t *bft_entry_pt = get_bft_entry_by_block_idx(PT_PA_TO_PH_BLOCK(pt->addr));
+			bft_entry_pt->refcnt -= 1;
+		}
+		if(l1_type == 2)
+		{
+			l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
+			uint32_t ap = GET_L1_AP(sec);
+			if(ap == 3)
+			{
+				for(sec_idx = 0; sec_idx < 256; sec_idx++)
+				{
+					uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(sec)) | (sec_idx);
+					dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+					bft_entry->refcnt -= 1;
+				}
+			}
+		}
+	}
+	//unmap_L1_pt_pgtype_update
+    for(pt_idx = 0; pt_idx < 4; pt_idx++)
+    {
+    	bft_entry[pt_idx]->type = PAGE_INFO_TYPE_DATA;
+    }
+
+    return 0;
+}
 // ----------------------------------------------------------------
 // TEMP STUFF
 enum dmmu_command {
-	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1
+	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1, CMD_FREE_L1
 };
 
 int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
@@ -835,6 +911,8 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
     	return unmap_L2_pt(p1);
     case CMD_SWITCH_ACTIVE_L1:
     	return dmmu_switch_mm(p1);
+    case CMD_FREE_L1:
+    	return dmmu_unmap_L1_pt(p1);
     default:
         return ERR_MMU_UNIMPLEMENTED;
     }
