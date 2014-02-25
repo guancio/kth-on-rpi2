@@ -4,27 +4,28 @@
 
 extern virtual_machine *curr_vm;
 
-#define ERR_MMU_RESERVED_VA (1)
-#define ERR_MMU_ENTRY_UNMAPPED (2)
-#define ERR_MMU_OUT_OF_RANGE_PA (3)
-#define ERR_MMU_SECTION_NOT_UNMAPPED (4)
-#define ERR_MMU_PH_BLOCK_NOT_WRITABLE (5)
-#define ERR_MMU_AP_UNSUPPORTED (6)
+#define ERR_MMU_RESERVED_VA                 (1)
+#define ERR_MMU_ENTRY_UNMAPPED 		        (2)
+#define ERR_MMU_OUT_OF_RANGE_PA             (3)
+#define ERR_MMU_SECTION_NOT_UNMAPPED        (4)
+#define ERR_MMU_PH_BLOCK_NOT_WRITABLE       (5)
+#define ERR_MMU_AP_UNSUPPORTED              (6)
 #define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
-#define ERR_MMU_ALREADY_L1_PT (9)
-#define ERR_MMU_ALREADY_L2_PT (9)
-#define ERR_MMU_REFERENCED_OR_PT_REGION (10)
-#define ERR_MMU_NO_UPDATE (11)
-#define ERR_MMU_IS_NOT_L2_PT (12)
-#define ERR_MMU_XN_BIT_IS_ON (13)
-#define ERR_MMU_PT_NOT_UNMAPPED (14)
-#define ERR_MMU_REF_OVERFLOW (15)
-#define ERR_MMU_INCOMPATIBLE_AP (16)
-#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE (17)
-#define ERR_MMU_REFERENCE_L2 (18)
+#define ERR_MMU_ALREADY_L1_PT               (8)
+#define ERR_MMU_ALREADY_L2_PT               (8)
+#define ERR_MMU_SANITY_CHECK_FAILED         (9)
+#define ERR_MMU_REFERENCED_OR_PT_REGION     (10)
+#define ERR_MMU_NO_UPDATE                   (11)
+#define ERR_MMU_IS_NOT_L2_PT                (12)
+#define ERR_MMU_XN_BIT_IS_ON                (13)
+#define ERR_MMU_PT_NOT_UNMAPPED             (14)
+#define ERR_MMU_REF_OVERFLOW                (15)
+#define ERR_MMU_INCOMPATIBLE_AP             (16)
+#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE    (17)
+#define ERR_MMU_REFERENCE_L2                (18)
 #define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
-#define ERR_MMU_IS_NOT_L1_PT (20)
-#define ERR_MMU_UNIMPLEMENTED (-1)
+#define ERR_MMU_IS_NOT_L1_PT                (20)
+#define ERR_MMU_UNIMPLEMENTED               (-1)
 
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
 {
@@ -48,66 +49,6 @@ void dmmu_init()
         bft[i].all = 0;
     }    
 }
-
-// ----------------------------------------------------------------
-
-#if 0
-int dmmu_create_L1_pt(addr_t pgd_va, addr_t pgd_py)
-{
-    addr_t pgd_py4[4];
-    dmmu_entry_t *pgd_de[4];
-    int i;
-    
-    // XXX: activate_hyper_pt();
-    
-    
-    /* 16KB aligned ? */
-    if(pgd_va & (16 * 1024 -1))
-        return 1;
-    
-    /* see if in active memory, assume 4KB pages */
-    for(i = 0; i < 4; i++) {
-        addr_t va = pgd_va + i * 4096;
-        if(! mmu_lookup_guest(va, & pgd_py4[i], 1))  /* guest writable? */
-            return 2;
-        pgd_de[i] = get_bft_entry(pgd_py4[i]);
-    }
-    
-    /* is it already marked as L1 ? */
-    if(pgd_de[0]->type == DMMU_TYPE_L1PT && 
-       pgd_de[1]->type == DMMU_TYPE_L1PT && 
-       pgd_de[2]->type == DMMU_TYPE_L1PT &&                      
-       pgd_de[3]->type == DMMU_TYPE_L1PT) {
-        // XXX: activate_guest_pt();
-        return 0;
-    }
-          
-    
-    // TODO: the remaining stuff
-    
-    
-    // DEBUG:
-    {
-        int n;
-        addr_t tmp;
-        
-        n = mmu_lookup_hv(pgd_va, &tmp, 0);    
-        printf("H-ro: %x -> %x/%d\n", pgd_va, tmp, n);
-        
-        n = mmu_lookup_hv(pgd_va, &tmp, 1);
-        printf("H-rw: %x -> %x/%d\n", pgd_va, tmp, n);        
-        
-        n = mmu_lookup_guest(pgd_va, &tmp, 0);    
-        printf("G-ro: %x -> %x/%d\n", pgd_va, tmp, n);
-        
-        n = mmu_lookup_guest(pgd_va, &tmp, 1);
-        printf("G-rw: %x -> %x/%d\n", pgd_va, tmp, n);        
-    }
-    
-    
-    return 1;    
-}
-#endif
 
 /* -------------------------------------------------------------------
  * L1 creation API it checks validity of created L1 by the guest
@@ -285,7 +226,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
         }
     }
     else
-    	return ERR_MMU_ENTRY_UNMAPPED;
+    	return ERR_MMU_SANITY_CHECK_FAILED;
     // TODO: setup_hyper_address(pgd);
     return 0; // TODO
 }
@@ -715,7 +656,7 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
 /* -------------------------------------------------------------------
  * Freeing a given L2 page table
  *  -------------------------------------------------------------------*/
-int unmap_L2_pt(addr_t l2_base_pa_add)
+int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 {
 	uint32_t l2_desc_pa_add;
 	uint32_t l2_desc_va_add;
@@ -833,12 +774,12 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
 
 
-	if(bft_entry[0]->type == PAGE_INFO_TYPE_L1PT  &&
-		bft_entry[1]->type == PAGE_INFO_TYPE_L1PT &&
-		bft_entry[2]->type == PAGE_INFO_TYPE_L1PT &&
-		bft_entry[3]->type == PAGE_INFO_TYPE_L1PT) {
+	if(bft_entry[0]->type != PAGE_INFO_TYPE_L1PT  ||
+		bft_entry[1]->type != PAGE_INFO_TYPE_L1PT ||
+		bft_entry[2]->type != PAGE_INFO_TYPE_L1PT ||
+		bft_entry[3]->type != PAGE_INFO_TYPE_L1PT) {
       // TODO: active_guest_pt();
-		return ERR_MMU_ALREADY_L1_PT;
+		return ERR_MMU_IS_NOT_L1_PT;
 	}
 
     //unmap_L1_pt_ref_update
@@ -908,7 +849,7 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
     case CMD_UNMAP_L2_ENTRY:
     	return dmmu_l2_unmap_entry(p1, p2);
     case CMD_FREE_L2:
-    	return unmap_L2_pt(p1);
+    	return dmmu_unmap_L2_pt(p1);
     case CMD_SWITCH_ACTIVE_L1:
     	return dmmu_switch_mm(p1);
     case CMD_FREE_L1:

@@ -4,10 +4,34 @@
 
 #include "hypercalls.h"
 
+uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
+
 // TEMP STUFF
 enum dmmu_command {
-    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1
+    CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1, CMD_FREE_L1
 };
+const char* MSG[] = {"SUCCEED!", "ERR_MMU_RESERVED_VA", "ERR_MMU_ENTRY_UNMAPPED", "ERR_MMU_OUT_OF_RANGE_PA",
+				     "ERR_MMU_SECTION_NOT_UNMAPPED", "ERR_MMU_PH_BLOCK_NOT_WRITABLE", "ERR_MMU_AP_UNSUPPORTED",
+				     "ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED", "ERR_MMU_ALREADY_L1/L2_PT", "ERR_MMU_SANITY_CHECK_FAILED",
+				     "ERR_MMU_REFERENCED_OR_PT_REGION", "ERR_MMU_NO_UPDATE", "ERR_MMU_IS_NOT_L2_PT", "ERR_MMU_XN_BIT_IS_ON",
+				     "ERR_MMU_PT_NOT_UNMAPPED", "ERR_MMU_REF_OVERFLOW", "ERR_MMU_INCOMPATIBLE_AP", "ERR_MMU_L2_UNSUPPORTED_DESC_TYPE",
+				     "ERR_MMU_REFERENCE_L2", "ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED", "ERR_MMU_IS_NOT_L1_PT", "ERR_MMU_UNIMPLEMENTED"};
+
+void print_2_err(int test_id, char* api_name, addr_t addr, int err_num)
+{
+	if(err_num == 0)
+		printf("test ID: %d,  %s :) %x, reason: %s \n",test_id , api_name, addr , MSG[err_num]);
+	else
+		printf("test ID: %d,  %s failed %x, reason: %s \n",test_id, api_name, addr , MSG[err_num]);
+}
+
+void print_3_err(int test_id, char* api_name, addr_t addr, addr_t addrOrIdx, int err_num)
+{
+	if(err_num == 0)
+		printf("test ID: %d,  %s :) %x %x, reason: %s \n",test_id , api_name, addr, addrOrIdx , MSG[err_num]);
+	else
+		printf("test ID: %d,  %s failed %x %x , reason: %s \n",test_id, api_name, addr, addrOrIdx , MSG[err_num]);
+}
 
 extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
 #define ISSUE_DMMU_HYPERCALL(type, p0, p1, p2) \
@@ -483,7 +507,7 @@ void dmmu_l2_map_entry_()
 {
 	// idx is the index of a entry we want to map pga into
 	uint32_t pa, va, idx, pga, attrs, res;
-	int j;
+	int j, t_id = 0;
 	// Creating an L2 to map its entry
 	attrs = 0xc2e;
 	va = 0xc0300000;
@@ -509,15 +533,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 		    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, 0x0, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res != 0)
-		printf("l2_pt_map 0: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 0: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, 0x0, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #0: L2 base address is ok, but guest can not map a page outside the allowed range into its L2 page table entries
 	pga = 0x0;
@@ -532,15 +550,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 		    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res != 0)
-		printf("l2_pt_map 0: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 0: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 
 	// #1: All the parameters are correct and this test should succeed
@@ -556,15 +568,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 		    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res == 0)
-		printf("l2_pt_map 1: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 1: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #2: this test should fail, because the entry has already been mapped.
 	// TODO: system call need to be modified to hold 4 parameters. For now I am writing attrs argument manually in r3.
@@ -576,15 +582,9 @@ void dmmu_l2_map_entry_()
 				:
 				:[value] "r" (pga)/*input*/
 			    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res != 14)
-		printf("l2_pt_map 2: SUCCESS,l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 2: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #3: this test should fail, because guest can not map a page table to an entry of the given L2 with writable access permission
 	// TODO: system call need to be modified to hold 4 parameters. For now I am writing attrs argument manually in r3.
@@ -596,15 +596,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pa)/*input*/
 			: /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res != 16)
-		printf("l2_pt_map 3: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 3: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #4: this test should fail, because guest can not map any thing to an entry of a data page
 	// TODO: system call need to be modified to hold 4 parameters. For now I am writing attrs argument manually in r3.
@@ -616,15 +610,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 			: /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pga, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 12)
-		printf("l2_pt_map 4: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 4: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pga, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;;
 
 	// #5: this test should fail, because guest is passing an unsupported  access permission
 	// TODO: system call need to be modified to hold 4 parameters. For now I am writing attrs argument manually in r3.
@@ -637,15 +625,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 			: /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 6)
-		printf("l2_pt_map 5: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 5: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #6: All the parameters are correct and this test should succeed
 	// in this test reference counter of the mapped page should not be increased
@@ -661,15 +643,9 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pga)/*input*/
 		    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res == 0)
-		printf("l2_pt_map 6: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 6: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
+	t_id++;
 
 	// #7: All the parameters are correct and this test should succeed
 	// in this test guest is mapping the L2 base address into one of L2 entry with read-only access permission
@@ -684,16 +660,8 @@ void dmmu_l2_map_entry_()
 			:
 			:[value] "r" (pa)/*input*/
 		    : /* No clobbers */);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			      :[result] "=r" (res)
-			      : /*input*/
-			      : /* No clobbers */);
-	if (res == 0)
-		printf("l2_pt_map 7: SUCCESS, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-	else
-		printf("l2_pt_map 7: FAIL, l2_base %x pg_add %x, res %d\n", pa, pga, res);
-
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"MAP L2 ENTRY", pa, pga, res);
 }
 
 void dmmu_l2_unmap_entry_()
@@ -701,107 +669,67 @@ void dmmu_l2_unmap_entry_()
 	// this test is done in combination with l2_pt_map API
 	// idx is the index of a entry we want to unmap it
 	uint32_t pa, idx, res;
+	int t_id;
 
 	// #0: L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
 	idx = 0xc2;
 	pa = 0x0;
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 3)
-		printf("l2_pt_map 0: SUCCESS, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
-	else
-		printf("l2_pt_map 0: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"UNMAP L2 ENTRY", pa, idx, res);
+	t_id++;
 
 	// #1: The guest is trying to unmap entry of a data page
 	// This test should fail because the l2 base address is not pointing to a valid page table(L2)
 	idx = 0xc2;
 	pa = 0x81110000;
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 12)
-		printf("l2_pt_map 1: SUCCESS, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
-	else
-		printf("l2_pt_map 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"UNMAP L2 ENTRY", pa, idx, res);;
+	t_id++;
 
 	// #1: The entry guest is trying to unmap should be mapped
 	// This test should fail because the L2 page table entry which guest tries to unmap is not mapped beforehand
 	idx = 0xe2;
 	pa = 0x81100000;
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 17)
-		printf("l2_pt_map 1: SUCCESS, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
-	else
-		printf("l2_pt_map 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
+	print_3_err(t_id,"UNMAP L2 ENTRY", pa, idx, res);
+	t_id++;
 
 	// #2: all the parameters are well defined
 	// idx is the index of an L2 entry which points to a page table
 	// This test should succeed but the reference counter should remain untouched
 	idx = 0xac;
 	pa = 0x81100000;
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res == 0)
-		printf("l2_pt_map 2: SUCCESS, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
-	else
-		printf("l2_pt_map 2: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"UNMAP L2 ENTRY", pa, idx, res);
+	t_id++;
 
 	// #3: this test is a successful attempt
 	idx = 0xc2;
 	pa = 0x81100000;
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res == 0)
-		printf("l2_pt_map 3: SUCCESS, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
-	else
-		printf("l2_pt_map 3: FAIL, l2_base %x pg_idx %x, res %d\n", pa, idx, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	print_3_err(t_id,"UNMAP L2 ENTRY", pa, idx, res);
 }
 
-void unmap_L2_pt_()
+void dmmu_unmap_L2_pt_()
 {
 	// this test has been using l2_create and l2_pt_map
 	uint32_t pa, va, attrs, res;
+	int t_id = 0;
 
 	// #0: this test should fail because L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
 	pa = 0x0;
-	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 3)
-		printf("unmap_L2_pt 0: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 0: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
+	print_2_err(t_id,"FREE L2", pa, res);
+	t_id++;
 
 	// #1: this test should fail because L2 base address does not point to a valid L2
 	pa = 0x81110000;
-	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res != 12)
-		printf("unmap_L2_pt 1: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
+	print_2_err(t_id,"FREE L2", pa, res);
+	t_id++;
 
 	// #2: if the base address is not 4KB aligned, in our model, for sure there is not valid L2 inside the page frame pointed by that address
+	t_id++;
 
 	// #3: this test should fail because guest is trying to free a referenced L2
     //dmmu_l2_map_entry_();
@@ -809,68 +737,58 @@ void unmap_L2_pt_()
 	pa = 0x81100000;
 	attrs = 0xc21;
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
-    ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-    asm("mov  %[result],r0 \n\t"
-    		:[result] "=r" (res)
-    		: /*input*/
-    		: /* No clobbers */);
-    if (res != 18)
-    	printf("unmap_L2_pt 1: SUCCESS, l2_base %x, res %d\n", pa, res);
-    else
-    	printf("unmap_L2_pt 1: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+    res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
+    print_2_err(t_id,"FREE L2", pa, res);
+	t_id++;
 
     // #4: this test should succeed
 	pa = 0x81100000;
 	va = 0xc0300000;
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res == 0)
-		printf("unmap_L2_pt 0: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 0: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
+	print_2_err(t_id,"FREE L2", pa, res);
 }
 
-uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
 void dmmu_create_L1_pt_()
 {
 	uint32_t pa, va, attrs, res;
-	int j;
+	int j, t_id = 0;
 
-	// #-1: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
 	pa = 0x80000000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #0: this test should fail because L1 base is not aligned
+	// #1: this test should fail because L1 base is not aligned
 	pa = 0x81101000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #1: this test should fail because guest is trying to create a new page table in a part of the memory where another L1 resides in
+	// #2: this test should fail because guest is trying to create a new page table in a part of the memory where another L1 resides in
 	pa = 0x81200000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-
-	// #2: this test should fail because guest is trying to create a page table using referenced data pages
+	// #3: this test should fail because guest is trying to create a page table using referenced data pages
+	//*******************************************************//
 	// Creating an L2 to map
-
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)0x0);
 	memcpy((void*)0x1e0000, l2, sizeof l2);
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	pa = 0x811e0000; // L2 base address
 	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
 	//*******************************************************//
 	uint32_t pga = 0x81110000; // data page address
 	uint32_t idx = 0xc2;
 	attrs = 0x32;
-	// TODO: system call need to be modified to hold 4 parameters. For now I am writing attrs argument manually in r3.
+	// TODO: system call need to be modified to hold 4 parameters. For now I am writing pga and attrs arguments manually in r4, r3.
 	asm("mov  r4, %[value] \n\t"
 		:
 		:[value] "r" (attrs)/*input*/
-		 : /* No clobbers */);
+		: /* No clobbers */);
 	asm("mov  r3, %[value] \n\t"
 		:
 		:[value] "r" (pga)/*input*/
@@ -878,41 +796,24 @@ void dmmu_create_L1_pt_()
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L2_ENTRY, pa, idx, 0);
     // here pa is pointing to a referenced data page
 	pa = 0x81110000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 10)
-		printf("unmap_L2_pt 2: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 2: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
-
-
-	// #3: this test should fail because guest is trying to map a non-L2 page table page into L1 as a L2 page table
-
+	// #4: this test should fail because guest is trying to map a non-L2 page table page into L1 as a L2 page table
 	// Writing content of the new L1 page table
 	l1[0] = ((uint32_t)0x81110001); // L2 descriptor
-
 	for(j = 2; j < 4096; j++)
 		l1[j] = ((uint32_t)0x0);
 	va = 0x100000;
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 2)
-		printf("unmap_L2_pt 3: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 3: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id, "CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #4: this test should fail because guest is trying to use super section descriptor instead of a section descriptor
-
+	// #5: this test should fail because guest is trying to use super section descriptor instead of a section descriptor
 	// Writing content of the new L1 page table
 	l1[0] = ((uint32_t)0x81240802); // L2 descriptor
 
@@ -922,18 +823,11 @@ void dmmu_create_L1_pt_()
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 2)
-		printf("unmap_L2_pt 4: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 4: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #5: this test should fail because guest is trying to use an unsupported access permission in a section descriptor
-
+	// #6: this test should fail because guest is trying to use an unsupported access permission in a section descriptor
 	// Writing content of the new L1 page table
 	l1[0] = ((uint32_t)0x81200002); // L2 descriptor (ap = 0 it is unsupported)
 
@@ -943,18 +837,11 @@ void dmmu_create_L1_pt_()
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 2)
-		printf("unmap_L2_pt 5: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 5: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #6: this test should fail because guest is trying to map part of the memory as a writable section where I initial page table of guest resides
-
+	// #7: this test should fail because guest is trying to map part of the memory as a writable section where I initial page table of guest resides
 	// Writing content of the new L1 page table
 	l1[0] = ((uint32_t)0x81200C02); // L2 descriptor
 
@@ -964,18 +851,11 @@ void dmmu_create_L1_pt_()
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 2)
-		printf("unmap_L2_pt 6: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 6: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-
-	// #7: this test should fail because guest is trying to map part of the memory as a writable section where it is trying to create the new L1
+	// #8: this test should fail because guest is trying to map part of the memory as a writable section where it is trying to create the new L1
 	// Writing content of the new L1 page table
 	l1[0] = ((uint32_t)0x81100C02); // L2 descriptor
 
@@ -985,20 +865,11 @@ void dmmu_create_L1_pt_()
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res != 2)
-		printf("unmap_L2_pt 7: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 7: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-
-
-
-	// #8 ....
+	// #9 ....
 	// creating a writable section to map
 	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
 	attrs = 0xc2e;
@@ -1015,17 +886,11 @@ void dmmu_create_L1_pt_()
 	memcpy((void*)va, l1, sizeof l1);
 
 	pa = 0x81100000; // L1 base address
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	asm("mov  %[result],r0 \n\t"
-	    :[result] "=r" (res)
-	    : /*input*/
-	    : /* No clobbers */);
-	if (res == 0)
-		printf("unmap_L2_pt 8: SUCCESS, l2_base %x, res %d\n", pa, res);
-	else
-		printf("unmap_L2_pt 8: FAIL, l2_base %x pg_idx %x, res %d\n", pa, res);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
+	t_id++;
 
-	// #9 ....
+	// #10 ....
 	// Creating an L2 to map
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)0x0);
@@ -1047,40 +912,33 @@ void dmmu_create_L1_pt_()
 
 
 	pa = 0x81100000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-
-
-	asm("mov  %[result],r0 \n\t"
-			:[result] "=r" (res)
-			: /*input*/
-			: /* No clobbers */);
-	if (res == 0)
-		printf("create_L2_pt 10: SUCCESS, add %x, res %d\n", pa, res);
-	else
-		printf("create_L2_pt 10: FAIL, add %x, res %d\n", pa, res);
-
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	print_2_err(t_id,"CREATE L1 PT", pa, res);
 
 }
 
 void dmmu_switch_mm_()
 {
 	uint32_t pa, va, attrs, res;
-	int j;
-
-
+	int j, t_id = 0;
 
 	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
 	pa = 0x80000000;
-	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
 
 	// #1: this test should fail because L1 base is not aligned
 	pa = 0x81101000;
-	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
 
 	// #2: this test should fail because guest is trying to switch into a non-page table page
 	pa = 0x81100000;
-	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
 
 	// start: creating an L1
 	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
@@ -1090,7 +948,7 @@ void dmmu_switch_mm_()
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	// after this test I changed minimal_config.c file to its previous value ".pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff"
 	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
-	for(j = 0; j < 4096; j++)
+	for(j = 1; j < 4096; j++)
 		l1[j] = ((uint32_t)0x0);
     va = 0x100000;
 	memcpy((void*)va, l1, sizeof l1);
@@ -1099,31 +957,80 @@ void dmmu_switch_mm_()
 	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	// end: creating an L1
 	pa = 0x81100000;
-	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+}
+
+void dmmu_unmap_L1_pt_()
+{
+	uint32_t pa, va, attrs, res;
+	int j, t_id = 0;
+	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+	pa = 0x80000000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
+	print_2_err(t_id,"FREE L1", pa, res);
+	t_id++;
+
+	// #1: this test should fail because base address is not aligned
+	pa = 0x81101000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
+	print_2_err(t_id,"FREE L1", pa, res);
+	t_id++;
+
+	// #2: this test should fail because base address is not pointing to a L1 page table
+	pa = 0x811C0000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
+	print_2_err(t_id,"FREE L1", pa, res);
+	t_id++;
+
+	// #3: this test should succeed, section
+	// start: creating an L1
+	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
+	attrs = 0xc2e;
+	va = 0xc0500000;
+	pa = 0x81300000;
+	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeeds
+	l1[1] = ((uint32_t)0x81200802); // section descriptor with read-only access
+	for(j = 2; j < 4096; j++)
+		l1[j] = ((uint32_t)0x0);
+	va = 0x100000;
+	memcpy((void*)va, l1, sizeof l1);
+
+	pa = 0x81100000; // L1 base address
+	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	// end: creating an L1
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
+	print_2_err(t_id,"FREE L1", pa, res);
+	t_id++;
+
+	// #4: this test should succeed, because after unmapping an L1 guest should be able to treat freed page as regular data pages
+	// Creating an L2 to map
+	for(j = 0; j < 1024; j++)
+		l2[j] = ((uint32_t)0x0);
+	va = 0x100000;
+	memcpy((void*)va, l2, sizeof l2);
+	// end of L2 page table creation
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	print_2_err(t_id,"FREE L1", pa, res);
 }
 void _main()
 {
   int j;
   printf("starting\n");
-
-    /* syscall_dmmu(CMD_CREATE_L1, &l1, 0); */
-    
-    /* syscall_dmmu(CMD_CREATE_L1, 0xF0000000, 0); */
-    /* syscall_dmmu(CMD_CREATE_L1, 0x00000000, 0); */
-    /* syscall_dmmu(CMD_CREATE_L1, 0x10000000, 0); */
-    // test hypercall from guest
-    // ISSUE_HYPERCALL_REG1(HYPERCALL_NEW_PGD, 0x01234567);
   for(;;) {
     for(j = 0; j < 500000; j++) asm("nop");
     //dmmu_map_L1_section_();
     //dmmu_unmap_L1_pageTable_entry_();
     //dmmu_create_L2_pt_();
     //dmmu_l1_pt_map_();
-    ///dmmu_l2_map_entry_();
+    //dmmu_l2_map_entry_();
     //dmmu_l2_unmap_entry_();
-    ///unmap_L2_pt_();
-    //dmmu_create_L1_pt_();
-    dmmu_switch_mm_();
+    //dmmu_unmap_L2_pt_();
+    dmmu_create_L1_pt_();
+    //dmmu_switch_mm_();
+    //dmmu_unmap_L1_pt_();
     printf("running\n");
   }
 }
