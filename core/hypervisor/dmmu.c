@@ -492,7 +492,7 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     	create_L2_pgtype_update(l2_base_pa_add);
     }
     else
-    	return ERR_MMU_NO_UPDATE;
+    	return ERR_MMU_SANITY_CHECK_FAILED;
     return 0;
 }
 
