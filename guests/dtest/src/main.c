@@ -246,7 +246,7 @@ void dmmu_l1_pt_map_()
 	uint32_t pa, va, attrs, res;
 	int j, t_id = 0;
 
-	// Creating an L1 to map
+	// Creating an L2 to map
 	attrs = 0xc2e;
 	va = 0x170000;
 	pa = 0x81170000;
@@ -286,7 +286,7 @@ void dmmu_l1_pt_map_()
 	// This test should fail, because PXN is enabled
 	attrs = 0xc25;
 	va = 0xc0200000;
-	pa = 0x81100000;
+	pa = 0x81170000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
 	print_2_err(t_id,"MAP L1 PT", va, res);
 	t_id++;
@@ -294,7 +294,7 @@ void dmmu_l1_pt_map_()
 	// #5: mapping 0xc0300000 is ok, since it is the page containing the active page table
 	// This test should fail, because guest can not map an L2 in a given entry two times in row
 	va = 0xc0300000;
-	pa = 0x81100000;
+	pa = 0x81170000;
 	attrs = 0xc21;
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs); // this call should fail because the entry has already been mapped
@@ -586,7 +586,6 @@ void dmmu_create_L1_pt_()
 	attrs = 0xc2e;
 	va = 0xc0500000;
 	pa = 0x81300000;
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	// after this test I changed minimal_config.c file to its previous value ".pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff"
 	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
 	//l1[1] = ((uint32_t)0x81200802); // section descriptor with read-only access
@@ -651,32 +650,36 @@ void dmmu_switch_mm_()
 	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
 	t_id++;
 
+
 	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
-	pa = 0x81200000;
+	va = 0x300000;
+	memcpy((void*)va, 0x200000, sizeof l1);
+	pa = 0x81300000;
+	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
 	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
 	t_id++;
 
-    // #4 : here we guest creates a new L1 page table and switches to this L1, it will break the guest :(
+    // #3: here we guest creates a new L1 page table and switches to this L1, it will break the guest :(
 	// start: creating an L1
 	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
+	// start: creating an L1
+
 	attrs = 0xc2e;
 	va = 0xc0500000;
 	pa = 0x81300000;
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	// after this test I changed minimal_config.c file to its previous value ".pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff"
 	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
-	for(j = 1; j < 4096; j++)
+	for(j = 0; j < 4096; j++)
 		l1[j] = ((uint32_t)0x0);
     va = 0x100000;
 	memcpy((void*)va, l1, sizeof l1);
-
 	pa = 0x81100000; // L1 base address
 	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	// end: creating an L1
-	pa = 0x81100000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+
+
 }
 
 void dmmu_unmap_L1_pt_()
@@ -757,8 +760,8 @@ void _main()
     //dmmu_unmap_L2_pt_();
     //dmmu_create_L1_pt_();
     //dmmu_switch_mm_();
-    //dmmu_unmap_L1_pt_();
-    unit_test();
+    dmmu_unmap_L1_pt_();
+    //unit_test();
     printf("running\n");
   }
 }

@@ -187,8 +187,8 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
-    // Initialize the datastructures with the tyoe for the initial L1
-    // This shoud be done by MMU_CREATE_L1
+    // Initialize the datastructures with the type for the initial L1
+    // This should be done by MMU_CREATE_L1
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
 
     bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 0].type = PAGE_INFO_TYPE_L1PT;

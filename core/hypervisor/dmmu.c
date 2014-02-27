@@ -267,7 +267,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
 	  }
 	}
       if(!sanity_check)
-	return ERR_MMU_PH_BLOCK_NOT_WRITABLE;
+    	  return ERR_MMU_PH_BLOCK_NOT_WRITABLE;
       for(sec_idx = 0; sec_idx < 256; sec_idx++)
 	{
 	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
@@ -694,6 +694,8 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 	uint32_t ap;
 	dmmu_entry_t *bft_entry[4];
 	int i;
+
+	// checking to see
 
 	/*Check that the guest does not override the physical addresses outside its range*/
 	// TODO, where we take the guest assigned physical memory?
