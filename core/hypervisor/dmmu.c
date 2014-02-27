@@ -845,7 +845,11 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
     case CMD_MAP_L1_PT:
     	return dmmu_l1_pt_map(p1, p2, p3);
     case CMD_MAP_L2_ENTRY:
-     	return dmmu_l2_map_entry(p1, p2, curr_vm->current_mode_state->ctx.reg[3], curr_vm->current_mode_state->ctx.reg[4]);
+    	p3 = p03 & 0xFFFFFFF0;
+    	uint32_t idx = p2 >> 20;
+    	uint32_t attrs = p2 & 0xFFF;
+    	return dmmu_l2_map_entry(p1, idx, p3, attrs);
+     	//return dmmu_l2_map_entry(p1, p2, curr_vm->current_mode_state->ctx.reg[3], curr_vm->current_mode_state->ctx.reg[4]);
     case CMD_UNMAP_L2_ENTRY:
     	return dmmu_l2_unmap_entry(p1, p2);
     case CMD_FREE_L2:
