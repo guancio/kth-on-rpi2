@@ -4,28 +4,6 @@
 
 extern virtual_machine *curr_vm;
 
-#define ERR_MMU_RESERVED_VA                 (1)
-#define ERR_MMU_ENTRY_UNMAPPED 		        (2)
-#define ERR_MMU_OUT_OF_RANGE_PA             (3)
-#define ERR_MMU_SECTION_NOT_UNMAPPED        (4)
-#define ERR_MMU_PH_BLOCK_NOT_WRITABLE       (5)
-#define ERR_MMU_AP_UNSUPPORTED              (6)
-#define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
-#define ERR_MMU_ALREADY_L1_PT               (8)
-#define ERR_MMU_ALREADY_L2_PT               (8)
-#define ERR_MMU_SANITY_CHECK_FAILED         (9)
-#define ERR_MMU_REFERENCED_OR_PT_REGION     (10)
-#define ERR_MMU_NO_UPDATE                   (11)
-#define ERR_MMU_IS_NOT_L2_PT                (12)
-#define ERR_MMU_XN_BIT_IS_ON                (13)
-#define ERR_MMU_PT_NOT_UNMAPPED             (14)
-#define ERR_MMU_REF_OVERFLOW                (15)
-#define ERR_MMU_INCOMPATIBLE_AP             (16)
-#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE    (17)
-#define ERR_MMU_REFERENCE_L2                (18)
-#define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
-#define ERR_MMU_IS_NOT_L1_PT                (20)
-#define ERR_MMU_UNIMPLEMENTED               (-1)
 
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
 {
@@ -53,9 +31,6 @@ void dmmu_init()
 /* -------------------------------------------------------------------
  * L1 creation API it checks validity of created L1 by the guest
  -------------------------------------------------------------------*/
-//l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
-//    		dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(pg_desc->addr);
-
 BOOL l1PT_checker(uint32_t l1_desc)
 {
 	l1_pt_t  *pt = (l1_pt_t *) (&l1_desc) ;
@@ -369,8 +344,6 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 /* -------------------------------------------------------------------
  * L2 creation API it checks validity of created L2 by the guest
  -------------------------------------------------------------------*/
-#define L2_DESC_PA(l2_base_add, l2_idx) (l2_base_add | (l2_idx << 2) | 0)
-
 BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l1_small_t *pg_desc)
 {
 	uint32_t ap = ((pg_desc->ap_3b) << 2) | (pg_desc->ap_0_1bs);
@@ -709,41 +682,6 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 }
 
 /* -------------------------------------------------------------------
- * Switching active L1 page table
- *  -------------------------------------------------------------------*/
-int dmmu_switch_mm(addr_t l1_base_pa_add)
-{
-	dmmu_entry_t *bft_entry[4];
-	int i;
-
-	/*Check that the guest does not override the physical addresses outside its range*/
-	// TODO, where we take the guest assigned physical memory?
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	for(i = 0; i < 4; i++)
-	{
-		if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
-			return ERR_MMU_OUT_OF_RANGE_PA;
-		uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
-		bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
-	}
-
-	  /* 16KB aligned ? */
-	if(l1_base_pa_add & (16 * 1024 -1))
-		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
-
-	if(bft_entry[0]->type != PAGE_INFO_TYPE_L1PT)
-		return ERR_MMU_IS_NOT_L1_PT;
-
-	// Switch the TTB and set context ID
-	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
-	isb();
-	COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, l1_base_pa_add); // Set TTB0
-	isb();
-	return 0;
-}
-
-/* -------------------------------------------------------------------
  * Freeing a given L1 page table
  *  ------------------------------------------------------------------- */
 int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
@@ -820,8 +758,42 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 
     return 0;
 }
+
+/* -------------------------------------------------------------------
+ * Switching active L1 page table
+ *  -------------------------------------------------------------------*/
+int dmmu_switch_mm(addr_t l1_base_pa_add)
+{
+	dmmu_entry_t *bft_entry[4];
+	int i;
+
+	/*Check that the guest does not override the physical addresses outside its range*/
+	// TODO, where we take the guest assigned physical memory?
+	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	for(i = 0; i < 4; i++)
+	{
+		if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
+			return ERR_MMU_OUT_OF_RANGE_PA;
+		uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
+		bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
+	}
+
+	  /* 16KB aligned ? */
+	if(l1_base_pa_add & (16 * 1024 -1))
+		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+
+	if(bft_entry[0]->type != PAGE_INFO_TYPE_L1PT)
+		return ERR_MMU_IS_NOT_L1_PT;
+
+	// Switch the TTB and set context ID
+	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
+	isb();
+	COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, l1_base_pa_add); // Set TTB0
+	isb();
+	return 0;
+}
 // ----------------------------------------------------------------
-// TEMP STUFF
 enum dmmu_command {
 	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1, CMD_FREE_L1
 };
@@ -854,10 +826,10 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
     	return dmmu_l2_unmap_entry(p1, p2);
     case CMD_FREE_L2:
     	return dmmu_unmap_L2_pt(p1);
-    case CMD_SWITCH_ACTIVE_L1:
-    	return dmmu_switch_mm(p1);
     case CMD_FREE_L1:
     	return dmmu_unmap_L1_pt(p1);
+    case CMD_SWITCH_ACTIVE_L1:
+    	return dmmu_switch_mm(p1);
     default:
         return ERR_MMU_UNIMPLEMENTED;
     }
