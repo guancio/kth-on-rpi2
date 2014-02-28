@@ -631,50 +631,59 @@ void dmmu_switch_mm_()
 {
 	uint32_t pa, va, attrs, res;
 	int j, t_id = 0;
+//
+//	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+//	pa = 0x80000000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//	// #1: this test should fail because L1 base is not aligned
+//	pa = 0x81101000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//	// #2: this test should fail because guest is trying to switch into a non-page table page
+//	pa = 0x81100000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//
+//	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
+//	va = 0x300000;
+//	memcpy((void*)va, 0x200000, sizeof l1);
+//	pa = 0x81300000;
+//	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
 
-	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-	pa = 0x80000000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-	// #1: this test should fail because L1 base is not aligned
-	pa = 0x81101000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-	// #2: this test should fail because guest is trying to switch into a non-page table page
-	pa = 0x81100000;
+	// #4: Switching to the current active L1
+	pa = 0x81200000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
 	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
 	t_id++;
 
-
-	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
-	va = 0x300000;
-	memcpy((void*)va, 0x200000, sizeof l1);
-	pa = 0x81300000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-    // #3: here we guest creates a new L1 page table and switches to this L1, it will break the guest :(
+    // #4: here we guest creates a new L1 page table and switches to this L1, it will break the guest :(
 	// start: creating an L1
-	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
-	// start: creating an L1
-
-	attrs = 0xc2e;
-	va = 0xc0500000;
-	pa = 0x81300000;
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	l1[0] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
-	for(j = 0; j < 4096; j++)
-		l1[j] = ((uint32_t)0x0);
-    va = 0x100000;
-	memcpy((void*)va, l1, sizeof l1);
-	pa = 0x81100000; // L1 base address
+	for (j = 0; j < 4096; j++)
+	{
+	    uint32_t value = *(((uint32_t *)0x200000) + j);
+	    uint32_t tmp = (value & 0xFFFF0000);
+	    if((tmp == 0x81300000) || (tmp == 0x81200000))
+	    {
+	    	*(((uint32_t *)0x300000) + j) = (value & 0xFFFFFBFF);
+	    	printf("entry %d %x \n",j, *(((uint32_t *)0x300000) + j) );
+	    }
+	    else
+	    {
+	    	*(((uint32_t *)0x300000) + j) = value;
+	    	printf("entry %d %x \n", j, *(((uint32_t *)0x300000) + j) );
+	    }
+	}
+	pa = 0x81300000; // L1 base address
 	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	// end: creating an L1
 	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
@@ -759,8 +768,8 @@ void _main()
     //dmmu_l2_unmap_entry_();
     //dmmu_unmap_L2_pt_();
     //dmmu_create_L1_pt_();
-    //dmmu_switch_mm_();
-    dmmu_unmap_L1_pt_();
+    dmmu_switch_mm_();
+    //dmmu_unmap_L1_pt_();
     //unit_test();
     printf("running\n");
   }

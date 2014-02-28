@@ -56,7 +56,8 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 
 	if(sec->secIndic == 1) // l1_desc is a super section descriptor
 		return FALSE;
-	if((ap != 2) && (ap != 3))
+	// TODO: (ap != 1) condition need to be added to proof of API
+	if((ap != 1) && (ap != 2) && (ap != 3))
 		return FALSE;
 	if((ap == 3) && (START_PA_OF_SECTION(sec) == (START_PA_OF_SECTION(sec) & L1_SEC_DESC_MASK))) // TODO: second seems to be superfluous
 		for(sec_idx = 0; sec_idx < 256; sec_idx++)
@@ -791,8 +792,13 @@ int dmmu_switch_mm(addr_t l1_base_pa_add)
 	// Switch the TTB and set context ID
 	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
 	isb();
+    /* activate the guest page table */
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
 	COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, l1_base_pa_add); // Set TTB0
 	isb();
+	mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	mem_cache_set_enable(TRUE);
 	return 0;
 }
 // ----------------------------------------------------------------
