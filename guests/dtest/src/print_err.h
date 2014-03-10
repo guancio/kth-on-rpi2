@@ -13,7 +13,7 @@ const char* MSG[] =
  "ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED",
  "ERR_MMU_ALREADY_L1/L2_PT",
  "ERR_MMU_SANITY_CHECK_FAILED",
- "ERR_MMU_REFERENCED_OR_PT_REGION",
+ "ERR_MMU_PT_REGION",
  "ERR_MMU_NO_UPDATE",
  "ERR_MMU_IS_NOT_L2_PT",
  "ERR_MMU_XN_BIT_IS_ON",
@@ -24,8 +24,45 @@ const char* MSG[] =
  "ERR_MMU_REFERENCE_L2",
  "ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED",
  "ERR_MMU_IS_NOT_L1_PT",
+ "ERR_MMU_REFERENCED",
+ "ERR_MMU_FREE_ACTIVE_L1",
  "ERR_MMU_UNIMPLEMENTED"
 };
+
+#define SUCCESS                 (0)
+#define ERR_MMU_RESERVED_VA                 (1)
+#define ERR_MMU_ENTRY_UNMAPPED 		        (2)
+#define ERR_MMU_OUT_OF_RANGE_PA             (3)
+#define ERR_MMU_SECTION_NOT_UNMAPPED        (4)
+#define ERR_MMU_PH_BLOCK_NOT_WRITABLE       (5)
+#define ERR_MMU_AP_UNSUPPORTED              (6)
+#define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
+#define ERR_MMU_ALREADY_L1_PT               (8)
+#define ERR_MMU_ALREADY_L2_PT               (8)
+#define ERR_MMU_SANITY_CHECK_FAILED         (9)
+#define ERR_MMU_PT_REGION				    (10)
+#define ERR_MMU_NO_UPDATE                   (11)
+#define ERR_MMU_IS_NOT_L2_PT                (12)
+#define ERR_MMU_XN_BIT_IS_ON                (13)
+#define ERR_MMU_PT_NOT_UNMAPPED             (14)
+#define ERR_MMU_REF_OVERFLOW                (15)
+#define ERR_MMU_INCOMPATIBLE_AP             (16)
+#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE    (17)
+#define ERR_MMU_REFERENCE_L2                (18)
+#define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
+#define ERR_MMU_IS_NOT_L1_PT                (20)
+#define ERR_MMU_REFERENCED				    (21)
+#define ERR_MMU_FREE_ACTIVE_L1				(22)
+#define ERR_MMU_UNIMPLEMENTED               (-1)
+
+void expect(uint32_t test_id, char * msg, uint32_t value, uint32_t res) {
+	if(value == res) {
+		printf("test ID: %d,  %s [SUCCESS] value: %d \n",test_id , msg, value);
+		return;
+	}
+	printf("test ID: %d,  %s [FAIL] expected: %d result: %d\n",test_id , msg, value, res);
+}
+
 
 #define print_2_err(test_id,  api_name, addr, err_num)\
 	if(err_num == 0)\

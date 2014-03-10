@@ -3,6 +3,7 @@
 #include "dmmu.h"
 
 extern virtual_machine *curr_vm;
+extern uint32_t *flpt_va;
 
 
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
@@ -50,7 +51,6 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
     int sec_idx;
 
 	l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
-	uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(sec));
 	ap = GET_L1_AP(sec);
 
 	if(sec->secIndic == 1) // l1_desc is a super section descriptor
@@ -65,7 +65,7 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 	if (ap == 3) {
 		uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
 		uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-		if(!((START_PA_OF_SECTION(sec) >= (guest_start_pa)) && (START_PA_OF_SECTION(sec) + SECTION_SIZE < guest_end_pa)))
+		if(!((START_PA_OF_SECTION(sec) >= (guest_start_pa)) && ((START_PA_OF_SECTION(sec) + (SECTION_SIZE - 1)) <= guest_end_pa)))
 			err_flag = 1;
 
 		for(sec_idx = 0; sec_idx < 256; sec_idx++)
@@ -157,7 +157,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 
 	  /* 16KB aligned ? */
 	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
-		  return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+		  return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 
 	  ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
 
@@ -190,7 +190,10 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
     	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
         	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
         	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
-        	*((uint32_t *) l1_desc_va_add) = *l1_desc;
+        	if(((l1_desc & 0xFFFF0000) == l1_base_pa_add) || ((l1_desc & 0xFFFF0000) == 0x81200000))
+        		*((uint32_t *) l1_desc_va_add)  = (l1_desc & 0xFFFFFBFF);
+        	else
+        		*((uint32_t *) l1_desc_va_add) = l1_desc;
     	}
     }
 
