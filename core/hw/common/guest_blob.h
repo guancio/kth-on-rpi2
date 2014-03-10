@@ -14,16 +14,17 @@
 #ifndef __ASSEMBLER__
 
 struct guest_binary {
-    uint32_t *ptr_phy;
-    uint32_t *ptr_phy_tmp;
-    uint32_t *ptr_va;
-    uint32_t size;    
-    
+	addr_t pstart;
+	addr_t vstart;
+	size_t psize;
+	size_t fwsize;	
 };
 
 struct guests_database {
-    uint32_t count;
+    uint32_t count;    
+    uint32_t pstart, pend;
     struct guest_binary guests[MAX_GUESTS];
+
 };
 
 extern struct guests_database guests_db;

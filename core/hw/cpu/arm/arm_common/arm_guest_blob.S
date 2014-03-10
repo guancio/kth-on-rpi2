@@ -22,58 +22,61 @@ arm_move_guest_blob:
     ldr r3, =GUESTS_MAGIC 
     cmp r3, r2
     bne fail
+
+    /* get guest count an veryfy */
     ldr r2, [r0], #4
-    cmp r2, #8      @@ minimum guest size (size + padr and no data)
-    blt fail
-       
-    add r1, r0, r2  @@ end of all (inclusive)
-    
-    /*
-     * r0 = pointer to guest data
-     * r1 = end of all
-     */
-    ldr r2, =guests_db + HAL_OFFSET
-    mov r6, #0
-    str r6, [r2]    @@ guest_db.count = 0
+    cmp r2, #0 
+    ble fail
+
+    /* r0=binary end, r1=binary start, r2=binary count, r3=pmem end */        
+    add r1, r0, r2, LSL # 2
+    add r1, r1, r2, LSL # 3
+    ldr r3, [r0]
+    add r0, r3
+    ldr r3, =(HAL_PHYS_START+HAL_PHYS_SIZE)    
+
+    /* save guest count and p start*/     
+    ldr r7, =guests_db + HAL_OFFSET    
+    str r2, [r7], #8
+    str r3, [r7], #4       @@ pstart
      
 foreach_guest:
     /* get size & padr. make sure size is 4 alligned */
-    ldr r3, [r0], #4    @@ SIZE
-    ldr r4, [r0], #4    @@ PADR
-    ldr r8, [r0], #4    @@ VADR
-    ldr r5, =HAL_PHYS_START
-    add r4, r4, r5
-    add r3, r3, #3
-    bic r3, r3, #3
-                
-    /* update guest_db */
-    ldr r6, [r2]
+    ldr r4, [r1], #-4      @@ VADR    
+    ldr r5, [r1], #-4      @@ PSIZE
+    ldr r6, [r1], #-4      @@ FWSIZE
+
+    /* calc pstart, align to MB */
+    sub r3, r3, r5    
+    mov r3, r3, LSR #20
+    mov r3, r3, LSL #20
     
-    add r7, r2, r6, LSL #2
-    str r4, [r7, #4]!        @@ ptr_phy
-    str r0, [r7, #4]!        @@ ptr_phy_tmp
-    str r8, [r7, #4]!        @@ ptr_va
-    str r3, [r7, #4]         @@ size
-  
-    add r6, #1
-    cmp r6, #MAX_GUESTS    
-    bge fail  @ no more room :(    
-    str r6, [r2]            @@ cnt++
+    /* update guest db */
+    stmia r7!, {r3-r6}
+    
+
+    /* copy guest fw to start of the physical memory of this guest */
+    sub r0, r6  @@ start of this fw
+    mov r4, r0  @@ copy it!
+    mov r5, r3  @@ pmem start
+    add r6, r5  @@ pmem end
         
-    mov r5, r0 @@ start of this guest
-    add r0, r3  
-    add r4, r3 @@ PADR_end
-    mov r6, r0 @@ end of this guest
 copy_one:
-    ldr r7, [r6, #-4]!
-    str r7, [r4, #-4]!
-    cmp r6, r5
-    bgt copy_one
+    ldmia r4!, {r8, r9}
+    stmia r5!, {r8, r9}    
+    cmp r5, r6
+    ble copy_one
     
-    cmp r0, r1
-    blt foreach_guest
+    /* more guests? */
+    subs r2, r2, #1
+    bne foreach_guest
+
+    /* save pstart */
+    ldr r7, =guests_db + HAL_OFFSET        
+    str r3, [r7, #4]       @@ pstart
 
 done:    
     mov pc, lr
+    
 fail:
     b .    

@@ -41,6 +41,8 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write)
 }
 
 addr_t mmu_guest_pa_to_va(addr_t padr, hc_config * config) {
+    printf("mmu_guest_pa_to_va:\n padr=%x, config =%x, a=%x, b=%x\n", 
+        padr, config, config->pa_for_pt_access_start, config->reserved_va_for_pt_access_start);
   return (padr - config->pa_for_pt_access_start + config->reserved_va_for_pt_access_start);
 }
 

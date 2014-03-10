@@ -8,7 +8,7 @@ void start(){
     uint32_t r4 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[4];    
     uint32_t r5 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[5];    
     uint32_t r6 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[6];    
-    addr_t start = curr_vm->config->firmware->ptr_va + curr_vm->config->guest_entry_offset;
+    addr_t start = curr_vm->config->firmware->pstart + curr_vm->config->guest_entry_offset;
     
     printf("Branching to address: %x\n", start);
         
