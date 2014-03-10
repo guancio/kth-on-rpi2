@@ -51,7 +51,6 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 
 	l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
 	uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(sec));
-	dmmu_entry_t *bft_entry_sec = get_bft_entry_by_block_idx(ph_block);
 	ap = GET_L1_AP(sec);
 
 	if(sec->secIndic == 1) // l1_desc is a super section descriptor
@@ -59,7 +58,16 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 	// TODO: (ap != 1) condition need to be added to proof of API
 	if((ap != 1) && (ap != 2) && (ap != 3))
 		return FALSE;
-	if((ap == 3) && (START_PA_OF_SECTION(sec) == (START_PA_OF_SECTION(sec) & L1_SEC_DESC_MASK))) // TODO: second seems to be superfluous
+	// TODO: Check also that the guest can not read into the hypervisor memory
+	// TODO: in general we need also to prevent that it can read from the trusted component, thus identifying a more fine grade control
+	//		 e.g. using domain
+	// TODO: e.g. if you can read in user mode and the domain is the guest user domain or kernel domain then the pa must be in the guest memory
+	if (ap == 3) {
+		uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+		uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+		if(!((START_PA_OF_SECTION(sec) >= (guest_start_pa)) && (START_PA_OF_SECTION(sec) + SECTION_SIZE < guest_end_pa)))
+			err_flag = 1;
+
 		for(sec_idx = 0; sec_idx < 256; sec_idx++)
 		{
 			uint32_t ph_block_in_sec = PA_TO_PH_BLOCK(START_PA_OF_SECTION(sec)) | (sec_idx); // Address of a page in the section
@@ -68,28 +76,25 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 			if(bft_entry_in_sec->type !=  PAGE_INFO_TYPE_DATA)
 			{
 				err_flag = 1;
-				//break;
 			}
 			// if one of the L1 page table's pages is in the section
 			if( ((((uint32_t)ph_block_in_sec) << 12) & L1_BASE_MASK) == l1_base_pa_add )
 			{
 				err_flag = 1;
-				//break;
 			}
 			if(bft_entry_in_sec->refcnt >= (MAX_30BIT - 4096))
 			{
 				err_flag = 1;
-				//break;
 			}
-
 		}
+	}
 	if(err_flag != 0)
 		return FALSE;
 
 	return TRUE;
 }
 
-BOOL l1Desc_validityChecker_dispatcher(unsigned int l1_type, unsigned int l1_desc, addr_t pgd)
+BOOL l1Desc_validityChecker_dispatcher(uint32_t l1_type, uint32_t l1_desc, addr_t pgd)
 {
 	if(l1_type == 0)
 		return TRUE;
@@ -115,7 +120,7 @@ void create_L1_refs_update(addr_t l1_base_pa_add)
 			dmmu_entry_t *bft_entry_pt = get_bft_entry_by_block_idx(PT_PA_TO_PH_BLOCK(pt->addr));
 			bft_entry_pt->refcnt += 1;
 		}
-		if(l1_type == 2)
+		else if(l1_type == 2)
 		{
 			l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
 			uint32_t ap = GET_L1_AP(sec);
@@ -140,47 +145,56 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 	  uint32_t l1_desc_pa_add;
 	  uint32_t l1_type;
 	  uint32_t ap;
-	  dmmu_entry_t *bft_entry[4];
+	  uint32_t ph_block;
 	  int i;
 
 	  /*Check that the guest does not override the physical addresses outside its range*/
 	  // TODO, where we take the guest assigned physical memory?
 	  uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
 	  uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	  for(i = 0; i < 4; i++)
-	  {
-		  if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
-			  return ERR_MMU_OUT_OF_RANGE_PA;
-		  uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
-		  bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
-	  }
+	  if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
+		  return ERR_MMU_OUT_OF_RANGE_PA;
 
 	  /* 16KB aligned ? */
-	  if(l1_base_pa_add & (16 * 1024 -1))
+	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
 		  return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
 
+	  ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
 
-    if(bft_entry[0]->type == PAGE_INFO_TYPE_L1PT &&
-       bft_entry[1]->type == PAGE_INFO_TYPE_L1PT &&
-       bft_entry[2]->type == PAGE_INFO_TYPE_L1PT &&
-       bft_entry[3]->type == PAGE_INFO_TYPE_L1PT) {
-        // TODO: active_guest_pt();
+    if(get_bft_entry_by_block_idx(ph_block)->type == PAGE_INFO_TYPE_L1PT &&
+ 		get_bft_entry_by_block_idx(ph_block+1)->type == PAGE_INFO_TYPE_L1PT &&
+   		get_bft_entry_by_block_idx(ph_block+2)->type == PAGE_INFO_TYPE_L1PT &&
+   		get_bft_entry_by_block_idx(ph_block+3)->type == PAGE_INFO_TYPE_L1PT) {
         return ERR_MMU_ALREADY_L1_PT;
     }
 
     /* try to allocate a PT in physical address */
 
-    if(bft_entry[0]->type != PAGE_INFO_TYPE_DATA ||
-       bft_entry[1]->type != PAGE_INFO_TYPE_DATA ||
-       bft_entry[2]->type != PAGE_INFO_TYPE_DATA ||
-       bft_entry[3]->type != PAGE_INFO_TYPE_DATA)
-        return ERR_MMU_REFERENCED_OR_PT_REGION;
+    if(get_bft_entry_by_block_idx(ph_block)->type != PAGE_INFO_TYPE_DATA ||
+    	get_bft_entry_by_block_idx(ph_block+1)->type != PAGE_INFO_TYPE_DATA ||
+    	get_bft_entry_by_block_idx(ph_block+2)->type != PAGE_INFO_TYPE_DATA ||
+    	get_bft_entry_by_block_idx(ph_block+3)->type != PAGE_INFO_TYPE_DATA)
+        return ERR_MMU_PT_REGION;
 
-    if(bft_entry[0]->refcnt != 0 ||
-       bft_entry[0]->refcnt != 0 ||
-       bft_entry[0]->refcnt != 0 ||
-       bft_entry[0]->refcnt != 0)
-        return ERR_MMU_REFERENCED_OR_PT_REGION;
+    if(get_bft_entry_by_block_idx(ph_block)->refcnt != 0 ||
+    		get_bft_entry_by_block_idx(ph_block+1)->refcnt != 0 ||
+    		get_bft_entry_by_block_idx(ph_block+2)->refcnt != 0 ||
+    		get_bft_entry_by_block_idx(ph_block+3)->refcnt != 0)
+        return ERR_MMU_REFERENCED;
+
+
+    // copies  the reserved virtual addresses from the master page table
+    // each virtual page non-unmapped in the master page table is considered reserved
+    for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
+    	l1_desc = *(flpt_va + l1_idx);
+    	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
+        	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
+        	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
+        	*((uint32_t *) l1_desc_va_add) = *l1_desc;
+    	}
+    }
+
+
     uint32_t sanity_check = TRUE;
     for(l1_idx = 0; l1_idx < 4096; l1_idx++)
     {
@@ -193,18 +207,16 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
         	sanity_check = FALSE;
         }
     }
-    if(sanity_check)
-    {
-    	create_L1_refs_update(l1_base_pa_add);
-        for(pt_idx = 0; pt_idx < 4; pt_idx++)
-        {
-        	bft_entry[pt_idx]->type = PAGE_INFO_TYPE_L1PT;
-        }
-    }
-    else
+    if(!sanity_check)
     	return ERR_MMU_SANITY_CHECK_FAILED;
-    // TODO: setup_hyper_address(pgd);
-    return 0; // TODO
+
+    create_L1_refs_update(l1_base_pa_add);
+    get_bft_entry_by_block_idx(ph_block)->type = PAGE_INFO_TYPE_L1PT;
+    get_bft_entry_by_block_idx(ph_block+1)->type = PAGE_INFO_TYPE_L1PT;
+    get_bft_entry_by_block_idx(ph_block+2)->type = PAGE_INFO_TYPE_L1PT;
+    get_bft_entry_by_block_idx(ph_block+3)->type = PAGE_INFO_TYPE_L1PT;
+
+    return 0;
 }
 /* -------------------------------------------------------------------
  * Mapping a given section base to the specified entry of L1
@@ -221,17 +233,28 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
     
   /*Check that the guest does not override the virtual addresses used by the hypervisor */
   // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
+#if 0
   if( va >= HAL_VIRT_START)
     return ERR_MMU_RESERVED_VA;
 
   if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
     return ERR_MMU_RESERVED_VA;
+#else
+  // user the master page table to discover if the va is reserved
+  // WARNING: we can currently reserve only blocks of 1MB and non single blocks
+  l1_idx = VA_TO_L1_IDX(va);
+  l1_desc = *(flpt_va + l1_idx);
+  if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
+	  return ERR_MMU_RESERVED_VA;
+  }
+#endif
 
   /*Check that the guest does not override the physical addresses outside its range*/
   // TODO, where we take the guest assigned physical memory?
   uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
   uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-  if(!(sec_base_add >= (guest_start_pa) && sec_base_add <= guest_end_pa))
+
+  if(!(sec_base_add >= (guest_start_pa) && sec_base_add + SECTION_SIZE < guest_end_pa))
     return ERR_MMU_OUT_OF_RANGE_PA;
 
   COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
@@ -239,7 +262,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
   l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
   l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, (curr_vm->config));
   l1_desc = *((uint32_t *) l1_desc_va_add);
-  if(L1_TYPE(l1_desc) != UNMAPPED_ENTRY)
+  if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY)
     return ERR_MMU_SECTION_NOT_UNMAPPED;
 
   // Access permission from the give attribute
@@ -294,12 +317,21 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 
      /*Check that the guest does not override the virtual addresses used by the hypervisor */
 	 // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
-    if( va >= HAL_VIRT_START)
-    	return ERR_MMU_RESERVED_VA;
+#if 0
+  if( va >= HAL_VIRT_START)
+    return ERR_MMU_RESERVED_VA;
 
-    if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
-      return ERR_MMU_RESERVED_VA;
-
+  if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
+    return ERR_MMU_RESERVED_VA;
+#else
+  // user the master page table to discover if the va is reserved
+  // WARNING: we can currently reserve only blocks of 1MB and non single blocks
+  l1_idx = VA_TO_L1_IDX(va);
+  l1_desc = *(flpt_va + l1_idx);
+  if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
+	  return ERR_MMU_RESERVED_VA;
+  }
+#endif
 
     COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
     l1_idx = VA_TO_L1_IDX(va);
@@ -310,25 +342,24 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 	// We are unmapping a PT
 	if (l1_type == 1) {
 	  l1_pt_t *l1_pt_desc = (l1_pt_t *) (&l1_desc);
-	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 	  uint32_t ph_block = PA_TO_PH_BLOCK(PA_OF_POINTED_PT(l1_pt_desc));
 	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 	  bft_entry->refcnt -= 1;
+	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 	}
 	// We are unmapping a section
 	if ((l1_type == 2) && (((l1_sec_t *) (&l1_desc))->secIndic == 0)) {
 		l1_sec_t *l1_sec_desc = (l1_sec_t *) (&l1_desc);
-		*((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 		uint32_t ap = GET_L1_AP(l1_sec_desc);
 		int sec_idx;
 		if(ap == 3)
 			for(sec_idx = 0; sec_idx < 256; sec_idx++)  {
-				// TODO: fix also for negative numbers
 				uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
 				dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 				bft_entry->refcnt -= 1;
 			}
-		}
+		*((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
+	}
 	// nothing, since the entry was already unmapped
 	else {
 	  return ERR_MMU_ENTRY_UNMAPPED;
@@ -339,7 +370,7 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
 	mem_cache_set_enable(TRUE);
 
-        return 0;
+    return 0;
 }
 
 /* -------------------------------------------------------------------
@@ -348,20 +379,34 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l1_small_t *pg_desc)
 {
 	uint32_t ap = ((pg_desc->ap_3b) << 2) | (pg_desc->ap_0_1bs);
-	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(pg_desc->addr);
-	if((bft_entry->type != PAGE_INFO_TYPE_DATA) ||
-		(pg_desc->addr == (l2_base_pa_add >> 12)))
-		return ((ap == 1) || (ap == 2));
-	else
-		return ((ap == 1) || (ap == 2) || (ap == 3));
+	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
+
+	if (ap == 1 || ap == 2)
+		return TRUE;
+	if (ap == 3) {
+		if (pg_desc->addr == (l2_base_pa_add >> 12))
+			return FALSE;
+		if (bft_entry->type != PAGE_INFO_TYPE_DATA)
+			return FALSE;
+		// TODO: Check also that the guest can not read into the hypervisor memory
+		// TODO: in general we need also to prevent that it can read from the trusted component, thus identifying a more fine grade control
+		//		 e.g. using domain
+		// TODO: e.g. if you can read in user mode and the domain is the guest user domain or kernel domain then the pa must be in the guest memory
+		uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+		uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+		if(!((START_PA_OF_SPT(pg_desc) >= (guest_start_pa)) && (START_PA_OF_SPT(pg_desc) + PAGE_SIZE < guest_end_pa)))
+			return FALSE;
+		return TRUE;
+	}
+	return FALSE;
 }
 
 BOOL l2PT_checker(addr_t l2_base_pa_add, uint32_t l2_desc)
 {
 	l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
-	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(pg_desc->addr);
-	if((bft_entry->refcnt < (MAX_30BIT - 1024)) && l2Pt_desc_ap(l2_base_pa_add, pg_desc)
-	  )
+	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
+
+	if((bft_entry->refcnt < (MAX_30BIT - 1024)) && l2Pt_desc_ap(l2_base_pa_add, pg_desc))
 		return TRUE;
 	else
 		return FALSE;
@@ -391,7 +436,7 @@ void create_L2_refs_update(addr_t l2_base_pa_add)
 		if((l2_type == 2) || (l2_type == 3))
 		{
 			uint32_t ap = ((pg_desc->ap_3b) << 2) | (pg_desc->ap_0_1bs);
-		    uint32_t ph_block = PA_TO_PH_BLOCK(pg_desc->addr);
+		    uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc));
 		    dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 
 			if((bft_entry->type == PAGE_INFO_TYPE_DATA) && (ap == 3))
@@ -419,20 +464,11 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     uint32_t l2_idx;
     uint32_t l2_base_va_add = mmu_guest_pa_to_va(l2_base_pa_add, curr_vm->config);
 
-      //TODO: do we need the following check over vritual addresses range??
-//    /*Check that the guest does not override the virtual addresses used by the hypervisor */
-//    // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
-//    if( l2_base_va_add >= HAL_VIRT_START)
-//    	return ERR_MMU_RESERVED_VA;
-//
-//    if( l2_base_va_add >= curr_vm->config->reserved_va_for_pt_access_start && l2_base_va_add <= curr_vm->config->reserved_va_for_pt_access_end)
-//    	return ERR_MMU_RESERVED_VA;
-
     /*Check that the guest does not override the physical addresses outside its range*/
-     // TODO, where we take the guest assigned physical memory?
+    // TODO, where we take the guest assigned physical memory?
      uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
      uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-     if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
+     if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add  + PAGE_SIZE < guest_end_pa))
     	 return ERR_MMU_OUT_OF_RANGE_PA;
 
      //not 4KB aligned ?
@@ -446,9 +482,11 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
         return ERR_MMU_ALREADY_L2_PT;
 
     // try to allocate a PT in either a PT page physical address or a referenced data page physical address
-    if(bft_entry->type == PAGE_INFO_TYPE_L1PT ||
-      ((bft_entry->type == PAGE_INFO_TYPE_DATA) && (bft_entry->refcnt != 0)))
-    	return ERR_MMU_REFERENCED_OR_PT_REGION;
+    if(bft_entry->type == PAGE_INFO_TYPE_L1PT)
+    	return ERR_MMU_PT_REGION;
+    if ((bft_entry->type == PAGE_INFO_TYPE_DATA) && (bft_entry->refcnt != 0))
+    	return ERR_MMU_REFERENCED;
+
     uint32_t sanity_checker = TRUE;
     for(l2_idx = 0; l2_idx < 1024; l2_idx++)
         {
@@ -484,17 +522,27 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
 
     // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
     /*Check that the guest does not override the virtual addresses used by the hypervisor */
-    if( va >= HAL_VIRT_START)
-    	return ERR_MMU_RESERVED_VA;
+#if 0
+  if( va >= HAL_VIRT_START)
+    return ERR_MMU_RESERVED_VA;
 
-    if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
-    	return ERR_MMU_RESERVED_VA;
+  if( va >= curr_vm->config->reserved_va_for_pt_access_start && va <= curr_vm->config->reserved_va_for_pt_access_end)
+    return ERR_MMU_RESERVED_VA;
+#else
+  // user the master page table to discover if the va is reserved
+  // WARNING: we can currently reserve only blocks of 1MB and non single blocks
+  l1_idx = VA_TO_L1_IDX(va);
+  l1_desc = *(flpt_va + l1_idx);
+  if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
+	  return ERR_MMU_RESERVED_VA;
+  }
+#endif
 
     uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
     uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
     /*Check that the guest does not override the physical addresses outside its range*/
-    if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
-    	return ERR_MMU_OUT_OF_RANGE_PA;
+    if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add + PAGE_SIZE  < guest_end_pa))
+      return ERR_MMU_OUT_OF_RANGE_PA;
 
     uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
     dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
@@ -535,13 +583,12 @@ int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add
 	uint32_t l2_desc;
     uint32_t ap;  // access permission
 
-    uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-    uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
     /*Check that the guest does not override the physical addresses outside its range*/
-    if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
+	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	if(!((l2_base_pa_add >= (guest_start_pa)) && (l2_base_pa_add + PAGE_SIZE < guest_end_pa)))
     	return ERR_MMU_OUT_OF_RANGE_PA;
-
-    if(!(page_pa_add >= (guest_start_pa) && page_pa_add <= guest_end_pa))
+	if(!((page_pa_add >= (guest_start_pa)) && (page_pa_add + PAGE_SIZE < guest_end_pa)))
     	return ERR_MMU_OUT_OF_RANGE_PA;
 
     l2_desc_pa_add = L2_IDX_TO_PA(l2_base_pa_add, l2_idx);
@@ -561,8 +608,14 @@ int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add
     if((ap != 1) && (ap != 2) && (ap != 3))
     	return ERR_MMU_AP_UNSUPPORTED;
 
-    if((ap == 3) && ((bft_entry_pg->refcnt == MAX_30BIT) || (bft_entry_pg->type != PAGE_INFO_TYPE_DATA)))
-    	return ERR_MMU_INCOMPATIBLE_AP;
+    if (ap == 3) {
+    	if (bft_entry_pg->refcnt == MAX_30BIT)
+    		return ERR_MMU_INCOMPATIBLE_AP;
+    	if (bft_entry_pg->type != PAGE_INFO_TYPE_DATA)
+    		return ERR_MMU_INCOMPATIBLE_AP;
+    	// The above check on page_pa_add already guarantee that we are not
+    	// mapping to the hypervisor memory
+    }
 
     if(bft_entry_pt->type != PAGE_INFO_TYPE_L2PT)
     	return ERR_MMU_IS_NOT_L2_PT;
@@ -596,7 +649,7 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
 	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
 	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
 	/*Check that the guest does not override the physical addresses outside its range*/
-	if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
+	if(!((l2_base_pa_add >= (guest_start_pa)) && (l2_base_pa_add + PAGE_SIZE < guest_end_pa)))
 		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
@@ -610,11 +663,8 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
     l2_desc = *((uint32_t *) l2_desc_va_add);
     l2_type = l2_desc & DESC_TYPE_MASK;
 
-    if((l2_type != 2) && (l2_type != 3))
-    	return ERR_MMU_L2_UNSUPPORTED_DESC_TYPE;
-
 	l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
-	dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(pg_desc->addr);
+	dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SECTION(pg_desc)));
 
 	ap = ((uint32_t)pg_desc->ap_3b) << 2 | pg_desc->ap_0_1bs;
 	if(ap == 3)
@@ -642,7 +692,7 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
 	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
 	/*Check that the guest does not override the physical addresses outside its range*/
-	if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add <= guest_end_pa))
+	if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add + PAGE_SIZE < guest_end_pa))
 		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
@@ -663,7 +713,7 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
     		l2_desc_va_add = mmu_guest_pa_to_va(l2_desc_pa_add, curr_vm->config);
     		l2_desc = *((uint32_t *) l2_desc_va_add);
     		l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
-    		dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(pg_desc->addr);
+    		dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
     		ap = ((uint32_t)pg_desc->ap_3b) << 2 | pg_desc->ap_0_1bs;
     		l2_type = l2_desc & DESC_TYPE_MASK;
 
@@ -683,6 +733,44 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 }
 
 /* -------------------------------------------------------------------
+ * Switching active L1 page table
+ *  -------------------------------------------------------------------*/
+int dmmu_switch_mm(addr_t l1_base_pa_add)
+{
+	int i;
+	uint32_t ph_block;
+
+	/*Check that the guest does not override the physical addresses outside its range*/
+	// TODO, where we take the guest assigned physical memory?
+	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
+		return ERR_MMU_OUT_OF_RANGE_PA;
+
+	  /* 16KB aligned ? */
+	if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
+		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+
+	ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
+
+	if(get_bft_entry_by_block_idx(ph_block)->type != PAGE_INFO_TYPE_L1PT)
+		return ERR_MMU_IS_NOT_L1_PT;
+
+	// Switch the TTB and set context ID
+	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
+	isb();
+    /* activate the guest page table */
+    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, l1_base_pa_add); // Set TTB0
+	isb();
+	mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	mem_cache_set_enable(TRUE);
+	return 0;
+}
+// ----------------------------------------------------------------
+
+/* -------------------------------------------------------------------
  * Freeing a given L1 page table
  *  ------------------------------------------------------------------- */
 int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
@@ -693,33 +781,35 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 	uint32_t l1_desc_pa_add;
 	uint32_t l1_type;
 	uint32_t ap;
-	dmmu_entry_t *bft_entry[4];
+	uint32_t ph_block;
+	addr_t curr_l1_base_pa_add;
 	int i;
 
 	// checking to see
 
-	/*Check that the guest does not override the physical addresses outside its range*/
-	// TODO, where we take the guest assigned physical memory?
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	for(i = 0; i < 4; i++)
-	{
-		if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
-			return ERR_MMU_OUT_OF_RANGE_PA;
-		uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
-		bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
-	}
+	  /*Check that the guest does not override the physical addresses outside its range*/
+	  // TODO, where we take the guest assigned physical memory?
+	  uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	  uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	  if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
+		  return ERR_MMU_OUT_OF_RANGE_PA;
 
 	  /* 16KB aligned ? */
-	if(l1_base_pa_add & (16 * 1024 -1))
-		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
+		  return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+
+	  // You can not free the current L1
+	  COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_l1_base_pa_add);
+	  if (curr_l1_base_pa_add & 0xFFFFC000 == l1_base_pa_add & 0xFFFFC000)
+		  return ERR_MMU_FREE_ACTIVE_L1;
+
+	  ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
 
 
-	if(bft_entry[0]->type != PAGE_INFO_TYPE_L1PT  ||
-		bft_entry[1]->type != PAGE_INFO_TYPE_L1PT ||
-		bft_entry[2]->type != PAGE_INFO_TYPE_L1PT ||
-		bft_entry[3]->type != PAGE_INFO_TYPE_L1PT) {
-      // TODO: active_guest_pt();
+	if(get_bft_entry_by_block_idx(ph_block)->type != PAGE_INFO_TYPE_L1PT  ||
+		get_bft_entry_by_block_idx(ph_block+1)->type != PAGE_INFO_TYPE_L1PT ||
+		get_bft_entry_by_block_idx(ph_block+2)->type != PAGE_INFO_TYPE_L1PT ||
+		get_bft_entry_by_block_idx(ph_block+3)->type != PAGE_INFO_TYPE_L1PT) {
 		return ERR_MMU_IS_NOT_L1_PT;
 	}
 
@@ -754,54 +844,14 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 		}
 	}
 	//unmap_L1_pt_pgtype_update
-    for(pt_idx = 0; pt_idx < 4; pt_idx++)
-    {
-    	bft_entry[pt_idx]->type = PAGE_INFO_TYPE_DATA;
-    }
+    get_bft_entry_by_block_idx(ph_block)->type = PAGE_INFO_TYPE_DATA;
+    get_bft_entry_by_block_idx(ph_block+1)->type = PAGE_INFO_TYPE_DATA;
+    get_bft_entry_by_block_idx(ph_block+2)->type = PAGE_INFO_TYPE_DATA;
+    get_bft_entry_by_block_idx(ph_block+3)->type = PAGE_INFO_TYPE_DATA;
 
     return 0;
 }
 
-/* -------------------------------------------------------------------
- * Switching active L1 page table
- *  -------------------------------------------------------------------*/
-int dmmu_switch_mm(addr_t l1_base_pa_add)
-{
-	dmmu_entry_t *bft_entry[4];
-	int i;
-
-	/*Check that the guest does not override the physical addresses outside its range*/
-	// TODO, where we take the guest assigned physical memory?
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	for(i = 0; i < 4; i++)
-	{
-		if(!((l1_base_pa_add + (i * 4096)) >= (guest_start_pa) && (l1_base_pa_add + (i * 4096)) <= guest_end_pa))
-			return ERR_MMU_OUT_OF_RANGE_PA;
-		uint32_t ph_block = PA_TO_PH_BLOCK(l1_base_pa_add) + i;
-		bft_entry[i] = get_bft_entry_by_block_idx(ph_block);
-	}
-
-	  /* 16KB aligned ? */
-	if(l1_base_pa_add & (16 * 1024 -1))
-		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
-
-	if(bft_entry[0]->type != PAGE_INFO_TYPE_L1PT)
-		return ERR_MMU_IS_NOT_L1_PT;
-
-	// Switch the TTB and set context ID
-	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
-	isb();
-    /* activate the guest page table */
-    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-	COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, l1_base_pa_add); // Set TTB0
-	isb();
-	mem_mmu_tlb_invalidate_all(TRUE, TRUE);
-	mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-	mem_cache_set_enable(TRUE);
-	return 0;
-}
-// ----------------------------------------------------------------
 enum dmmu_command {
 	CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1, CMD_FREE_L1
 };

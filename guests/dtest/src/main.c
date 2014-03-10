@@ -631,34 +631,34 @@ void dmmu_switch_mm_()
 {
 	uint32_t pa, va, attrs, res;
 	int j, t_id = 0;
-//
-//	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-//	pa = 0x80000000;
-//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-//	t_id++;
-//
-//	// #1: this test should fail because L1 base is not aligned
-//	pa = 0x81101000;
-//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-//	t_id++;
-//
-//	// #2: this test should fail because guest is trying to switch into a non-page table page
-//	pa = 0x81100000;
-//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-//	t_id++;
-//
-//
-//	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
-//	va = 0x300000;
-//	memcpy((void*)va, 0x200000, sizeof l1);
-//	pa = 0x81300000;
-//	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-//	t_id++;
+
+	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+	pa = 0x80000000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
+
+	// #1: this test should fail because L1 base is not aligned
+	pa = 0x81101000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
+
+	// #2: this test should fail because guest is trying to switch into a non-page table page
+	pa = 0x81100000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
+
+
+	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
+	va = 0x300000;
+	memcpy((void*)va, 0x200000, sizeof l1);
+	pa = 0x81300000;
+	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+	t_id++;
 
 	// #4: Switching to the current active L1
 	pa = 0x81200000;
@@ -684,6 +684,7 @@ void dmmu_switch_mm_()
 	    }
 	}
 	pa = 0x81300000; // L1 base address
+	ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
 	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	// end: creating an L1
 	ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not

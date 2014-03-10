@@ -80,7 +80,8 @@ void memory_init()
 		/*All IO get coarse pages*/
 		if(list->type == MLT_IO_RW_REG || list->type == MLT_IO_RO_REG || list->type == MLT_IO_HYP_REG)
 			pt_create_coarse (flpt_va,IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
-		else if (list->type != MLT_NONE){
+		//  why we need to map also user memory? (list->type != MLT_USER_RAM) This is mapped into the guest memory itself
+		else if ((list->type != MLT_NONE)){
 			j = (list->page_start) >> 8; /*Get L1 Page index */
 			va_offset = 0;
 			if(list->type == MLT_HYPER_RAM || list->type == MLT_TRUSTED_RAM)
@@ -185,7 +186,6 @@ void guests_init()
 		  *(guest_pt_va + index)  = (value & 0xFFFFFBFF);
 	   // END Hamed Changes
       *(guest_pt_va + index) = value;
-
     }
   
     /* activate the guest page table */
