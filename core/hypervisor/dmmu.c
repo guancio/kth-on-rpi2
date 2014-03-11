@@ -2,6 +2,9 @@
 #include "hyper.h"
 #include "dmmu.h"
 
+// DEBUG FLAGS
+#define DEBUG_DMMU_L1_CHECKERS 1
+
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
 
@@ -29,6 +32,15 @@ void dmmu_init()
     }    
 }
 
+BOOL guest_pa_range_checker(pa, size) {
+	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
+	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
+	if (!(pa >= (guest_start_pa)) && (pa + size - 1 <= guest_end_pa))
+		return FALSE;
+	return TRUE;
+}
+
+
 /* -------------------------------------------------------------------
  * L1 creation API it checks validity of created L1 by the guest
  -------------------------------------------------------------------*/
@@ -36,37 +48,52 @@ BOOL l1PT_checker(uint32_t l1_desc)
 {
 	l1_pt_t  *pt = (l1_pt_t *) (&l1_desc) ;
 	dmmu_entry_t *bft_entry_pt = get_bft_entry_by_block_idx(PT_PA_TO_PH_BLOCK(pt->addr));
-	if((bft_entry_pt->type == PAGE_INFO_TYPE_L2PT)   &&
-	   (bft_entry_pt->refcnt < (MAX_30BIT - 4096))   &&
-	   !(pt->pxn)
-	  )
+
+	uint32_t err_flag = 0; // to be set when one of the pages in the section is not a data page
+	if (bft_entry_pt->type != PAGE_INFO_TYPE_L2PT) {
+		err_flag = ERR_MMU_IS_NOT_L2_PT;
+	}
+	else if (bft_entry_pt->refcnt >= (MAX_30BIT - 4096)) {
+		err_flag = ERR_MMU_REF_OVERFLOW;
+	}
+	else if (pt->pxn) {
+		err_flag = ERR_MMU_AP_UNSUPPORTED;
+	}
+	else {
 		return TRUE;
-	else
-		return FALSE;
+	}
+#ifdef DEBUG_DMMU_L1_CHECKERS
+	printf("l1PT_checker failed: %x %d\n", l1_desc, err_flag);
+#endif
+	return FALSE;
 }
+
 BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 {
 	uint32_t ap;
-    int err_flag = 0; // to be set when one of the pages in the section is not a data page
-    int sec_idx;
+	uint32_t err_flag = 0; // to be set when one of the pages in the section is not a data page
+    uint32_t sec_idx;
 
 	l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
 	ap = GET_L1_AP(sec);
 
 	if(sec->secIndic == 1) // l1_desc is a super section descriptor
-		return FALSE;
+		err_flag = ERR_MMU_SUPERSECTION;
 	// TODO: (ap != 1) condition need to be added to proof of API
-	if((ap != 1) && (ap != 2) && (ap != 3))
-		return FALSE;
+	else if((ap != 1) && (ap != 2) && (ap != 3))
+		err_flag = ERR_MMU_AP_UNSUPPORTED;
 	// TODO: Check also that the guest can not read into the hypervisor memory
 	// TODO: in general we need also to prevent that it can read from the trusted component, thus identifying a more fine grade control
 	//		 e.g. using domain
 	// TODO: e.g. if you can read in user mode and the domain is the guest user domain or kernel domain then the pa must be in the guest memory
-	if (ap == 3) {
-		uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-		uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-		if(!((START_PA_OF_SECTION(sec) >= (guest_start_pa)) && ((START_PA_OF_SECTION(sec) + (SECTION_SIZE - 1)) <= guest_end_pa)))
-			err_flag = 1;
+	else if (ap == 3) {
+		uint32_t max_kernel_ac = (curr_vm->config->guest_modes[HC_GM_KERNEL]->domain_ac | curr_vm->config->guest_modes[HC_GM_TASK]->domain_ac);
+		uint32_t page_domain_mask = (0b11 << (2 * sec->dom));
+		uint32_t kernel_ac = max_kernel_ac & page_domain_mask;
+		if (kernel_ac != 0) {
+			if (!guest_pa_range_checker(START_PA_OF_SECTION(sec), SECTION_SIZE))
+				err_flag = ERR_MMU_OUT_OF_RANGE_PA;
+		}
 
 		for(sec_idx = 0; sec_idx < 256; sec_idx++)
 		{
@@ -75,21 +102,25 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 
 			if(bft_entry_in_sec->type !=  PAGE_INFO_TYPE_DATA)
 			{
-				err_flag = 1;
+				err_flag = ERR_MMU_PH_BLOCK_NOT_WRITABLE;
 			}
 			// if one of the L1 page table's pages is in the section
 			if( ((((uint32_t)ph_block_in_sec) << 12) & L1_BASE_MASK) == l1_base_pa_add )
 			{
-				err_flag = 1;
+				err_flag = ERR_MMU_NEW_L1_NOW_WRITABLE;
 			}
 			if(bft_entry_in_sec->refcnt >= (MAX_30BIT - 4096))
 			{
-				err_flag = 1;
+				err_flag = ERR_MMU_REF_OVERFLOW;
 			}
 		}
 	}
-	if(err_flag != 0)
+	if(err_flag != 0) {
+#ifdef DEBUG_DMMU_L1_CHECKERS
+	    printf("l1Sec_checker failed: %x %x %d\n", l1_desc, l1_base_pa_add, err_flag);
+#endif
 		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -150,9 +181,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 
 	  /*Check that the guest does not override the physical addresses outside its range*/
 	  // TODO, where we take the guest assigned physical memory?
-	  uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	  uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	  if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
+	  if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
 		  return ERR_MMU_OUT_OF_RANGE_PA;
 
 	  /* 16KB aligned ? */
@@ -185,15 +214,19 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 
     // copies  the reserved virtual addresses from the master page table
     // each virtual page non-unmapped in the master page table is considered reserved
+#ifdef DEBUG_PG_CONTENT
+    for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
+    	l1_desc = *(guest_pt_va + l1_idx);
+    	if(l1_desc != 0x0)
+    		printf("pg %d %x \t\t", l1_idx, l1_desc);
+    }
+#endif
     for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
     	l1_desc = *(flpt_va + l1_idx);
     	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
         	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
         	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
-        	if(((l1_desc & 0xFFFF0000) == l1_base_pa_add) || ((l1_desc & 0xFFFF0000) == 0x81200000))
-        		*((uint32_t *) l1_desc_va_add)  = (l1_desc & 0xFFFFFBFF);
-        	else
-        		*((uint32_t *) l1_desc_va_add) = l1_desc;
+        	*((uint32_t *) l1_desc_va_add) = l1_desc;
     	}
     }
 
@@ -254,11 +287,8 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
 
   /*Check that the guest does not override the physical addresses outside its range*/
   // TODO, where we take the guest assigned physical memory?
-  uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-  uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-
-  if(!(sec_base_add >= (guest_start_pa) && sec_base_add + SECTION_SIZE < guest_end_pa))
-    return ERR_MMU_OUT_OF_RANGE_PA;
+  if (!guest_pa_range_checker(sec_base_add, SECTION_SIZE))
+	  return ERR_MMU_OUT_OF_RANGE_PA;
 
   COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)l1_base_add);
   l1_idx = VA_TO_L1_IDX(va);
@@ -395,10 +425,8 @@ BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l1_small_t *pg_desc)
 		// TODO: in general we need also to prevent that it can read from the trusted component, thus identifying a more fine grade control
 		//		 e.g. using domain
 		// TODO: e.g. if you can read in user mode and the domain is the guest user domain or kernel domain then the pa must be in the guest memory
-		uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-		uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-		if(!((START_PA_OF_SPT(pg_desc) >= (guest_start_pa)) && (START_PA_OF_SPT(pg_desc) + PAGE_SIZE < guest_end_pa)))
-			return FALSE;
+		  if (!guest_pa_range_checker(START_PA_OF_SPT(pg_desc), PAGE_SIZE))
+			  return FALSE;
 		return TRUE;
 	}
 	return FALSE;
@@ -469,10 +497,8 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
 
     /*Check that the guest does not override the physical addresses outside its range*/
     // TODO, where we take the guest assigned physical memory?
-     uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-     uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-     if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add  + PAGE_SIZE < guest_end_pa))
-    	 return ERR_MMU_OUT_OF_RANGE_PA;
+    if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
+		  return ERR_MMU_OUT_OF_RANGE_PA;
 
      //not 4KB aligned ?
     if(l2_base_pa_add != (l2_base_pa_add & L2_BASE_MASK))
@@ -540,12 +566,8 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
 	  return ERR_MMU_RESERVED_VA;
   }
 #endif
-
-    uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-    uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-    /*Check that the guest does not override the physical addresses outside its range*/
-    if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add + PAGE_SIZE  < guest_end_pa))
-      return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
     uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
     dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
@@ -587,12 +609,10 @@ int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add
     uint32_t ap;  // access permission
 
     /*Check that the guest does not override the physical addresses outside its range*/
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	if(!((l2_base_pa_add >= (guest_start_pa)) && (l2_base_pa_add + PAGE_SIZE < guest_end_pa)))
-    	return ERR_MMU_OUT_OF_RANGE_PA;
-	if(!((page_pa_add >= (guest_start_pa)) && (page_pa_add + PAGE_SIZE < guest_end_pa)))
-    	return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(page_pa_add, PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
     l2_desc_pa_add = L2_IDX_TO_PA(l2_base_pa_add, l2_idx);
     l2_desc_va_add = mmu_guest_pa_to_va(l2_desc_pa_add, (curr_vm->config));
@@ -649,11 +669,8 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
 	uint32_t l2_type;
 	uint32_t ap;  // access permission
 
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	/*Check that the guest does not override the physical addresses outside its range*/
-	if(!((l2_base_pa_add >= (guest_start_pa)) && (l2_base_pa_add + PAGE_SIZE < guest_end_pa)))
-		return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
 	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
@@ -692,11 +709,8 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 	uint32_t ap;  // access permission
 	int l2_idx;
 
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	/*Check that the guest does not override the physical addresses outside its range*/
-	if(!(l2_base_pa_add >= (guest_start_pa) && l2_base_pa_add + PAGE_SIZE < guest_end_pa))
-		return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	uint32_t ph_block = PA_TO_PH_BLOCK(l2_base_pa_add);
 	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
@@ -745,10 +759,8 @@ int dmmu_switch_mm(addr_t l1_base_pa_add)
 
 	/*Check that the guest does not override the physical addresses outside its range*/
 	// TODO, where we take the guest assigned physical memory?
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
-		return ERR_MMU_OUT_OF_RANGE_PA;
+  	if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	  /* 16KB aligned ? */
 	if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
@@ -792,10 +804,8 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 
 	  /*Check that the guest does not override the physical addresses outside its range*/
 	  // TODO, where we take the guest assigned physical memory?
-	  uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	  uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	  if(!(l1_base_pa_add >= (guest_start_pa) && l1_base_pa_add  + 4*PAGE_SIZE < guest_end_pa))
-		  return ERR_MMU_OUT_OF_RANGE_PA;
+	if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
+  		return ERR_MMU_OUT_OF_RANGE_PA;
 
 	  /* 16KB aligned ? */
 	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
@@ -864,7 +874,7 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
 	uint32_t p0 = p03 & 0xF;
 	uint32_t p3 = p03 >> 4;
 
-    printf("DMMU %x %x %x\n", p1, p2, p3);
+    printf("dmmu_handler: DMMU %x %x %x\n", p1, p2, p3);
     
     switch(p0) {
     case CMD_CREATE_L1_PT:

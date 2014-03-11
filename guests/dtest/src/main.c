@@ -5,6 +5,15 @@
 #include "hypercalls.h"
 #include "print_err.h"
 
+enum mmu_ap { MMU_AP_NONE = 0, MMU_AP_SUP_RW, MMU_AP_USER_RO, MMU_AP_USER_RW };
+#define MMU_SECTION_AP_SHIFT 10
+#define HC_DOM_DEFAULT 	0
+#define HC_DOM_KERNEL 	1
+#define HC_DOM_TASK 	2
+#define HC_DOM_TRUSTED 	3
+#define MMU_L1_DOMAIN_SHIFT 5
+
+
 uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
 uint32_t l2[1024] __attribute__ ((aligned (4 * 1024)));
 
@@ -85,7 +94,7 @@ void main_test_body()
 	pa = 0x81000000;
  	attrs = 0xb2e;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(t_id, "Mapping a valid read/only page", 1, res);
+	expect(t_id, "Mapping a valid read/only page", SUCCESS, res);
 }
 #endif
 
@@ -600,6 +609,11 @@ void main_test_body()
 }
 #endif
 
+uint32_t va2pa(uint32_t va) {
+	return va - 0xc0000000 + 0x81000000;
+}
+
+
 #ifdef TEST_DMMU_CREATE_L1_TMP
 void main_test_body()
 {
@@ -612,20 +626,28 @@ void main_test_body()
 	// #9 ....
 	// creating a writable section to map
 	// for this test minimal_config.c has been modified and now ".pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff"
-	attrs = 0xc2e;
-	va = 0xc0500000;
-	pa = 0x81300000;
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, 0x81100000, attrs)
-	// after this test I changed minimal_config.c file to its previous value ".pa_for_pt_access_end = HAL_PHYS_START + 0x012fffff"
+	// We assume that all memory on board_mem is mapped after the boot
+	attrs = 0x12; // 0b1--10 // Section: non useful since already setted by the API
+	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+
+	va = 0xc0400000;
+	pa = va2pa(va);
+
+	// Map the pa thus we are able to store the pagetable
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(t_id,"Successful map of the new page", SUCCESS, res);
+
 	//l1[1] = ((uint32_t)0x81200802); // section descriptor with read-only access
 	//l1[1] = ((uint32_t)0x81200C02); // section descriptor with write access , this should make the L1 invalid and it was a successful attempt
 	for(j = 0; j < 4096; j++)
 		l1[j] = ((uint32_t)0x0);
-	l1[5] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
-    va = 0xc0500000;
+	//l1[5] = ((uint32_t)0x81300C02); // section descriptor with write access,  mapping of this section succeed
 	memcpy((void*)va, l1, sizeof l1);
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	pa = 0x81100000; // L1 base address
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(t_id,"Successful unmap the L1 entry", SUCCESS, res);
+
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	expect(t_id,"Successful creation of an L1 with only one section, writable that point to a data page", SUCCESS, res);
 
@@ -668,39 +690,39 @@ void dmmu_switch_mm_()
 	uint32_t pa, va, attrs, res;
 	int j, t_id = 0;
 
-	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-	pa = 0x80000000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-	// #1: this test should fail because L1 base is not aligned
-	pa = 0x81101000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-	// #2: this test should fail because guest is trying to switch into a non-page table page
-	pa = 0x81100000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-
-	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
-	va = 0x300000;
-	memcpy((void*)va, 0x200000, sizeof l1);
-	pa = 0x81300000;
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
-
-	// #4: Switching to the current active L1
-	pa = 0x81200000;
-	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
-	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
-	t_id++;
+//	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
+//	pa = 0x80000000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//	// #1: this test should fail because L1 base is not aligned
+//	pa = 0x81101000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//	// #2: this test should fail because guest is trying to switch into a non-page table page
+//	pa = 0x81100000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//
+//	// #3: Switching from the L1 which resides in 80000000 to its copy in 0x81200000, its perfectly works :)
+//	va = 0x300000;
+//	memcpy((void*)va, 0x200000, sizeof l1);
+//	pa = 0x81300000;
+//	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
+//
+//	// #4: Switching to the current active L1
+//	pa = 0x81200000;
+//	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0); // just to see if it possible to switch the active L1 or not
+//	print_2_err(t_id,"SWITCH ACTIVE L1", pa, res);
+//	t_id++;
 
     // #4: here we guest creates a new L1 page table and switches to this L1, it will break the guest :(
 	// start: creating an L1
@@ -711,12 +733,12 @@ void dmmu_switch_mm_()
 	    if((tmp == 0x81300000) || (tmp == 0x81200000))
 	    {
 	    	*(((uint32_t *)0x300000) + j) = (value & 0xFFFFFBFF);
-	    	printf("entry %d %x \n",j, *(((uint32_t *)0x300000) + j) );
+	    	printf("entry %d %x \t",j, *(((uint32_t *)0x300000) + j) );
 	    }
 	    else
 	    {
 	    	*(((uint32_t *)0x300000) + j) = value;
-	    	printf("entry %d %x \n", j, *(((uint32_t *)0x300000) + j) );
+	    	printf("entry %d %x \t", j, *(((uint32_t *)0x300000) + j) );
 	    }
 	}
 	pa = 0x81300000; // L1 base address

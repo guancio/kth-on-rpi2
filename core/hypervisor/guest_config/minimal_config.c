@@ -85,7 +85,9 @@ hc_config minimal_config = {
 		.guest_modes = {&gm_trusted, &gm_kernel,&gm_task, &gm_interrupt},
 		.reserved_va_for_pt_access_start = 0x0,
 		.reserved_va_for_pt_access_end = 0x004fffff,
+		// WARNING must be consistent with board_mem
 		.pa_for_pt_access_start = HAL_PHYS_START + 0x01000000,
+		// WARNING must be consistent with board_mem
 		.pa_for_pt_access_end = HAL_PHYS_START + 0x014fffff,
 		.pa_initial_l1 = HAL_PHYS_START + 0x01000000 + 0x00200000 // Initial address + 2MB
 };

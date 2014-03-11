@@ -93,6 +93,8 @@ typedef __PACKED struct l1_small
 #define ERR_MMU_IS_NOT_L1_PT                (20)
 #define ERR_MMU_REFERENCED				    (21)
 #define ERR_MMU_FREE_ACTIVE_L1				(22)
+#define ERR_MMU_SUPERSECTION				(23)
+#define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 #define PAGE_INFO_TYPE_DATA 0
@@ -131,8 +133,8 @@ typedef __PACKED struct l1_small
 #define START_PA_OF_SPT(pt) (((uint32_t)pt->addr) << 12)
 #define PA_OF_POINTED_PT(pt) (((uint32_t)pt->addr) << 10)
 
-#define PA_TO_PH_BLOCK(pa) (pa >> 12)
-#define PT_PA_TO_PH_BLOCK(pa) (pa >> 2)
+#define PA_TO_PH_BLOCK(pa) ((pa) >> 12)
+#define PT_PA_TO_PH_BLOCK(pa) ((pa) >> 2)
 
 
 /* in tranelate.c */
