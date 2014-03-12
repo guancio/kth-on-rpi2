@@ -167,7 +167,7 @@ void create_L1_refs_update(addr_t l1_base_pa_add)
 		}
 	}
 }
-
+#define DEBUG_PG_CONTENT 1
 int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 {
 	  uint32_t l1_idx, pt_idx;
@@ -214,13 +214,6 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 
     // copies  the reserved virtual addresses from the master page table
     // each virtual page non-unmapped in the master page table is considered reserved
-#ifdef DEBUG_PG_CONTENT
-    for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
-    	l1_desc = *(guest_pt_va + l1_idx);
-    	if(l1_desc != 0x0)
-    		printf("pg %d %x \t\t", l1_idx, l1_desc);
-    }
-#endif
     for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
     	l1_desc = *(flpt_va + l1_idx);
     	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
@@ -238,6 +231,8 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
     	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
     	l1_desc = *((uint32_t *) l1_desc_va_add);
     	l1_type = l1_desc & DESC_TYPE_MASK;
+    	if(l1_desc != 0x0)
+    		printf("pg %x %x \n", l1_idx, l1_desc);
         if(!(l1Desc_validityChecker_dispatcher(l1_type, l1_desc, l1_base_pa_add)))
         {
         	sanity_check = FALSE;
@@ -309,28 +304,29 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
   if(ap == 2)
     {
       // Updating memory with the new descriptor
-      *((uint32_t *) l1_desc_va_add) = l1_sec_desc;
+      *((uint32_t *) l1_desc_va_add) = l1_desc;
     }
   else if(ap == 3)
     {
       int sec_idx;
       BOOL sanity_check = TRUE;
       for(sec_idx = 0; sec_idx < 256; sec_idx++)
-        {
-	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
-	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
-	  if((bft_entry->refcnt == MAX_30BIT) || (bft_entry->type != PAGE_INFO_TYPE_DATA)) {
-	    sanity_check = FALSE;
-	  }
-	}
+      {
+    	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
+    	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+    	  if((bft_entry->refcnt == MAX_30BIT) || (bft_entry->type != PAGE_INFO_TYPE_DATA))
+    	  {
+    		  sanity_check = FALSE;
+    	  }
+      }
       if(!sanity_check)
     	  return ERR_MMU_PH_BLOCK_NOT_WRITABLE;
       for(sec_idx = 0; sec_idx < 256; sec_idx++)
-	{
-	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
-	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
-	  bft_entry->refcnt += 1;
-	}
+      {
+    	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
+    	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
+    	  bft_entry->refcnt += 1;
+      }
       *((uint32_t *) l1_desc_va_add) = l1_desc;
     }
   return 0;     	
@@ -684,7 +680,7 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
     l2_type = l2_desc & DESC_TYPE_MASK;
 
 	l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
-	dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SECTION(pg_desc)));
+	dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
 
 	ap = ((uint32_t)pg_desc->ap_3b) << 2 | pg_desc->ap_0_1bs;
 	if(ap == 3)
@@ -752,6 +748,7 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
 /* -------------------------------------------------------------------
  * Switching active L1 page table
  *  -------------------------------------------------------------------*/
+//#define SW_DEBUG
 int dmmu_switch_mm(addr_t l1_base_pa_add)
 {
 	int i;
@@ -770,6 +767,17 @@ int dmmu_switch_mm(addr_t l1_base_pa_add)
 
 	if(get_bft_entry_by_block_idx(ph_block)->type != PAGE_INFO_TYPE_L1PT)
 		return ERR_MMU_IS_NOT_L1_PT;
+#ifdef SW_DEBUG
+    uint32_t l1_idx;
+    for(l1_idx = 0; l1_idx < 4096; l1_idx++)
+    {
+    	uint32_t l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
+    	uint32_t l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
+    	uint32_t l1_desc = *((uint32_t *) l1_desc_va_add);
+    	if(l1_desc != 0x0)
+    		printf("pg %x %x \n", l1_idx, l1_desc);
+    }
+#endif
 
 	// Switch the TTB and set context ID
 	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, 0); //Set reserved context ID
