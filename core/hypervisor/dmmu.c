@@ -761,7 +761,7 @@ int dmmu_switch_mm(addr_t l1_base_pa_add)
 
 	  /* 16KB aligned ? */
 	if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
-		return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+		return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 
 	ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
 
@@ -817,11 +817,11 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 
 	  /* 16KB aligned ? */
 	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
-		  return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
+		  return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 
 	  // You can not free the current L1
 	  COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_l1_base_pa_add);
-	  if (curr_l1_base_pa_add & 0xFFFFC000 == l1_base_pa_add & 0xFFFFC000)
+	  if ((curr_l1_base_pa_add & 0xFFFFC000) == (l1_base_pa_add & 0xFFFFC000))
 		  return ERR_MMU_FREE_ACTIVE_L1;
 
 	  ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
