@@ -6,7 +6,7 @@
 #include "dmmu.h"
 
 
-
+//#define DEBUG_PG_CONTENT
 /*
  * Function prototypes
  */
@@ -54,7 +54,6 @@ extern uint32_t _interrupt_vector_table;
 	extern hc_config minimal_config;
 #endif
 /*****************************/
-
 void memory_init()
 {
 	/*Setup heap pointer*/
@@ -73,14 +72,19 @@ void memory_init()
      * Here hypervisor already runs in virtual address since boot.S, now just setup guests
      */
 
+    // We clear the memory are that contains the L2s that can be created in the 32KB are of slpt_va
+    memset(slpt_va, 0, 0x8000);
+
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
 
 	for(;;) {
 		if(!list) break;
 		/*All IO get coarse pages*/
-		if(list->type == MLT_IO_RW_REG || list->type == MLT_IO_RO_REG || list->type == MLT_IO_HYP_REG)
-			pt_create_coarse (flpt_va,IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
-		else if (list->type != MLT_NONE){
+		if(list->type == MLT_IO_RW_REG || list->type == MLT_IO_RO_REG || list->type == MLT_IO_HYP_REG) {
+			uint32_t l2_pa = pt_create_coarse (flpt_va,IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
+		}
+		//  why we need to map also user memory? (list->type != MLT_USER_RAM) This is mapped into the guest memory itself
+		else if ((list->type != MLT_NONE) && (list->type != MLT_USER_RAM)){
 			j = (list->page_start) >> 8; /*Get L1 Page index */
 			va_offset = 0;
 			if(list->type == MLT_HYPER_RAM || list->type == MLT_TRUSTED_RAM)
@@ -101,6 +105,13 @@ void memory_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
     mem_mmu_set_domain(0x55555555); //Start with access to all domains
+#ifdef DEBUG_PG_CONTENT
+    int index;
+    for (index=0; index<4096; index++) {
+    	if((*(flpt_va + index) != 0x0))
+         printf("pg %x %x \t\t", (index << 20), *(flpt_va + index));
+    }
+#endif
 }
 
 void setup_handlers()
@@ -136,9 +147,9 @@ void guests_init()
     /* GUANCIO CHANGES */
     /* - The hypervisor must be always able to read/write the guest PTs */
     /*   we constraint that for the minimal guests, the page tables */
-    /*   are between physical addresses 0x01000000 and 0x012FFFFF (that are the three megabytes of the guest) */
+    /*   are between physical addresses 0x01000000 and 0x014FFFFF (that are the five megabytes of the guest) */
     /*   of memory reserved to the guest */
-    /*   these address are mapped by the virtual address  0x00000000 and 0x002FFFFF */
+    /*   these address are mapped by the virtual address  0x00000000 and 0x004FFFFF */
     /*   TODO: this must be accessible only to the hypervisor */
     // this must be a loop
     uint32_t va_offset;
@@ -161,24 +172,39 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 
+
+    // We pin the L2s that can be created in the 32KB are of slpt_va
+    dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
+    for (i=0; i*4096<0x8000; i++) {
+        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
+        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
+    }
+
+    // END initialization of the MATER PAGE TABLE
+    // START initialization of the FIRST gest PT
+
     // now the master page table is ready
     // it contains
     // - the virtual mapping to the hypervisor code and data
     // - a fixed virtual mapping to the guest PT
     // - some reserved mapping that for now we ignore, e.g. IO‌REGS
     // - a 1-1 mapping to the guest memory (as defined in the board_mem.c) writable and readable by the user
-    // - THIS‌SETUP‌MUST‌BE‌FIXED, SINCE‌THE‌GUEST‌IS‌NOT‌ALLOWED‌TO‌WRITE‌INTO‌IT ‌WHOLE‌ MEMORY
+    // - THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE ‌IN TO ‌ITS ‌WHOLE‌ MEMORY
+
 
     /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
     uint32_t index;
     uint32_t value;
     uint32_t *guest_pt_va;
-    guest_pt_va = mmu_guest_pa_to_va(vm_0.config->pa_initial_l1, &(vm_0.config));
+
+  	guest_pt_va = mmu_guest_pa_to_va(vm_0.config->pa_initial_l1, vm_0.config);
+
     for (index=0; index<4096; index++) {
       value = *(flpt_va + index);
       *(guest_pt_va + index) = value;
     }
-  
+
+
     /* activate the guest page table */
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, vm_0.config->pa_initial_l1); // Set TTB0
@@ -187,9 +213,8 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
-    // Initialize the datastructures with the tyoe for the initial L1
-    // This shoud be done by MMU_CREATE_L1
-    dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
+    // Initialize the datastructures with the type for the initial L1
+    // This should be done by MMU_CREATE_L1
 
     bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 0].type = PAGE_INFO_TYPE_L1PT;
     bft[PA_TO_PH_BLOCK(vm_0.config->pa_initial_l1) + 1].type = PAGE_INFO_TYPE_L1PT;
@@ -219,6 +244,12 @@ void guests_init()
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     mem_cache_set_enable(TRUE);
 
+#ifdef DEBUG_PG_CONTENT
+    for (index=0; index<4096; index++) {
+    	if(*(guest_pt_va + index) != 0x0)
+         printf("add %x %x \n", index , *(guest_pt_va + index)); //(flpt_va + index)
+    }
+#endif
     /* END GUANCIO CHANGES */
 
 #endif

@@ -11,6 +11,8 @@ include ../../target
 include ../../templates/platform/$(PLATFORM).cfg
 include ../../templates/cpu/$(PLATFORM_CPU).cfg
 
+include test.cfg
+
 # include templates
 include ../../templates/make/toolchain.inc
 include ../../templates/make/generic.inc

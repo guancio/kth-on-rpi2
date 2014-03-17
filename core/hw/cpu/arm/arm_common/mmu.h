@@ -96,7 +96,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MEMSPACE_FLAGS_AP_SHIFT 5
 
 
-BOOL pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32_t mem_type);
+uint32_t pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32_t mem_type);
 BOOL pt_create_section( addr_t *pt, addr_t va, addr_t pa, uint32_t mem_type);
 BOOL pt_map(addr_t va, addr_t pa, uint32_t size, uint32_t mem_type);
 
