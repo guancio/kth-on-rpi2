@@ -7,6 +7,7 @@
 
 enum mmu_ap { MMU_AP_NONE = 0, MMU_AP_SUP_RW, MMU_AP_USER_RO, MMU_AP_USER_RW };
 #define MMU_SECTION_AP_SHIFT 10
+#define MMU_PT_AP_SHIFT 4
 #define HC_DOM_DEFAULT 	0
 #define HC_DOM_KERNEL 	1
 #define HC_DOM_TASK 	2
@@ -150,6 +151,7 @@ void  test_l2_create()
 	  int j, t_id = 0;
 
 
+	  // TODO: WRONG L2 attrs
 	  attrs = 0x12; // 0b1--10 // Section: non useful since already setted by the API
 	  attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	  attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
@@ -340,13 +342,18 @@ void test_l2_map_entry()
 	// Creating an L2 to map
 	va = (va_base | (uint32_t)0x100000);
 	pa = va2pa(va);
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(t_id++,"Successful map of the section", SUCCESS, res);
+
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)0x81300032);
 	memcpy((void*)va, l2, sizeof l2);
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(t_id++,"Successful unmap of the section", SUCCESS, res);
+
 	res= ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(t_id,"Successful map of the new page", SUCCESS, res);
+	expect(t_id,"Successful creation of the new page", SUCCESS, res);
     // end of L2 page table creation
 
 	// #0: L2 base can not be 0, since it is reserved by the hypervisor to access the guest page tables
@@ -365,7 +372,9 @@ void test_l2_map_entry()
 	pa = va2pa(va);
 	pga = va2pa((va_base | (uint32_t)0x110000));
 	idx = 0xc2;
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
+	expect(t_id++,"Successful map of the new page", SUCCESS, res);
+
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, attrs);
 	expect(++t_id,"Mapping a valid physical address into one of a valid L2", SUCCESS, res);
 
@@ -478,13 +487,21 @@ void test_l2_unmap_entry()
 
 void test_l2_unmap_pt()
 {
+	// 1) create an L2 at the address va2pa(va_base | (uint32_t)0x100000)
+	// 2) map all the entries of the L2 to points to va2pa(va_base | (uint32_t)0x300000) and writable
+	// 3) map an l1 entry with the new pt:
+	//       all va (in blocks of 4KB) in (va_base | (uint32_t)0x100000) points to va2pa(va_base | (uint32_t)0x300000)
+	// 4) write into (va_base | (uint32_t)0x100000) and read from (va_base | (uint32_t)0x100000+4096). This shoud point to the same address
+	// 5) build a section that alias the same phisical region
+	//       all va (block of 1MB) in va_base + 2 * 0x100000 point to va2pa(va_base | (uint32_t)0x300000)
+
 	// idx is the index of a entry we want to map pga into
 	uint32_t pa, va, idx, pga, attrs, res;
 	int j, t_id = 0;
 
-	attrs = 0x12; // 0b1--10 // Section: non useful since already setted by the API
-	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-	attrs = attrs | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+	attrs = 0;
+	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT;
+
 
 	// Creating an L2 to map
 	va = (va_base | (uint32_t)0x100000);
@@ -493,21 +510,53 @@ void test_l2_unmap_pt()
 	res= ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
 	expect(t_id,"Successful creation of a new L2", SUCCESS, res);
 	// The first entry is not mapped
-	for(idx = 1; idx < 1024; idx++)
+	for(idx = 0; idx < 1024; idx++) {
 		res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, attrs);
+		expect(t_id++,"Update the L2 entry", SUCCESS, res);
+	}
 
-	// #0: this test should fail because guest is trying to free a referenced L2
-    //dmmu_l2_map_entry_();
 	uint32_t l1_va = (va_base | (uint32_t)0x300000);
-	attrs = 0xc21;
-	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
+
+	attrs = 0x0;
+	attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
+	expect(t_id++,"Successful map the new L2", SUCCESS, res);
+
+	// now the va is mapped and is translated to
+	// va and va + 4kb*i are pointing to the same address
+	(*((uint32_t *)va)) = 666;
+	uint32_t val = (*((uint32_t *)(va + 4096)));
+	expect(t_id++,"The small pages mapped by the new L2 points all to the same physical address", 666, val);
+
+
+	// is true that va is pointing to va2pa(va_base | (uint32_t)0x300000)?
+	// We build an additional section mapping to the address va2pa(va_base | (uint32_t)0x300000)
+	// then we read/write
+	attrs = 0;
+	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+	attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+	uint32_t va_section =  va_base + 2 * 0x100000;
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va_section, pga, attrs);
+	expect(t_id++,"Successfoul alias of the va address using a section", SUCCESS, res);
+
+	val = (*((uint32_t *)(va_section)));
+	expect(t_id++,"The small pages mapped by the new L2 points to the right physical address", 666, val);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va_section, 0, 0);
+	expect(t_id++,"Successfoul unmap of the section aliasing the va", SUCCESS, res);
+	// finished
+
+
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 	expect(t_id,"Unsuccessful freeing a referenced L2", ERR_MMU_REFERENCE_L2, res);
 
     // #1: this test should succeed
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(t_id,"Successful unmap the L1 entry pointing to the new L2", SUCCESS, res);
+
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	expect(t_id,"Successful unmapping the given L2", SUCCESS, res);
+	expect(t_id,"Successful free the given L2", SUCCESS, res);
 
 	// #2: this test should fail because L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
 	pa = 0x0;
