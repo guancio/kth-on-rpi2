@@ -8,7 +8,33 @@
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
 
+#define ERR_MMU_SUCCESS 0
+#define ERR_MMU_RESERVED_VA (1)
+#define ERR_MMU_ENTRY_UNMAPPED (2)
+#define ERR_MMU_OUT_OF_RANGE_PA (3)
+#define ERR_MMU_SECTION_NOT_UNMAPPED (4)
+#define ERR_MMU_PH_BLOCK_NOT_WRITABLE (5)
+#define ERR_MMU_AP_UNSUPPORTED (6)
+#define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
+#define ERR_MMU_ALREADY_L1_PT (9)
+#define ERR_MMU_ALREADY_L2_PT (9)
+#define ERR_MMU_REFERENCED_OR_PT_REGION (10)
+#define ERR_MMU_NO_UPDATE (11)
+#define ERR_MMU_IS_NOT_L2_PT (12)
+#define ERR_MMU_XN_BIT_IS_ON (13)
+#define ERR_MMU_PT_NOT_UNMAPPED (14)
+#define ERR_MMU_REF_OVERFLOW (15)
+#define ERR_MMU_INCOMPATIBLE_AP (16)
+#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE (17)
+#define ERR_MMU_REFERENCE_L2 (18)
+#define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
+#define ERR_MMU_IS_NOT_L1_PT (20)
+#define ERR_MMU_UNIMPLEMENTED (-1)
 
+
+/* ---------------------------------------------------------------- 
+ * BFT helper functions
+ * ---------------------------------------------------------------- */
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
 {
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
@@ -20,16 +46,52 @@ dmmu_entry_t *get_bft_entry(addr_t adr_py)
   return get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(adr_py));
 }
 
+void mmu_bft_region_set(addr_t start, size_t size, 
+                        uint32_t refc, uint32_t typ)
+{
+    int n;
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        e->refcnt = refc;
+        e->type = typ;
+    }        
+}
+
+int mmu_bft_region_type_equals(addr_t start, size_t size, uint32_t type)
+{
+    int n;    
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        if(e->type != type)
+            return 0;
+    }
+    return 1;
+}
+
+int mmu_bft_region_refcnt_equals(addr_t start, size_t size, uint32_t cnt)
+{
+    int n;    
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        if(e->refcnt != cnt)
+            return 0;
+    }
+    return 1;
+}
+
 
 void dmmu_init()
 {
-    uint32_t i;    
+    uint32_t i;
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
     
     /* clear all entries in the table */
     for(i = 0; i < DMMU_BFT_COUNT ; i++) {
         bft[i].all = 0;
-    }    
+    }
 }
 
 BOOL guest_pa_range_checker(pa, size) {

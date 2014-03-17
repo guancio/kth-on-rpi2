@@ -97,10 +97,19 @@ typedef __PACKED struct l1_small
 #define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
+
 #define PAGE_INFO_TYPE_DATA 0
 #define PAGE_INFO_TYPE_L1PT 1
 #define PAGE_INFO_TYPE_L2PT 2
 #define PAGE_INFO_TYPE_INVALID 3
+
+/* in tranelate.c */
+int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
+int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
+addr_t mmu_guest_pa_to_va(addr_t padr, hc_config * config);
+void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
+
+
 #define DESC_TYPE_MASK 0b11
 #define UNMAPPED_ENTRY 0
 

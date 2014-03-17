@@ -21,3 +21,4 @@ zImage.bin
 *.o
 *.ho
 .svn
+qemu

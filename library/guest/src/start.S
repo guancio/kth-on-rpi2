@@ -4,6 +4,7 @@
     .extern lib_init
     .extern lib_atexit    
     .extern handler_rpc
+    .extern guest_data
     
     .code 32
     .section .startup, "ax"
@@ -23,6 +24,11 @@ start:
     nop /* reserved */
     
 handler_reset:
+    /* save guest data */
+    ldr r8, =guest_data
+    str r3, [r8, #0]
+    str r4, [r8, #4]
+
     /* clean BSS */
     mov r0, #0
     ldr	r1,=__bss_start__

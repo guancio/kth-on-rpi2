@@ -1,7 +1,7 @@
 include ../target
 
 ifeq ($(SIMULATION_OVP),1)
-		SUBDIRS = ovp_integratorCP ovp_arm9 generic_a8
+		SUBDIRS = ovp_arm_any
 endif
 
 all:
