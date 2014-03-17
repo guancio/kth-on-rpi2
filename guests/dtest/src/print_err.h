@@ -2,34 +2,9 @@
 #ifndef PRINT_ERR_H_
 #define PRINT_ERR_H_
 
-const char* MSG[] =
-{"SUCCEED!",
- "ERR_MMU_RESERVED_VA",
- "ERR_MMU_ENTRY_UNMAPPED",
- "ERR_MMU_OUT_OF_RANGE_PA",
- "ERR_MMU_SECTION_NOT_UNMAPPED",
- "ERR_MMU_PH_BLOCK_NOT_WRITABLE",
- "ERR_MMU_AP_UNSUPPORTED",
- "ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED",
- "ERR_MMU_ALREADY_L1/L2_PT",
- "ERR_MMU_SANITY_CHECK_FAILED",
- "ERR_MMU_PT_REGION",
- "ERR_MMU_NO_UPDATE",
- "ERR_MMU_IS_NOT_L2_PT",
- "ERR_MMU_XN_BIT_IS_ON",
- "ERR_MMU_PT_NOT_UNMAPPED",
- "ERR_MMU_REF_OVERFLOW",
- "ERR_MMU_INCOMPATIBLE_AP",
- "ERR_MMU_L2_UNSUPPORTED_DESC_TYPE",
- "ERR_MMU_REFERENCE_L2",
- "ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED",
- "ERR_MMU_IS_NOT_L1_PT",
- "ERR_MMU_REFERENCED",
- "ERR_MMU_FREE_ACTIVE_L1",
- "ERR_MMU_UNIMPLEMENTED"
-};
 
-#define SUCCESS                 (0)
+#define SUCCESS                             (0)
+/* Error messages */
 #define ERR_MMU_RESERVED_VA                 (1)
 #define ERR_MMU_ENTRY_UNMAPPED 		        (2)
 #define ERR_MMU_OUT_OF_RANGE_PA             (3)
@@ -53,6 +28,8 @@ const char* MSG[] =
 #define ERR_MMU_IS_NOT_L1_PT                (20)
 #define ERR_MMU_REFERENCED				    (21)
 #define ERR_MMU_FREE_ACTIVE_L1				(22)
+#define ERR_MMU_SUPERSECTION				(23)
+#define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 void expect(uint32_t test_id, char * msg, uint32_t value, uint32_t res) {
