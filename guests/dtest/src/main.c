@@ -880,7 +880,7 @@ void test_unmap_L1_pt()
 	test_l1_create_and_switch_l1();
 
 	// 4) Freeing the initial L1 page table
-	pa = va2pa(va_base + 0x200000);
+	pa = va2pa(va_base + 0x200000); //9F800000
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
 	expect(t_id, "Unmapping the guest initial master page table", SUCCESS, res);
 
