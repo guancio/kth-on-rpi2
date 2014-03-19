@@ -272,6 +272,14 @@ void guests_init()
     memory_commit();
 
     // Initialize the datastructures with the type for the initial L1
+   // This should be done by MMU_CREATE_L1
+
+    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 0].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 1].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 2].type = PAGE_INFO_TYPE_L1PT;
+    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 3].type = PAGE_INFO_TYPE_L1PT;
+
+    // Initialize the datastructures with the type for the initial L1
     // create the attribute that allow the guest to read/write/execute
     uint32_t attrs;
     attrs = 0x12; // 0b1--10

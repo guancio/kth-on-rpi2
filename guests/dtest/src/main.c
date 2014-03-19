@@ -32,11 +32,19 @@ extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
 #define ISSUE_DMMU_HYPERCALL_(type, p0, p1, p2, p3) \
 		syscall_dmmu((type | (p2 & 0xFFFFFFF0)), p0, ((p1 << 20) | p3));
 
-uint32_t va2pa(uint32_t va) {
-	return va - 0xc0000000 + 0x81000000;
-}
 
-uint32_t va_base = 0xc0000000;
+addr_t pstart;
+addr_t vstart;
+size_t psize;
+size_t fwsize;
+
+
+uint32_t va_base;
+
+
+uint32_t va2pa(uint32_t va) {
+	return va - vstart + pstart;
+}
 
 void test_map_l1_section()
 {
@@ -88,7 +96,13 @@ void test_map_l1_section()
  	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Mapping a valid writable page", SUCCESS, res);
 
-	// #5: mapping 0xc030000 with read-only access permission is ok, since it is the page containing the active page table
+	// #5: unmap 0xc030000
+	// This test should succeed
+	va = (va_base + 0x300000);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(++t_id, "Unmapping an existing mapped page", SUCCESS, res);
+
+	// #6: mapping 0xc030000 with read-only access permission is ok, since it is the page containing the active page table
 	// This test should succeed
 	va = (va_base + 0x300000);
 	pa = va2pa(va_base + 0x000000);
@@ -117,11 +131,6 @@ void test_unmap_l1_entry()
 	expect(++t_id, "Unamap of a reserved va", ERR_MMU_RESERVED_VA, res);
 
 
-	// #2: Unmapping 0xc0300000 has no effect, since this page is unmapped
-	va = (va_base + 0x300000);
-	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(++t_id, "Unamaping an not mapped entry", ERR_MMU_ENTRY_UNMAPPED, res);
-
 
 	// #3: Unmapping 0xc0200000 is ok if this test is executed after the l1_map_section test, otherwise it has no effect
 	va = (va_base + 0x200000);
@@ -136,12 +145,10 @@ void test_unmap_l1_entry()
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	expect(t_id, "Unmapping a valid writable page", SUCCESS, res);
 
-/*
-	// #4: Unmapping 0xc0000000 is ok, but this is the page where the guest code resides
-	va = va_base;
+	// #2: Unmapping 0xc0200000 has no effect, since this page is unmapped
+	va = (va_base + 0x200000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(++t_id, "Unmapping a valid writable page, which will break the guest", SUCCESS, res);
-*/
+	expect(++t_id, "Unamaping an not mapped entry", ERR_MMU_ENTRY_UNMAPPED, res);
 
 }
 
@@ -912,8 +919,27 @@ void unit_test()
 }
 void _main()
 {
+	uint32_t p0, p1, p2 , p3;
+    __asm__ volatile (
+         "mov %0, r3\n"
+         "mov %1, r4\n"
+         "mov %2, r5\n"
+         "mov %3, r6\n"
+         : "=r"(p0), "=r"(p1), "=r"(p2), "=r"(p3) : );
+
+	pstart = p0;
+	vstart = p1;
+	psize = 0xFA11;
+	fwsize= 0xFA11;
+
+	va_base = vstart;
+
+	printf("START TEST\n");
+	printf("Received parameters: pstart= %x vstart=%x psize=%x fwsize=%x\n", pstart, vstart, psize, fwsize);
+
+
+
   int j;
-  printf("START TEST\n");
   for(j = 0; j < 500000; j++) asm("nop");
   //test_unmap_L1_pt();
 #ifdef TEST_DMMU_MAP_L1_SECTION
