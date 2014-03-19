@@ -122,6 +122,7 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 #define SECTION_SIZE (0x00100000)
 #define PAGE_SIZE (0x00001000)
 #define MAX_30BIT 0x3fffffff
+#define L2_DESC_ATTR_MASK 0x00000FFD
 
 #define VA_TO_L1_IDX(va) (va >> 20)
 #define L1_IDX_TO_PA(l1_base, idx) ((l1_base & 0xFFFFC000) | (idx << 2))
@@ -133,6 +134,7 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 #define UNMAP_L2_ENTRY(l2_desc) (l2_desc & 0xfffffffc)
 #define CREATE_L1_SEC_DESC(x, y) (L1_SEC_DESC_MASK & x) | (L1_SEC_DESC_ATTR_MASK & y) | (0b10)
 #define CREATE_L1_PT_DESC(x, y) (L1_PT_DESC_MASK & x) | (L1_PT_DESC_ATTR_MASK & y) | (0b01)
+#define CREATE_L2_DESC(x, y) (L2_BASE_MASK & x) | (L2_DESC_ATTR_MASK & y) | (0b10)
 #define GET_L1_AP(sec) ((((uint32_t) sec->ap_3b) << 2) | ((uint32_t) sec->ap_0_1bs))
 #define GET_L2_AP(attrs) ((attrs >> 7) & 0b100) | (((attrs >> 4) & 0b11))
 #define L1_DESC_PXN(x) ((x & 0x4) >> 2)
@@ -144,6 +146,8 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 
 #define PA_TO_PH_BLOCK(pa) ((pa) >> 12)
 #define PT_PA_TO_PH_BLOCK(pa) ((pa) >> 2)
+
+
 
 
 /* in tranelate.c */

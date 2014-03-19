@@ -1,6 +1,8 @@
 
 #include "hyper.h"
 #include "dmmu.h"
+#include "guest_blob.h"
+
 
 #if defined(TARGET_CPU_ARMv5)
 #error "Not supproted for this CPU!"
@@ -44,6 +46,6 @@ addr_t mmu_guest_pa_to_va(addr_t padr, hc_config * config) {
 #ifdef DEBUG_MMU_PA_TO_VA
 	printf("mmu_guest_pa_to_va:\n padr=%x, config =%x, a=%x, b=%x\n",  padr, config, config->pa_for_pt_access_start, config->reserved_va_for_pt_access_start);
 #endif
-	return (padr - config->pa_for_pt_access_start + config->reserved_va_for_pt_access_start);
+	return (padr - config->firmware->pstart + config->reserved_va_for_pt_access_start);
 }
 

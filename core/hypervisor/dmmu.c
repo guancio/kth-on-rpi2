@@ -1,36 +1,14 @@
 
 #include "hyper.h"
 #include "dmmu.h"
+#include "guest_blob.h"
+
 
 // DEBUG FLAGS
 #define DEBUG_DMMU_L1_CHECKERS 1
 
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
-
-#define ERR_MMU_SUCCESS 0
-#define ERR_MMU_RESERVED_VA (1)
-#define ERR_MMU_ENTRY_UNMAPPED (2)
-#define ERR_MMU_OUT_OF_RANGE_PA (3)
-#define ERR_MMU_SECTION_NOT_UNMAPPED (4)
-#define ERR_MMU_PH_BLOCK_NOT_WRITABLE (5)
-#define ERR_MMU_AP_UNSUPPORTED (6)
-#define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
-#define ERR_MMU_ALREADY_L1_PT (9)
-#define ERR_MMU_ALREADY_L2_PT (9)
-#define ERR_MMU_REFERENCED_OR_PT_REGION (10)
-#define ERR_MMU_NO_UPDATE (11)
-#define ERR_MMU_IS_NOT_L2_PT (12)
-#define ERR_MMU_XN_BIT_IS_ON (13)
-#define ERR_MMU_PT_NOT_UNMAPPED (14)
-#define ERR_MMU_REF_OVERFLOW (15)
-#define ERR_MMU_INCOMPATIBLE_AP (16)
-#define ERR_MMU_L2_UNSUPPORTED_DESC_TYPE (17)
-#define ERR_MMU_REFERENCE_L2 (18)
-#define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
-#define ERR_MMU_IS_NOT_L1_PT (20)
-#define ERR_MMU_UNIMPLEMENTED (-1)
-
 
 /* ---------------------------------------------------------------- 
  * BFT helper functions
@@ -95,9 +73,10 @@ void dmmu_init()
 }
 
 BOOL guest_pa_range_checker(pa, size) {
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	if (!(pa >= (guest_start_pa)) && (pa + size - 1 <= guest_end_pa))
+	// TODO: we are not managing the spatial isolation with the TRUSTED MODE
+	uint32_t guest_start_pa = curr_vm->config->firmware->pstart;
+	uint32_t guest_end_pa = curr_vm->config->firmware->pstart + curr_vm->config->firmware->psize;
+	if (!(pa >= (guest_start_pa)) && (pa + size  <= guest_end_pa))
 		return FALSE;
 	return TRUE;
 }
@@ -706,9 +685,6 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
 /* -------------------------------------------------------------------
  * Mapping a given page to the specified entry of L2
  *  -------------------------------------------------------------------*/
-#define L2_DESC_ATTR_MASK 0x00000FFD
-#define CREATE_L2_DESC(x, y) (L2_BASE_MASK & x) | (L2_DESC_ATTR_MASK & y) | (0b10)
-
 int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add, uint32_t attrs)
 {
     isb();
