@@ -928,6 +928,10 @@ void _main()
 #ifdef TEST_DMMU_UNMAP_L1_PT
   test_unmap_L1_pt();
 #endif
+#ifdef TEST_UNDEFINED
+  // Standard execution if no test has been specified
+  printf("no test has been specified\n");
+#endif
   printf("TEST COMPLETED\n");
 }
 

@@ -22,3 +22,4 @@ zImage.bin
 *.ho
 .svn
 qemu
+guests/dtest/test.cfg

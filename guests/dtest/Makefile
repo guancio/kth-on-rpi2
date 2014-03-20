@@ -11,7 +11,10 @@ include ../../target
 include ../../templates/platform/$(PLATFORM).cfg
 include ../../templates/cpu/$(PLATFORM_CPU).cfg
 
-include test.cfg
+ifndef TEST_NAME
+  TEST_NAME = TEST_UNDEFINED
+endif
+SRC_CFLAGS += -D$(TEST_NAME)=1
 
 # include templates
 include ../../templates/make/toolchain.inc
