@@ -2,49 +2,8 @@
 #include <lib.h>
 #include <types.h>
 
-#include "hypercalls.h"
-#include "print_err.h"
 
-enum mmu_ap { MMU_AP_NONE = 0, MMU_AP_SUP_RW, MMU_AP_USER_RO, MMU_AP_USER_RW };
-#define MMU_SECTION_AP_SHIFT 10
-#define MMU_PT_AP_SHIFT 4
-#define HC_DOM_DEFAULT 	0
-#define HC_DOM_KERNEL 	1
-#define HC_DOM_TASK 	2
-#define HC_DOM_TRUSTED 	3
-#define MMU_L1_DOMAIN_SHIFT 5
-
-
-uint32_t l1[4096] __attribute__ ((aligned (16 * 1024)));
-uint32_t l2[1024] __attribute__ ((aligned (4 * 1024)));
-
-// TEMP STUFF
-enum dmmu_command
-{
-  CMD_MAP_L1_SECTION, CMD_UNMAP_L1_PT_ENTRY, CMD_CREATE_L2_PT, CMD_MAP_L1_PT, CMD_MAP_L2_ENTRY, CMD_UNMAP_L2_ENTRY, CMD_FREE_L2, CMD_CREATE_L1_PT, CMD_SWITCH_ACTIVE_L1, CMD_FREE_L1
-};
-
-
-extern uint32_t syscall_dmmu(uint32_t r0, uint32_t r1, uint32_t r2);
-#define ISSUE_DMMU_HYPERCALL(type, p0, p1, p2) \
-		syscall_dmmu(type | (p2 << 4), p0, p1);
-
-#define ISSUE_DMMU_HYPERCALL_(type, p0, p1, p2, p3) \
-		syscall_dmmu((type | (p2 & 0xFFFFFFF0)), p0, ((p1 << 20) | p3));
-
-
-addr_t pstart;
-addr_t vstart;
-size_t psize;
-size_t fwsize;
-
-
-uint32_t va_base;
-
-
-uint32_t va2pa(uint32_t va) {
-	return va - vstart + pstart;
-}
+#include "dtest.h"
 
 void test_map_l1_section()
 {
@@ -110,7 +69,6 @@ void test_map_l1_section()
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Mapping a valid read/only page", SUCCESS, res);
 }
-
 
 void test_unmap_l1_entry()
 {
@@ -229,8 +187,6 @@ void  test_l2_create()
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 	va = (va_base + 0x400000) ;
 	pa = va2pa(va);
-	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(t_id, "Creating a section to write data", SUCCESS, res);
 
 	desc = (pstart | 0x31);
 	for(j = 0; j < 1024; j++)
@@ -621,6 +577,7 @@ void test_l1_create()
 	va = (va_base + 0x400000);
 	pa = va2pa(va);
 
+
 	// Writing content of the new L1 page table
 
 	uint32_t desc = (pstart | 0x1);
@@ -717,9 +674,6 @@ void test_l1_create_empty_l1() {
 	pa = va2pa(va);
 
 	// Map the pa thus we are able to store the pagetable
-	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(t_id++,"Successful map of the new page", SUCCESS, res);
-
 	memset(l1, 0, 4096*4);
 	memcpy((void*)va, l1, sizeof l1);
 
@@ -768,8 +722,6 @@ void test_l1_create_and_switch_l1() {
 	va = (va_base + 0x400000);
 	pa = va2pa(va);
 
-	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(++t_id,"Successful map of the new page", SUCCESS, res);
 
 	// 4) create the new L1
 	// initial empty
@@ -939,7 +891,7 @@ void _main()
 
   int j;
   for(j = 0; j < 500000; j++) asm("nop");
-  test_l1_create();
+  //*****************//
 #ifdef TEST_DMMU_MAP_L1_SECTION
   test_map_l1_section();
 #endif
