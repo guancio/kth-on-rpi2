@@ -87,7 +87,7 @@ static const hc_rpc_handler	rpc_handler_trusted = {
  */
 
 hc_config linux_config = {
-		.guest_entry_point = (HAL_PHYS_START + 0x1010000),
+		.guest_entry_offset = 0x0010000,
 		.guest_modes = {&gm_trusted, &gm_kernel, &gm_task, &gm_interrupt},
 		.rpc_handlers = &rpc_handler_trusted,
 };

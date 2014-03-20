@@ -12,7 +12,7 @@ ifndef IMPERAS_HOME
 endif
 
 
-SRC =$(wildcard src/*.c) $(wildcard ../ovp_common/*.c)
+SRC =$(wildcard src/*.c)
 ASM =$(wildcard src/*.S)
 OBJ =$(SRC:.c=.o) $(ASM:.S=.o)
 EXE ?=platform

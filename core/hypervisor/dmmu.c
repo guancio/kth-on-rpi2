@@ -1,6 +1,8 @@
 
 #include "hyper.h"
 #include "dmmu.h"
+#include "guest_blob.h"
+
 
 // DEBUG FLAGS
 #define DEBUG_DMMU_L1_CHECKERS 1
@@ -8,7 +10,9 @@
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
 
-
+/* ---------------------------------------------------------------- 
+ * BFT helper functions
+ * ---------------------------------------------------------------- */
 dmmu_entry_t *get_bft_entry_by_block_idx(addr_t ph_block)
 {
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
@@ -20,22 +24,59 @@ dmmu_entry_t *get_bft_entry(addr_t adr_py)
   return get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(adr_py));
 }
 
+void mmu_bft_region_set(addr_t start, size_t size, 
+                        uint32_t refc, uint32_t typ)
+{
+    int n;
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        e->refcnt = refc;
+        e->type = typ;
+    }        
+}
+
+int mmu_bft_region_type_equals(addr_t start, size_t size, uint32_t type)
+{
+    int n;    
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        if(e->type != type)
+            return 0;
+    }
+    return 1;
+}
+
+int mmu_bft_region_refcnt_equals(addr_t start, size_t size, uint32_t cnt)
+{
+    int n;    
+    dmmu_entry_t *e = get_bft_entry(start);
+    
+    for(n = size >> 12; n-- > 0; e++) {
+        if(e->refcnt != cnt)
+            return 0;
+    }
+    return 1;
+}
+
 
 void dmmu_init()
 {
-    uint32_t i;    
+    uint32_t i;
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
     
     /* clear all entries in the table */
     for(i = 0; i < DMMU_BFT_COUNT ; i++) {
         bft[i].all = 0;
-    }    
+    }
 }
 
 BOOL guest_pa_range_checker(pa, size) {
-	uint32_t guest_start_pa = curr_vm->config->pa_for_pt_access_start;
-	uint32_t guest_end_pa = curr_vm->config->pa_for_pt_access_end;
-	if (!(pa >= (guest_start_pa)) && (pa + size - 1 <= guest_end_pa))
+	// TODO: we are not managing the spatial isolation with the TRUSTED MODE
+	uint32_t guest_start_pa = curr_vm->config->firmware->pstart;
+	uint32_t guest_end_pa = curr_vm->config->firmware->pstart + curr_vm->config->firmware->psize;
+	if (!(pa >= (guest_start_pa)) && (pa + size  <= guest_end_pa))
 		return FALSE;
 	return TRUE;
 }
@@ -644,9 +685,6 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
 /* -------------------------------------------------------------------
  * Mapping a given page to the specified entry of L2
  *  -------------------------------------------------------------------*/
-#define L2_DESC_ATTR_MASK 0x00000FFD
-#define CREATE_L2_DESC(x, y) (L2_BASE_MASK & x) | (L2_DESC_ATTR_MASK & y) | (0b10)
-
 int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add, uint32_t attrs)
 {
     isb();

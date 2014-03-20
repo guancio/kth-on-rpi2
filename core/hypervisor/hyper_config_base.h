@@ -50,14 +50,12 @@ typedef struct hc_mem_domain_ {
  * set up everything.
  */
 typedef struct hc_config_ {
-  addr_t guest_entry_point;
+    struct guest_binary *firmware;
+    addr_t guest_entry_offset;
   const hc_guest_mode *guest_modes[HC_NGUESTMODES];
   const hc_rpc_handler *rpc_handlers;
   const addr_t reserved_va_for_pt_access_start;
-  const addr_t reserved_va_for_pt_access_end;
-  const addr_t pa_for_pt_access_start;
-  const addr_t pa_for_pt_access_end;
-  const addr_t pa_initial_l1;
+  const addr_t pa_initial_l1_offset;
 } hc_config;
 
 #endif
