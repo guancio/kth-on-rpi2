@@ -10,6 +10,7 @@ struct guest_data {
     const char *filename;    
     unsigned long vadr;
     int megs;
+    unsigned long offset;
 };
 
 
@@ -53,10 +54,18 @@ void parse_guests(int cnt, char **data)
             exit(20);
         }        
         *vadr++ = '\0';
-                       
+
+        char *oadr = strchr(vadr, ':');
+        *oadr++ = '\0';
+        if(!oadr) {
+        	fprintf(stderr, "Invalid guest format: '%s'\n", file);
+            exit(20);
+        }
+
         /* save the extracted data */        
         if(!parse_hex(padr, & guests[guest_cnt].vadr) || 
-           !parse_int(vadr, & guests[guest_cnt].megs))
+           !parse_int(vadr, & guests[guest_cnt].megs) ||
+           !parse_hex(oadr, & guests[guest_cnt].offset))
             exit(20);
         guests[guest_cnt].filename = file;        
         guest_cnt++;
@@ -107,10 +116,13 @@ void print_asm()
     for(i = 0; i < guest_cnt; i++) {
         printf("\n"
                "@@ Guest #%d\n"
-               "\t.word 2%03df - 1%03df @@ FWSIZE\n"            
+        	   "\t.word 0x%08lx @@ OFFSET\n"
+               "\t.word 2%03df - 1%03df @@ FWSIZE\n"
                "\t.word 0x%08lx @@ PSIZE\n"
                "\t.word 0x%08lx @@ VADR\n",
-               i + 1, i, i,               
+               i + 1,
+               guests[i].offset,
+               i, i,
                (unsigned long) guests[i].megs << 20,
                guests[i].vadr);
     }

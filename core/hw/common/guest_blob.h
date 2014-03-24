@@ -17,7 +17,8 @@ struct guest_binary {
 	addr_t pstart;
 	addr_t vstart;
 	size_t psize;
-	size_t fwsize;	
+	size_t fwsize;
+	size_t offset;
 };
 
 struct guests_database {
