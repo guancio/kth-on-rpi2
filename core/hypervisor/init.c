@@ -196,12 +196,12 @@ void guests_init()
 
 #ifdef LINUX
     vm_0.config = &linux_config;
-    vm_0.config.firmware = get_guest(guest++);
+    vm_0.config->firmware = get_guest(guest++);
     linux_init();
 #else
     vm_0.config = &minimal_config;
     vm_0.config->firmware = get_guest(1 + guest++);
-               
+#endif
     /* KTH CHANGES */
     /* - The hypervisor must be always able to read/write the guest PTs */
     /*   for now, the guest PTS can be written everywhere into the guest memory */
@@ -253,7 +253,6 @@ void guests_init()
     // - THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE ‌IN TO ‌ITS ‌WHOLE‌ MEMORY
 
     /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
-
     uint32_t *guest_pt_va;
     addr_t guest_pt_pa;
     guest_pt_pa = vm_0.config->firmware->pstart + vm_0.config->pa_initial_l1_offset;
@@ -266,7 +265,7 @@ void guests_init()
     dump_mmu(guest_pt_va); // DEBUG
     
     /* activate the guest page table */
-    memory_commit();    
+    memory_commit();
     COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); // Set TTB0
     isb();
     memory_commit();
@@ -278,6 +277,7 @@ void guests_init()
     bft[PA_TO_PH_BLOCK(guest_pt_pa) + 1].type = PAGE_INFO_TYPE_L1PT;
     bft[PA_TO_PH_BLOCK(guest_pt_pa) + 2].type = PAGE_INFO_TYPE_L1PT;
     bft[PA_TO_PH_BLOCK(guest_pt_pa) + 3].type = PAGE_INFO_TYPE_L1PT;
+
 
     // Initialize the datastructures with the type for the initial L1
     // create the attribute that allow the guest to read/write/execute
@@ -311,7 +311,7 @@ void guests_init()
     /* END GUANCIO CHANGES */
     /* END KTH CHANGES */
 
-#endif
+
 #ifdef TRUSTED
     get_guest(guest++);
     curr_vm->mode_states[HC_GM_TRUSTED].ctx.sp = curr_vm->config->rpc_handlers->sp;

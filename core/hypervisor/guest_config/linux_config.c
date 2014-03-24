@@ -87,7 +87,10 @@ static const hc_rpc_handler	rpc_handler_trusted = {
  */
 
 hc_config linux_config = {
-		.guest_entry_offset = 0x0010000,
+		.guest_entry_offset = 0x0,
 		.guest_modes = {&gm_trusted, &gm_kernel, &gm_task, &gm_interrupt},
 		.rpc_handlers = &rpc_handler_trusted,
+		.reserved_va_for_pt_access_start = 0xE8000000,
+		// Offset respect the initial pa of the guest
+		.pa_initial_l1_offset = 0x00004000 // Initial address + 2MB
 };
