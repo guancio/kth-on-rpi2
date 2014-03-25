@@ -56,6 +56,7 @@ typedef struct hc_config_ {
   const hc_rpc_handler *rpc_handlers;
   const addr_t reserved_va_for_pt_access_start;
   const addr_t pa_initial_l1_offset;
+  const addr_t pa_initial_l2_offset;
 } hc_config;
 
 #endif
