@@ -420,6 +420,17 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, linux_va);
 		dsb();
 		isb();
+
+#if 1
+		/*Make virtual address of l2 page RO*/
+		uint32_t l2_idx = (((uint32_t)val << 12) >> 24);
+		uint32_t l2_pt_phys = *l1_pt_va;
+		uint32_t *l2_pt_va = MMU_L1_PT_ADDR(l2_pt_phys - HAL_PHYS_START + HAL_VIRT_START);
+		l2_pt_va[l2_idx] &= ~(MMU_L2_SMALL_AP_MASK << MMU_L2_SMALL_AP_SHIFT);
+		l2_pt_va[l2_idx] |= (MMU_AP_USER_RO << MMU_L2_SMALL_AP_SHIFT); //AP = 2 READ ONLY
+		/*TODO FLUSH THIS VIRT ADDRESS*/
+#endif
+
 		l1_pt[0] = val;
 		l1_pt[1] = (val + 256 * 4); //(4 is the size of each entry)
 		/*Flush entry*/
@@ -433,6 +444,15 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, linux_va);
 		dsb();
 		isb();
+
+#if 1
+		uint32_t l2_idx = (((uint32_t)l1_pt[0] << 12) >> 24);
+		uint32_t l2_pt_phys = *l1_pt_va;
+		uint32_t *l2_pt_va = MMU_L1_PT_ADDR(l2_pt_phys - HAL_PHYS_START + HAL_VIRT_START);
+		l2_pt_va[l2_idx] &= ~(MMU_L2_SMALL_AP_MASK << MMU_L2_SMALL_AP_SHIFT);
+		l2_pt_va[l2_idx] |= (MMU_AP_USER_RW << MMU_L2_SMALL_AP_SHIFT); //AP = 2 READ ONLY
+		/*TODO FLUSH THIS VIRT ADDRESS*/
+#endif
 
 		l1_pt[0] = 0;
 		l1_pt[1] = 0; //(4 is the size of each entry)
