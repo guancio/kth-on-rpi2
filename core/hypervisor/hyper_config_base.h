@@ -2,6 +2,7 @@
 #define _HYPER_CONFIG_BASE_H_
 
 #include "types.h"
+#include "guest_blob.h"
 
 /*
  * We need this to know how many modes,

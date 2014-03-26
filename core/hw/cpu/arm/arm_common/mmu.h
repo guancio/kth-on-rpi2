@@ -30,7 +30,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MMU_L1_TYPE_FAULT 0
 #define MMU_L1_TYPE_FINE  3
 #define MMU_L1_TYPE_COARSE 1
-#define MMU_L1_TYPE_SMALL  1
+#define MMU_L1_TYPE_PT  1
 #define MMU_L1_TYPE_SECTION 2
 
 #define MMU_L1_SECTION_ADR(adr)  ((adr) & 0xFFF00000)
@@ -40,6 +40,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MMU_L1_DOMAIN_MASK  (0xF << 5)
 #define MMU_L1_DOMAIN_SHIFT 5
 
+#define MMU_L2_TYPE_SMALL 2
 
 /* MMU section descriptor */
 

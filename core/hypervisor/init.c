@@ -162,31 +162,6 @@ void setup_handlers()
     timer_tick_start((cpu_callback)irq_handler);
 }
 
-void linux_init_dmmu()
-{
-
-
-}
-uint32_t linux_l2_index_p =0;
-
-addr_t linux_pt_get_empty_l2()
-{
-	uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
-	uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
-	if((linux_l2_index_p * 0x400) > 0x3000){ // Set max size of L2 pages
-		printf("No more space for more L2s\n");
-		while(1); //hang
-		return 0;
-	}
-	else{
-		addr_t index = linux_l2_index_p * 0x400;
-		memset( (uint32_t *)((uint32_t)va_l2_pt + index), 0, 0x400);
-		linux_l2_index_p++;
-		return (uint32_t)(pa_l2_pt + index);
-	}
-
-}
-
 void guests_init()
 {
 	uint32_t i, guest = 0;
@@ -222,12 +197,15 @@ void guests_init()
 #ifdef LINUX
     vm_0.config = &linux_config;
     vm_0.config->firmware = get_guest(guest++);
-//    linux_init();
-    linux_init_dmmu();
+//  linux_init();
+
 #else
     vm_0.config = &minimal_config;
     vm_0.config->firmware = get_guest(1 + guest++);
 #endif
+    addr_t guest_vstart = curr_vm->config->firmware->vstart;
+    addr_t guest_pstart = curr_vm->config->firmware->pstart;
+    addr_t guest_psize =  curr_vm->config->firmware->psize;
     /* KTH CHANGES */
     /* - The hypervisor must be always able to read/write the guest PTs */
     /*   for now, the guest PTS can be written everywhere into the guest memory */
@@ -242,11 +220,11 @@ void guests_init()
     // this must be a loop
     uint32_t va_offset;
     for (va_offset = 0;
-	 va_offset + SECTION_SIZE <= vm_0.config->firmware->psize;
+	 va_offset + SECTION_SIZE <= guest_psize;
 	 va_offset += SECTION_SIZE) {
         uint32_t offset, pmd;
         uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
-        uint32_t pa = vm_0.config->firmware->pstart + va_offset;
+        uint32_t pa = guest_pstart + va_offset;
         pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
 
         /* Invalidate the new created entries */
@@ -281,7 +259,7 @@ void guests_init()
     /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
     uint32_t *guest_pt_va;
     addr_t guest_pt_pa;
-    guest_pt_pa = vm_0.config->firmware->pstart + vm_0.config->pa_initial_l1_offset;
+    guest_pt_pa = guest_pstart + vm_0.config->pa_initial_l1_offset;
   	guest_pt_va = mmu_guest_pa_to_va(guest_pt_pa, vm_0.config);
 
     printf("COPY %x %x\n", guest_pt_va, flpt_va);
@@ -309,46 +287,10 @@ void guests_init()
     // create the attribute that allow the guest to read/write/execute
     uint32_t attrs;
 
-
 #ifdef LINUX
-    /*Linux specific mapping*/
-    attrs = 0x12; // 0b1--10
-        attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-        attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-    // As default the guest has a 1-to-1 mapping to all its memory
-    uint32_t offset;
-    /*Can't map from offset = 0 because start addresses contains page tables*/
-    for (offset = SECTION_SIZE;
-    	 offset + SECTION_SIZE <= vm_0.config->firmware->psize;
-    	 offset += SECTION_SIZE) {
-
-    	dmmu_map_L1_section(vm_0.config->firmware->vstart+offset, vm_0.config->firmware->pstart+offset, attrs);
-    }
-
-    /*special mapping for start address*/
-
-    /*Gets an empty L2 pt from HV*/
-    attrs = 0x1;
-    attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-    //uint32_t *table2_pa = pt_get_empty_l2(); /*TODO get from guest instead?*/
-    uint32_t *table2_pa = linux_pt_get_empty_l2(); /*TODO get from guest instead?*/
-    //dmmu_l1_pt_map(&guest_pt_va[0xc00], table2_pa, attrs);
-    dmmu_create_L2_pt(table2_pa);
-    dmmu_l1_pt_map(0xc0007000, table2_pa, attrs);
-
-    uint32_t page_pa = curr_vm->config->firmware->pstart;
-    attrs = 0xE; //Small page, CB on
-    attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
-
-    for(i = 0; i < 256;i++, page_pa+=0x1000){
-    	if(i >=1 && i <=7){
-    		uint32_t ro_attrs = 0xE | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
-    		dmmu_l2_map_entry(table2_pa, i, page_pa, ro_attrs);
-    	}
-    	else
-    		dmmu_l2_map_entry(table2_pa, i, page_pa,  attrs);
-    }
-
+    /*Maps PA-PA for boot and VA-PA for kernel
+     * First MB of pa mapped as L2PT with page 1-7 RO (private L2PT and master page)*/
+    linux_init_dmmu();
 
 #else
     attrs = 0x12; // 0b1--10
@@ -357,10 +299,10 @@ void guests_init()
     // As default the guest has a 1-to-1 mapping to all its memory
     uint32_t offset;
     for (offset = 0;
-    	 offset + SECTION_SIZE <= vm_0.config->firmware->psize;
+    	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
 
-    	dmmu_map_L1_section(vm_0.config->firmware->vstart+offset, vm_0.config->firmware->pstart+offset, attrs);
+    	dmmu_map_L1_section(guest_vstart+offset,guest_pstart+offset, attrs);
     }
 
 #endif
