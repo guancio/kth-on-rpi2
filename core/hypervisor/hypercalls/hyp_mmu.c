@@ -5,9 +5,11 @@
 
 extern virtual_machine *curr_vm;
 
-
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
+
+/*Extra debug information */
+#define DEBUG_MMU
 
 /* This is a container which keeps track of each individual page's type and reference counter
  * main memory has been divided to 2^20 pages
@@ -156,6 +158,10 @@ uint32_t hypercall_map_l1_section(addr_t va, addr_t sec_base_add, uint32_t attrs
  */
 void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall create section\n\t\t va:%x pa:%x page_attr:%x  ", va, pa, page_attr);
+#endif
+
 	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
 	uint32_t guest_size = curr_vm->guest_info.guest_size;
 
@@ -194,6 +200,10 @@ void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
  * TODO Add list of allowed page tables*/
 void hypercall_switch_mm(addr_t table_base, uint32_t context_id)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall switch PGD\n\t\t table_base:%x ", table_base);
+#endif
+
 	uint32_t *l2_pt, lvl2_idx;
 	uint32_t pgd_va;
 	uint32_t pgd_size = 0x4000;
@@ -232,6 +242,9 @@ void hypercall_switch_mm(addr_t table_base, uint32_t context_id)
  * used by another task (Linux kernel knows not to do this but can be used in an attack)*/
 void hypercall_free_pgd(addr_t *pgd)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall FREE PGD\n\t\t pgd:%x ", pgd);
+#endif
 //	printf("\n\tLinux kernel Free PGD: %x\n", pgd);
 	uint32_t pgd_size = 0x4000;
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
@@ -279,6 +292,9 @@ void hypercall_free_pgd(addr_t *pgd)
  *TODO Add list of used page tables and keep count */
 void hypercall_new_pgd(addr_t *pgd)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall new PGD\n\t\t pgd:%x ", pgd);
+#endif
 	uint32_t slpt_pa, lvl2_idx, i;
 	uint32_t *l2_pt, clean;
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
@@ -354,6 +370,9 @@ void hypercall_new_pgd(addr_t *pgd)
  * */
 void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, val);
+#endif
 //	printf("\n\tHYP: Set page pgd: %x val: %x \n", pgd, val );
 	uint32_t offset, *l1_pt, slpt_pa, sect_idx;
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
@@ -465,6 +484,9 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 /*Sets an entry in lvl 2 page table*/
 void hypercall_set_pte(addr_t *va, uint32_t linux_pte, uint32_t phys_pte)
 {
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall set PTE\n\t\t va:%x linux_pte:%x phys_pte:%x ", va, phys_pte, linux_pte);
+#endif
 	uint32_t *phys_va = (uint32_t *)((uint32_t)va - 0x800);
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
 	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
