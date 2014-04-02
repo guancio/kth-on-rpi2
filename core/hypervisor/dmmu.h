@@ -154,4 +154,7 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
 int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 
+/*Function prototypes*/
+uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va);
+
 #endif /* _DMMU_H_ */

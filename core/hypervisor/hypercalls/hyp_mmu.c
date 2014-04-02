@@ -373,7 +373,6 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, val);
 #endif
-//	printf("\n\tHYP: Set page pgd: %x val: %x \n", pgd, val );
 	uint32_t offset, *l1_pt, slpt_pa, sect_idx;
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
 	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
