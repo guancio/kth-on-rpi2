@@ -456,7 +456,12 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 				dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 				bft_entry->refcnt -= 1;
 			}
+#if 0
 		*((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
+#else
+		/*Cannot map L1_SECTION, unmap L1 entry and map L2 PT with the above*/
+		*((uint32_t *) l1_desc_va_add) = 0;
+#endif
 	}
 	// nothing, since the entry was already unmapped
 	else {
@@ -661,6 +666,7 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
     l1_desc_pa_add = L1_IDX_TO_PA(l1_base_add, l1_idx);
     l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, (curr_vm->config));
     l1_desc = *((uint32_t *) l1_desc_va_add);
+    /*There is no XN bit for first level page table descriptors /viktor*/
     if(L1_DESC_PXN(attrs))
     	return ERR_MMU_XN_BIT_IS_ON;
     //checks if the L1 entry is unmapped or not

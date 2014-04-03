@@ -151,14 +151,20 @@ void linux_init_dmmu()
     	dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, attrs);
     }
 
+    addr_t reserved_l2_pts_pa = curr_vm->config->pa_initial_l2_offset + guest_pstart;
+    addr_t reserved_l1_pt_pa = curr_vm->config->pa_initial_l1_offset + guest_pstart;
+    /*Set reserved address in Linux as L2_pt*/
+    for(offset = reserved_l2_pts_pa; offset <= reserved_l1_pt_pa; offset += PAGE_SIZE){
+    	dmmu_create_L2_pt(offset);
+    }
+
     /*special mapping for start address*/
         /*Maps First MB as coarse with page 1-7 as RO and rest RW*/
         /*Gets an empty L2 pt from HV*/
         attrs = MMU_L1_TYPE_PT;
         attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-        uint32_t *table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
-        dmmu_create_L2_pt(table2_pa);
+        uint32_t table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
 
         dmmu_l1_pt_map(guest_pstart, table2_pa, attrs);
         dmmu_l1_pt_map(guest_vstart, table2_pa, attrs);

@@ -3,6 +3,8 @@
 
 extern virtual_machine *curr_vm;
 
+#define USE_DMMU
+
 void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hypercall_number)
 {
     
@@ -120,10 +122,14 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 				hypercall_free_pgd((uint32_t*)param0);
 				return;
 			case HYPERCALL_CREATE_SECTION:
-				hypercall_create_section(param0,param1, param2);
+				//hypercall_create_section(param0,param1, param2);
 				return;
 			case HYPERCALL_SET_PMD:
+#ifdef USE_DMMU
+				hypercall_dyn_set_pmd(param0, param1);
+#else
 				hypercall_set_pmd((uint32_t*)param0, param1);
+#endif
 				return;
 			case HYPERCALL_SET_PTE:
 				hypercall_set_pte((uint32_t*)param0, param1, param2);
