@@ -64,6 +64,34 @@ void clear_linux_mappings()
 	}
 }
 
+dmmu_clear_linux_mappings()
+{
+	addr_t guest_vstart = curr_vm->config->firmware->vstart;
+	addr_t guest_psize =  curr_vm->config->firmware->psize;
+	uint32_t address;
+
+	uint32_t VMALLOC_END   = curr_vm->guest_info.vmalloc_end;
+
+	/*
+	 * Clear out all the mappings below the kernel image. Maps
+	 */
+
+	for (address = 0 ; address < guest_vstart; address += SECTION_SIZE){
+		dmmu_unmap_L1_pageTable_entry(address);
+	}
+
+	/*
+	 * Clear out all the kernel space mappings, except for the first
+	 * memory bank, up to the end of the vmalloc region.
+	 */
+	if(VMALLOC_END > HAL_VIRT_START)
+		hyper_panic("Cannot clear out hypervisor page\n", 1);
+
+	for (address = guest_vstart + guest_psize;address < VMALLOC_END; address += SECTION_SIZE){
+		dmmu_unmap_L1_pageTable_entry(address);
+	}
+
+}
 void init_linux_sigcode()
 {
 	memcpy((void *)KERN_SIGRETURN_CODE, sigreturn_codes,

@@ -122,6 +122,8 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 				hypercall_free_pgd((uint32_t*)param0);
 				return;
 			case HYPERCALL_CREATE_SECTION:
+				/*Not used anymore, DMMU init sets up everything in advance
+				 *TODO remove call from linux kernel */
 				//hypercall_create_section(param0,param1, param2);
 				return;
 			case HYPERCALL_SET_PMD:

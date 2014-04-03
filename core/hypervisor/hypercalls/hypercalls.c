@@ -56,7 +56,8 @@ void hypercall_guest_init(boot_info *info)
 	curr_vm->exception_vector = (uint32_t *)info->guest.page_offset;
 
 #ifdef LINUX
-	clear_linux_mappings();
+	//clear_linux_mappings();
+	dmmu_clear_linux_mappings();
 #endif
 
 }
