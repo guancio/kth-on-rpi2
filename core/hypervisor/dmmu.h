@@ -126,7 +126,7 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 
 #define VA_TO_L1_IDX(va) (va >> 20)
 #define L1_IDX_TO_PA(l1_base, idx) ((l1_base & 0xFFFFC000) | (idx << 2))
-#define L2_IDX_TO_PA(l2_base, idx) ((l2_base & 0xFFFFFC00) | (idx << 2))
+#define L2_IDX_TO_PA(l2_base, idx) ((l2_base & 0xFFFFF000) | (idx << 2))
 
 #define L1_TYPE(l1_desc) (l1_desc & DESC_TYPE_MASK)
 

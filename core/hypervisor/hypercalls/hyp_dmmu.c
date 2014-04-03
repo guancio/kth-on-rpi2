@@ -49,11 +49,18 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
         attrs = MMU_L2_TYPE_SMALL;
         attrs |= (MMU_FLAG_B | MMU_FLAG_C);
         attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
-        int i ;
+        int i, end, table2_idx ;
         /*This is the idx of the physical address that needs to be RO future new (L2PT)*/
         uint32_t l2_idx = ((uint32_t)desc << 12) >> 24;
-        for(i = 0; i < 256;i++, page_pa+=0x1000){
-        	if(i == l2_idx){
+        uint32_t L2_PT_SIZE_SHIFT = 10;
+
+        /*Get index of physical L2PT */
+        table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> L2_PT_SIZE_SHIFT;
+        table2_idx *= 0x100; /*256 pages per L2PT*/
+        end = table2_idx + 0x100;
+
+        for(i = table2_idx; i < end;i++, page_pa+=0x1000){
+        	if(i == l2_idx +( table2_idx)){
         		uint32_t ro_attrs = 0xE | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
         		dmmu_l2_map_entry(table2_pa, i, page_pa,  ro_attrs);
         	}
