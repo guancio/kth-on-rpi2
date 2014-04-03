@@ -443,7 +443,7 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 	  uint32_t ph_block = PA_TO_PH_BLOCK(PA_OF_POINTED_PT(l1_pt_desc));
 	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 	  bft_entry->refcnt -= 1;
-#if 0
+#if 1
 	  *((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 #else
 	  /*Sets the desc to 0 when unmapping to avoid confusion*/
@@ -461,7 +461,7 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 				dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
 				bft_entry->refcnt -= 1;
 			}
-#if 0
+#if 1
 		*((uint32_t *) l1_desc_va_add) = UNMAP_L1_ENTRY(l1_desc);
 #else
 		/*Cannot map L1_SECTION, unmap L1 entry and map L2 PT with the above*/
