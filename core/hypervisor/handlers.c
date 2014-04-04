@@ -134,7 +134,8 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 #endif
 				return;
 			case HYPERCALL_SET_PTE:
-				hypercall_set_pte((uint32_t*)param0, param1, param2);
+				//hypercall_set_pte((uint32_t*)param0, param1, param2);
+				hypercall_dyn_set_pte((uint32_t*)param0, param1,param2);
 				return;
 			/****************************/
 			/*RPC*/

@@ -52,10 +52,9 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
         int i, end, table2_idx ;
         /*This is the idx of the physical address that needs to be RO future new (L2PT)*/
         uint32_t l2_idx = ((uint32_t)desc << 12) >> 24;
-        uint32_t L2_PT_SIZE_SHIFT = 10;
 
         /*Get index of physical L2PT */
-        table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> L2_PT_SIZE_SHIFT;
+        table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
         table2_idx *= 0x100; /*256 pages per L2PT*/
         end = table2_idx + 0x100;
 
@@ -104,3 +103,39 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	dsb();
 
 }
+
+/*va is the virtual address of the page table entry for linux pages
+ *the physical pages are located 0x800 below */
+hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t phys_pte)
+{
+	addr_t phys_start = curr_vm->config->firmware->pstart;
+	uint32_t page_offset = curr_vm->guest_info.page_offset;
+
+	uint32_t *l2pt_hw_entry_va = (addr_t *)((addr_t ) l2pt_linux_entry_va - 0x800);
+	addr_t l2pt_hw_entry_pa = ((addr_t)l2pt_hw_entry_va - page_offset + phys_start );
+
+    /*Get index of physical L2PT */
+    uint32_t table2_idx = (l2pt_hw_entry_pa - (l2pt_hw_entry_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
+    table2_idx *= 0x100; /*256 pages per L2PT, 4 total in each L2PT_BASE(hw.hw.lin.lin)*/
+    uint32_t entry_idx = ((addr_t )l2pt_linux_entry_va & 0xFF) >> 2;
+    entry_idx += (table2_idx * 0x100);
+
+	/*Small page with CB on and RW*/
+    uint32_t attrs = phys_pte & 0xFFF; /*Mask out address*/
+
+    if(phys_pte != 0) {
+    	dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs);
+    	/*Cannot map linux entry, ap = 0 generates error*/
+    	//dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx + (256*2), MMU_L1_PT_ADDR(phys_pte),linux_pte & 0xFFF);
+    }
+    else {
+    	/*Unmap*/
+    	dmmu_l2_unmap_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx);
+    }
+	/*Do we need to use the DMMU API to set Linux pages?*/
+	*l2pt_linux_entry_va = linux_pte;
+
+	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)l2pt_hw_entry_va );
+
+}
+
