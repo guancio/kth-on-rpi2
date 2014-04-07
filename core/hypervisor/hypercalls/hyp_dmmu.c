@@ -6,6 +6,24 @@
 extern virtual_machine *curr_vm;
 
 #define DEBUG_MMU
+
+/*Get physical address from Linux virtual address*/
+#define LINUX_PA(va) (va - curr_vm->config->firmware->vstart + curr_vm->config->firmware->pstart)
+
+void hypercall_dyn_switch_mm(addr_t table_base, uint32_t context_id)
+{
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall switch PGD\n\t\t table_base:%x ", table_base);
+#endif
+
+	/*Switch the TTB and set context ID*/
+	dmmu_switch_mm(table_base & L1_BASE_MASK);
+	COP_WRITE(COP_SYSTEM,COP_CONTEXT_ID_REGISTER, context_id); //Set context ID
+	isb();
+
+}
+
+
 /*New pages for processes, copys kernel space from master pages table
  *and cleans the cache, set these pages read only for user */
 void hypercall_dyn_new_pgd(addr_t *pgd_va)
@@ -76,7 +94,7 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 		//TODO
 		printf("\n\tNot implemented!\n");
 	}
-	dmmu_create_L1_pt(0);
+
 
 	/* Page table 0x0 - 0x4000
 		 * Reset user space 0-0x2fc0
@@ -89,6 +107,7 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 
 	/*Clean dcache on whole table*/
 	hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
+	dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va));
 
 }
 
@@ -261,13 +280,14 @@ hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t 
 
     if(phys_pte != 0) {
     	if(dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs))
-    		printf("\n\tCould not map l2 entry in set pte!\n");
+    		printf("\n\tCould not map l2 entry in set pte hypercall\n");
     	/*Cannot map linux entry, ap = 0 generates error*/
     	//dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx + (256*2), MMU_L1_PT_ADDR(phys_pte),linux_pte & 0xFFF);
     }
     else {
     	/*Unmap*/
-    	dmmu_l2_unmap_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx);
+    	if(dmmu_l2_unmap_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx))
+    		printf("\n\tCould not unmap l2 entry in set pte hypercall\n");
     }
 	/*Do we need to use the DMMU API to set Linux pages?*/
 	*l2pt_linux_entry_va = linux_pte;
