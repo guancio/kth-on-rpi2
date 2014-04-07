@@ -157,6 +157,7 @@ int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 /*Function prototypes*/
 int dmmu_switch_mm(addr_t l1_base_pa_add);
 
+int dmmu_create_L1_pt(addr_t l1_base_pa_add);
 int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs);
 uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add);
 dmmu_l2_map_entry(table2_pa, i, page_pa,  ro_attrs);
