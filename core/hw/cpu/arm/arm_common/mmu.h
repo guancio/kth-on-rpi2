@@ -47,6 +47,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MMU_SECTION_AP_MASK 3
 #define MMU_SECTION_AP_SHIFT 10
 
+#define MMU_L1_SECTION_IDX(addr) (addr >> 20)
 #define MMU_L1_SECTION_SHIFT 20
 #define MMU_L1_SECTION_SIZE (1UL << MMU_L1_SECTION_SHIFT)
 #define MMU_L1_SECTION_ADDR(addr) ((addr) & ~(MMU_L1_SECTION_SIZE - 1))
