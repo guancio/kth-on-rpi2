@@ -102,7 +102,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 #endif
 
 	addr_t l1_entry, *l1_pt_entry_for_desc;
-	addr_t curr_pgd_pa, *curr_pgd_va, attrs;
+	addr_t curr_pgd_pa, *pgd_va, attrs;
 	uint32_t l1_pt_idx_for_desc, l1_desc_entry, phys_start;
 
 	phys_start = curr_vm->config->firmware->pstart;
@@ -110,12 +110,9 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	uint32_t page_offset_idx = (page_offset >> 20) *4;
 
 	addr_t master_pgd_va = (curr_vm->config->pa_initial_l1_offset + page_offset);
-#if 0
-	/*Get current page table*/
-	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_pgd_pa);
-	curr_pgd_va = (addr_t *) (curr_pgd_pa - phys_start + page_offset);
-#endif
-	curr_pgd_va = (addr_t ) (pmd ) & L1_BASE_MASK; /*Mask with 16KB alignment to get PGD*/
+
+	/*Get page table for pmd*/
+	pgd_va = (addr_t ) (pmd ) & L1_BASE_MASK; /*Mask with 16KB alignment to get PGD*/
 
 
 
@@ -126,7 +123,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 		l1_entry = *pmd;
 
 	l1_pt_idx_for_desc = ((l1_entry - phys_start) >> MMU_L1_SECTION_SHIFT)*4;
-	l1_pt_entry_for_desc =  (addr_t *)((addr_t)curr_pgd_va + l1_pt_idx_for_desc + page_offset_idx);
+	l1_pt_entry_for_desc =  (addr_t *)((addr_t)pgd_va + l1_pt_idx_for_desc + page_offset_idx);
 	l1_desc_entry = *l1_pt_entry_for_desc;
 
 	addr_t *linux_va = MMU_L2_SMALL_ADDR(l1_entry) - phys_start + page_offset;
@@ -181,7 +178,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	uint32_t desc_va = MMU_L2_SMALL_ADDR(desc) - phys_start + page_offset;
 	uint32_t desc_va_idx = MMU_L1_SECTION_IDX(desc_va);
 
-	uint32_t l2pt_pa = MMU_L1_PT_ADDR(curr_pgd_va[desc_va_idx]);
+	uint32_t l2pt_pa = MMU_L1_PT_ADDR(pgd_va[desc_va_idx]);
 	uint32_t *l2pt_va = l2pt_pa- phys_start + page_offset;
 	uint32_t l2_idx = ((uint32_t)desc << 12) >> 24;
 	uint32_t l2entry_desc = l2pt_va[l2_idx];
@@ -206,36 +203,32 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
 	/*Get virtual address of the translation for pmd*/
-	addr_t virt_transl_for_pmd = (addr_t)((pmd - curr_pgd_va) << MMU_L1_SECTION_SHIFT);
+	addr_t virt_transl_for_pmd = (addr_t)((pmd - pgd_va) << MMU_L1_SECTION_SHIFT);
 
-#if 1
 	/*Get current page table*/
-	uint32_t real_pgd_pa;
-	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)real_pgd_pa);
-#endif
+	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_pgd_pa);
+
+	uint32_t switch_back = 0;
+	if(((addr_t)pmd & L1_BASE_MASK) != (curr_pgd_pa)){
+			COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, (addr_t)pmd - page_offset + phys_start); // Set TTB0
+			isb();
+			switch_back = 1;
+	}
 
 	if(desc == 0){
 		dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd);
 		dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd+SECTION_SIZE);
 	}
 	else{
-		if(((addr_t)pmd & L1_BASE_MASK) != (real_pgd_pa)) {
-			/*This means that we are setting a pmd on another pgd, current
-			 * API does not allow that, so we have to switch the physical ttb0
-			 * back and forth */
-			COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, (addr_t)pmd - page_offset + phys_start); // Set TTB0
-			isb();
-			dmmu_l1_pt_map(virt_transl_for_pmd, MMU_L2_SMALL_ADDR(desc), attrs);
-			dmmu_l1_pt_map(virt_transl_for_pmd + SECTION_SIZE, MMU_L2_SMALL_ADDR(desc) + 0x400, attrs);
-
-			COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, real_pgd_pa); // Set TTB0
-			isb();
-
-		}
-		else{
-			dmmu_l1_pt_map(virt_transl_for_pmd, MMU_L2_SMALL_ADDR(desc), attrs);
-			dmmu_l1_pt_map(virt_transl_for_pmd + SECTION_SIZE, MMU_L2_SMALL_ADDR(desc) + 0x400, attrs);
-		}
+		/*This means that we are setting a pmd on another pgd, current
+		 * API does not allow that, so we have to switch the physical ttb0
+		 * back and forth */
+		dmmu_l1_pt_map(virt_transl_for_pmd, MMU_L2_SMALL_ADDR(desc), attrs);
+		dmmu_l1_pt_map(virt_transl_for_pmd + SECTION_SIZE, MMU_L2_SMALL_ADDR(desc) + 0x400, attrs);
+	}
+	if(switch_back){
+		COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, curr_pgd_pa); // Set TTB0
+		isb();
 	}
 
 	/*Flush entry*/
