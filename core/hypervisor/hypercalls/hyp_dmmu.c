@@ -287,10 +287,7 @@ hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t 
 	addr_t l2pt_hw_entry_pa = ((addr_t)l2pt_hw_entry_va - page_offset + phys_start );
 
     /*Get index of physical L2PT */
-    uint32_t table2_idx = (l2pt_hw_entry_pa - (l2pt_hw_entry_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
-    table2_idx *= 0x100; /*256 pages per L2PT, 4 total in each L2PT_BASE(hw.hw.lin.lin)*/
-    uint32_t entry_idx = ((addr_t )l2pt_linux_entry_va & 0xFF) >> 2;
-    entry_idx += (table2_idx * 0x100);
+    uint32_t entry_idx = ((addr_t )l2pt_hw_entry_va & 0xFFF) >> 2;
 
 	/*Small page with CB on and RW*/
     uint32_t attrs = phys_pte & 0xFFF; /*Mask out address*/
