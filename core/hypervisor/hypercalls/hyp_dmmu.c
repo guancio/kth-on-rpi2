@@ -254,7 +254,13 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	}
 
 	if(desc == 0){
-		/*Before unmapping the L1 entry, we need to make it RW again so that
+
+		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd))
+			printf("\n\tCould not unmap L1 entry in set PMD\n");
+		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd+SECTION_SIZE))
+			printf("\n\tCould not unmap L1 entry in set PMD\n");
+
+		/*We need to make the l2 page RW again so that
 		 *OS can reuse the address */
 		if(dmmu_l2_unmap_entry((uint32_t)l2pt_pa & L2_BASE_MASK, table2_idx+l2_idx))
 					printf("\n\tCould not unmap L2 entry in set PMD\n");
@@ -263,12 +269,6 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 			printf("\n\tCould not unmap L2 pt in set PMD\n");
 		if(dmmu_l2_map_entry((uint32_t)l2pt_pa & L2_BASE_MASK, table2_idx+l2_idx, MMU_L2_SMALL_ADDR((uint32_t)*pmd),  l2_rw_attrs))
 					printf("\n\tCould not map L2 entry in set PMD\n");
-
-
-		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd))
-			printf("\n\tCould not unmap L1 entry in set PMD\n");
-		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd+SECTION_SIZE))
-			printf("\n\tCould not unmap L1 entry in set PMD\n");
 	}
 	else{
 
