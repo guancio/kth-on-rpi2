@@ -416,11 +416,16 @@ hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t 
 
 	/*Small page with CB on and RW*/
     uint32_t attrs = phys_pte & 0xFFF; /*Mask out address*/
-
+    uint32_t err;
     if(phys_pte != 0) {
-    	if(dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs)){
-    		printf("\n\tCould not map l2 entry in set pte hypercall\n");
-    		dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs);
+    	if((err = (dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs)))){
+    		if(err == ERR_MMU_PT_NOT_UNMAPPED){
+    			dmmu_l2_unmap_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx);
+    			dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs);
+    		}
+    		else {
+    			printf("\n\tCould not map l2 entry in set pte hypercall\n");
+    		}
     	}
     	/*Cannot map linux entry, ap = 0 generates error*/
     	//dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx + (256*2), MMU_L1_PT_ADDR(phys_pte),linux_pte & 0xFFF);
