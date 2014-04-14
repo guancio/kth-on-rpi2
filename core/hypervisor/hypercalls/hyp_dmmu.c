@@ -67,9 +67,15 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
     attrs |= (MMU_FLAG_B | MMU_FLAG_C);
     attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
 
-    for(i = l2_entry_idx; i < l2_entry_idx + 4; i++, page_pa+=0x1000){
+    for(i = l2_entry_idx; i < l2_entry_idx + 4; i++){
     	if(dmmu_l2_unmap_entry(table2_pa & L2_BASE_MASK, i))
     		printf("\n\tCould not unmap L2 entry in new PGD\n");
+    }
+
+    if(dmmu_unmap_L1_pt(LINUX_PA((addr_t)pgd_va)))
+    	printf("\n\tCould not unmap L1 PT in free pgd\n");
+
+    for(i = l2_entry_idx; i < l2_entry_idx + 4; i++, page_pa+=0x1000){
     	if(dmmu_l2_map_entry(table2_pa & L2_BASE_MASK, i, page_pa,  attrs))
     		printf("\n\tCould not map L2 entry in new pgd\n");
 
@@ -83,8 +89,6 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
    		isb();
     }
 
-    if(dmmu_unmap_L1_pt(LINUX_PA((addr_t)pgd_va)))
-    	printf("\n\tCould not unmap L1 PT in free pgd\n");
 
     hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
 }
@@ -210,7 +214,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, desc);
 #endif
-
+	uint32_t switch_back = 0;
 	addr_t l1_entry, *l1_pt_entry_for_desc;
 	addr_t curr_pgd_pa, *pgd_va, attrs;
 	uint32_t l1_pt_idx_for_desc, l1_desc_entry, phys_start;
@@ -219,7 +223,10 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	addr_t page_offset = curr_vm->guest_info.page_offset;
 	uint32_t page_offset_idx = (page_offset >> 20) *4;
 
+	/*Get current page table*/
+	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_pgd_pa);
 	addr_t master_pgd_va = (curr_vm->config->pa_initial_l1_offset + page_offset);
+
 
 	/*Page attributes*/
 	uint32_t l2_rw_attrs = MMU_L2_TYPE_SMALL;
@@ -244,6 +251,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	addr_t *linux_va = MMU_L2_SMALL_ADDR(l1_entry) - phys_start + page_offset;
 
 	if(l1_desc_entry & MMU_L1_TYPE_SECTION) { /*SECTION page, replace with lvl2 pages */
+
 		/*Clear the SECTION entry mapping and replace it with a L2PT */
 		if(dmmu_unmap_L1_pageTable_entry((addr_t)linux_va))
 			printf("\n\tCould not unmap L1 entry in set PMD\n");
@@ -255,6 +263,26 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 		if(dmmu_l1_pt_map((addr_t)linux_va, table2_pa, attrs))
 			printf("\n\tCould not map L1 PT in set PMD\n");
 
+#if 1
+		/*Changing a mapping leaves other page tables unconsistent
+		 *now we just change the master pgd, but we should probably change
+		 *all existing PGDs*/
+		if(((addr_t)pmd & L1_BASE_MASK) != (master_pgd_va)){
+			/*This means that we are setting a pmd on another pgd, current
+			 * API does not allow that, so we have to switch the physical ttb0
+			 * back and forth */
+				COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, LINUX_PA((addr_t)master_pgd_va)); // Set TTB0
+				isb();
+				/*Clear the SECTION entry mapping and replace it with a L2PT */
+				if(dmmu_unmap_L1_pageTable_entry((addr_t)linux_va))
+					printf("\n\tCould not unmap L1 entry in set PMD\n");
+				if(dmmu_l1_pt_map((addr_t)linux_va, table2_pa, attrs))
+					printf("\n\tCould not map L1 PT in set PMD\n");
+
+				COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, curr_pgd_pa); // Set TTB0
+				isb();
+		}
+#endif
 		/*Remap each individual small page to the same address*/
         uint32_t page_pa = MMU_L1_SECTION_ADDR(l1_desc_entry);
         /*Small page with CB on and RW*/
@@ -326,11 +354,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	/*Get virtual address of the translation for pmd*/
 	addr_t virt_transl_for_pmd = (addr_t)((pmd - pgd_va) << MMU_L1_SECTION_SHIFT);
 
-	/*Get current page table*/
-	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_pgd_pa);
-
-	uint32_t switch_back = 0;
-
+	switch_back = 0;
 	if((LINUX_PA((addr_t)pmd & L1_BASE_MASK)) != (curr_pgd_pa)){
 		/*This means that we are setting a pmd on another pgd, current
 		 * API does not allow that, so we have to switch the physical ttb0
@@ -394,8 +418,10 @@ hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t 
     uint32_t attrs = phys_pte & 0xFFF; /*Mask out address*/
 
     if(phys_pte != 0) {
-    	if(dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs))
+    	if(dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs)){
     		printf("\n\tCould not map l2 entry in set pte hypercall\n");
+    		dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx, MMU_L1_PT_ADDR(phys_pte),attrs);
+    	}
     	/*Cannot map linux entry, ap = 0 generates error*/
     	//dmmu_l2_map_entry(l2pt_hw_entry_pa & L2_BASE_MASK, entry_idx + (256*2), MMU_L1_PT_ADDR(phys_pte),linux_pte & 0xFFF);
     }
