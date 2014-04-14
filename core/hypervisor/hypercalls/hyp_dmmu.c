@@ -29,6 +29,66 @@ void hypercall_dyn_switch_mm(addr_t table_base, uint32_t context_id)
 }
 
 
+/* Free Page table, Make it RW again */
+void hypercall_dyn_free_pgd(addr_t *pgd_va)
+{
+#ifdef DEBUG_MMU
+	printf("\n\t\t\tHypercall FREE PGD\n\t\t pgd:%x ", pgd_va);
+#endif
+	uint32_t lvl2_idx,  i, clean_va;
+	uint32_t *l2_pt;
+
+	uint32_t pgd_size = 0x4000;
+	uint32_t page_offset = curr_vm->guest_info.page_offset;
+
+	/*First get the physical address of the lvl 2 page by
+		 * looking at the index of the pgd location. Then set
+		 * 4 lvl 2 pages to read only*/
+
+	addr_t *master_pgd_va;
+	/*Get master page table*/
+	master_pgd_va = (addr_t *)(curr_vm->config->pa_initial_l1_offset + page_offset);
+	addr_t *l1_pt_entry_for_desc = (addr_t *)&master_pgd_va[(addr_t)pgd_va >> MMU_L1_SECTION_SHIFT];
+	uint32_t l1_desc_entry = *l1_pt_entry_for_desc;
+
+	/*Get level 2 page table address*/
+	lvl2_idx = (((uint32_t)pgd_va << 12) >> 24); /*This is the index+4 to make read only*/
+
+	uint32_t table2_pa = MMU_L1_PT_ADDR(l1_desc_entry);
+	uint32_t table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
+	table2_idx *= 0x100; /*256 pages per L2PT*/
+
+	uint32_t l2_entry_idx = (((uint32_t)pgd_va << 12) >> 24) + table2_idx;
+
+	uint32_t *l2_page_entry = LINUX_VA(table2_pa) & L2_BASE_MASK;
+	uint32_t page_pa = MMU_L2_SMALL_ADDR(l2_page_entry[l2_entry_idx]);
+
+    uint32_t attrs = MMU_L2_TYPE_SMALL;
+    attrs |= (MMU_FLAG_B | MMU_FLAG_C);
+    attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
+
+    for(i = l2_entry_idx; i < l2_entry_idx + 4; i++, page_pa+=0x1000){
+    	if(dmmu_l2_unmap_entry(table2_pa & L2_BASE_MASK, i))
+    		printf("\n\tCould not unmap L2 entry in new PGD\n");
+    	if(dmmu_l2_map_entry(table2_pa & L2_BASE_MASK, i, page_pa,  attrs))
+    		printf("\n\tCould not map L2 entry in new pgd\n");
+
+    	clean_va = LINUX_VA(MMU_L2_SMALL_ADDR(l2_page_entry[i]));
+    	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, &l2_pt[i]);
+   		dsb();
+
+   		COP_WRITE(COP_SYSTEM, COP_TLB_INVALIDATE_MVA,clean_va);
+   		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, clean_va); /*Update cache with new values*/
+   		dsb();
+   		isb();
+    }
+
+    if(dmmu_unmap_L1_pt(LINUX_PA((addr_t)pgd_va)))
+    	printf("\n\tCould not unmap L1 PT in free pgd\n");
+
+    hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
+}
+
 /*New pages for processes, copys kernel space from master pages table
  *and cleans the cache, set these pages read only for user */
 void hypercall_dyn_new_pgd(addr_t *pgd_va)
@@ -134,8 +194,11 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 
 	/*Clean dcache on whole table*/
 	hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
-	if(dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va)))
+	/*TODO address is wrong*/
+	if(dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va))){
 		printf("\n\tCould not create L1 pt in new pgd\n");
+		dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va));
+	}
 
 }
 
@@ -252,8 +315,10 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 			printf("\n\tCould not map L2 entry in set PMD\n");
 	}
 	if( desc != 0 ){
-		if(dmmu_create_L2_pt(MMU_L2_SMALL_ADDR(desc)))
+		if(dmmu_create_L2_pt(MMU_L2_SMALL_ADDR(desc))){
 			printf("\n\tCould not create L2PT in set pmd\n");
+			dmmu_create_L2_pt(MMU_L2_SMALL_ADDR(desc));
+		}
 	}
 
 	attrs = desc & 0x3FF; /*Mask out addresss*/
