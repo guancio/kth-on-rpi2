@@ -75,7 +75,8 @@ void dmmu_init()
 BOOL guest_pa_range_checker(pa, size) {
 	// TODO: we are not managing the spatial isolation with the TRUSTED MODE
 	uint32_t guest_start_pa = curr_vm->config->firmware->pstart;
-	uint32_t guest_end_pa = curr_vm->config->firmware->pstart + curr_vm->config->firmware->psize;
+	/*Added 1MB to range check, Last +1MB after guest physical address is reserved for L1PT*/
+	uint32_t guest_end_pa = curr_vm->config->firmware->pstart + curr_vm->config->firmware->psize + SECTION_SIZE;
 	if (!(pa >= (guest_start_pa)) && (pa + size  <= guest_end_pa))
 		return FALSE;
 	return TRUE;
@@ -278,8 +279,10 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
     	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
     	l1_desc = *((uint32_t *) l1_desc_va_add);
     	l1_type = l1_desc & DESC_TYPE_MASK;
+#if 0
     	if(l1_desc != 0x0)
     		printf("pg %x %x \n", l1_idx, l1_desc);
+#endif
         if(!(l1Desc_validityChecker_dispatcher(l1_type, l1_desc, l1_base_pa_add)))
         {
         	sanity_check = FALSE;

@@ -197,6 +197,7 @@ void guests_init()
 #ifdef LINUX
     vm_0.config = &linux_config;
     vm_0.config->firmware = get_guest(guest++);
+    curr_vm->config->pa_initial_l2_offset += curr_vm->config->firmware->psize ;
 //  linux_init();
 
 #else
@@ -220,7 +221,7 @@ void guests_init()
     // this must be a loop
     uint32_t va_offset;
     for (va_offset = 0;
-	 va_offset + SECTION_SIZE <= guest_psize;
+	 va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /*+ 1MB at end for L1PT*/
 	 va_offset += SECTION_SIZE) {
         uint32_t offset, pmd;
         uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;

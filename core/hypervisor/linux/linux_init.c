@@ -136,7 +136,7 @@ addr_t linux_pt_get_empty_l2()
 {
 	uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
 	uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
-	if((linux_l2_index_p * 0x400) > 0x3000){ // Set max size of L2 pages
+	if((linux_l2_index_p * 0x400) > SECTION_SIZE){ // Set max size of L2 pages
 		printf("No more space for more L2s\n");
 		while(1); //hang
 		return 0;
@@ -151,16 +151,20 @@ addr_t linux_pt_get_empty_l2()
 }
 void linux_init_dmmu()
 {
-	uint32_t attrs, i;
+	uint32_t sect_attrs, small_attrs, page_attrs,table2_idx, i;
+	addr_t table2_pa;
     addr_t guest_vstart = curr_vm->config->firmware->vstart;
     addr_t guest_pstart = curr_vm->config->firmware->pstart;
     addr_t guest_psize =  curr_vm->config->firmware->psize;
     /*Linux specific mapping*/
     /*Section page with user RW in kernel domain with Cache and Buffer*/
-    attrs = MMU_L1_TYPE_SECTION;
-    attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-    attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-    attrs |= (MMU_FLAG_B | MMU_FLAG_C);
+    sect_attrs = MMU_L1_TYPE_SECTION;
+    sect_attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+    sect_attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+    sect_attrs |= (MMU_FLAG_B | MMU_FLAG_C);
+
+    /*Map the 1MB reserved region for each guest, located end of guest physical mem*/
+   // dmmu_map_L1_section(guest_vstart + guest_psize, guest_pstart + guest_psize, attrs);
 
     uint32_t offset;
     /*Can't map from offset = 0 because start addresses contains page tables*/
@@ -169,48 +173,72 @@ void linux_init_dmmu()
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
 
-    	dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, attrs);
+    	dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs);
     }
     /*Maps VA-PA for kernel */
     for (offset = SECTION_SIZE;
-    	 offset + SECTION_SIZE <= guest_psize;
+    	 offset + SECTION_SIZE <= (guest_psize - SECTION_SIZE*16) ;
     	 offset += SECTION_SIZE) {
 
-    	dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, attrs);
+    	dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, sect_attrs);
     }
 
     addr_t reserved_l2_pts_pa = curr_vm->config->pa_initial_l2_offset + guest_pstart;
-    addr_t reserved_l1_pt_pa = curr_vm->config->pa_initial_l1_offset + guest_pstart;
-    /*Set reserved address in Linux as L2_pt*/
-    for(offset = reserved_l2_pts_pa; offset <= reserved_l1_pt_pa; offset += PAGE_SIZE){
-    	dmmu_create_L2_pt(offset);
+    /*Set whole 1MB reserved address region in Linux as L2_pt*/
+    for(i = reserved_l2_pts_pa; i < reserved_l2_pts_pa + SECTION_SIZE; i += PAGE_SIZE){
+    	dmmu_create_L2_pt(i);
     }
 
-    /*special mapping for start address*/
-        /*Maps First MB as coarse with page 1-7 as RO and rest RW*/
-        /*Gets an empty L2 pt from HV*/
-        attrs = MMU_L1_TYPE_PT;
-        attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+    /*L1PT attrs*/
+    page_attrs = MMU_L1_TYPE_PT;
+    page_attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-        uint32_t table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
+    /*Small page with CB on and RW*/
+    small_attrs = MMU_L2_TYPE_SMALL;
+    small_attrs |= (MMU_FLAG_B | MMU_FLAG_C);
+    small_attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
 
-        dmmu_l1_pt_map(guest_pstart, table2_pa, attrs);
-        dmmu_l1_pt_map(guest_vstart, table2_pa, attrs);
+    /*Map last 16MB as coarse*/
+    for (;offset + SECTION_SIZE <= guest_psize; offset += SECTION_SIZE) {
+    	table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
+        if(dmmu_l1_pt_map((addr_t)guest_vstart + offset, table2_pa, page_attrs))
+        	printf("\n\tCould not map L1 PT in set PMD\n");
 
-        uint32_t page_pa = guest_pstart;
-        /*Small page with CB on and RW*/
-        attrs = MMU_L2_TYPE_SMALL;
-        attrs |= (MMU_FLAG_B | MMU_FLAG_C);
-        attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT ;
-
-        for(i = 0; i < 256;i++, page_pa+=0x1000){
-        	if(i >=1 && i <=7){
-        		uint32_t ro_attrs = 0xE | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
-        		dmmu_l2_map_entry(table2_pa, i, page_pa, ro_attrs);
-        	}
-        	else
-        		dmmu_l2_map_entry(table2_pa, i, page_pa,  attrs);
+        /*Get index of physical L2PT */
+        table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
+        table2_idx *= 0x100; /*256 pages per L2PT*/
+        uint32_t end = table2_idx + 0x100;
+        uint32_t page_pa;
+        for(i = table2_idx, page_pa = offset; i < end;i++, page_pa+=0x1000){
+        	if(dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs))
+        		printf("\n\tCould not map L2 entry in new pgd\n");
         }
+
+    }
+
+
+    /*special mapping for start address*/
+    /*Maps First MB as coarse with page 1-7 as RO and rest RW*/
+
+    table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
+
+    dmmu_create_L2_pt(table2_pa);
+
+    dmmu_l1_pt_map(guest_pstart, table2_pa, page_attrs);
+    dmmu_l1_pt_map(guest_vstart, table2_pa, page_attrs);
+
+
+    uint32_t page_pa = guest_pstart;
+
+
+    for(i = 0; i < 256;i++, page_pa+=0x1000){
+      	if(i >=1 && i <=7){
+      		uint32_t ro_attrs = 0xE | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
+       		dmmu_l2_map_entry(table2_pa, i, page_pa, ro_attrs);
+       	}
+       	else
+       		dmmu_l2_map_entry(table2_pa, i, page_pa,  small_attrs);
+    }
 
 }
 

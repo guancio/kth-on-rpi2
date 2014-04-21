@@ -156,7 +156,7 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 
 return_value prefetch_abort_handler(uint32_t addr, uint32_t status, uint32_t unused)
 {
-//	if(addr >= 0xc0000000)
+	if(addr >= 0xc0000000)
 	  printf("Pabort:%x Status:%x, u=%x \n", addr, status, unused);
 
 	uint32_t interrupted_mode = curr_vm->current_guest_mode;
@@ -201,7 +201,7 @@ return_value prefetch_abort_handler(uint32_t addr, uint32_t status, uint32_t unu
 
 return_value data_abort_handler(uint32_t addr, uint32_t status, uint32_t unused)
 {
-//	if(addr >= 0xc0000000)
+	if(addr >= 0xc0000000)
 	  printf("Dabort:%x Status:%x, u=%x \n", addr, status, unused);
 
     uint32_t interrupted_mode = curr_vm->current_guest_mode;
