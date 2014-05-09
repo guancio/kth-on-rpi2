@@ -401,9 +401,24 @@ void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint
 #endif
 	addr_t phys_start = curr_vm->config->firmware->pstart;
 	uint32_t page_offset = curr_vm->guest_info.page_offset;
-
+	uint32_t guest_size = curr_vm->config->firmware->psize;
 	uint32_t *l2pt_hw_entry_va = (addr_t *)((addr_t ) l2pt_linux_entry_va - 0x800);
 	addr_t l2pt_hw_entry_pa = ((addr_t)l2pt_hw_entry_va - page_offset + phys_start );
+
+	/*Security Checks*/
+	uint32_t pa = MMU_L2_SMALL_ADDR(phys_pte);
+
+	/*Check virtual address*/
+	if((uint32_t)l2pt_hw_entry_va < page_offset || (uint32_t)l2pt_linux_entry_va > (uint32_t)(HAL_VIRT_START - sizeof(uint32_t)))
+		hyper_panic("Page table entry reside outside of allowed address space !\n", 1);
+
+	if(phys_pte != 0) { /*If 0, then its a remove mapping*/
+		/*Check physical address*/
+		if(!(pa >= (phys_start) && pa < (phys_start + guest_size) )){
+			printf("Address: %x\n", pa);
+			hyper_panic("Guest trying does not own pte physical address", 1);
+		}
+	}
 
     /*Get index of physical L2PT */
     uint32_t entry_idx = ((addr_t )l2pt_hw_entry_va & 0xFFF) >> 2;
