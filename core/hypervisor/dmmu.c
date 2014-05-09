@@ -10,6 +10,12 @@
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
 
+#if 1
+#define mem_mmu_tlb_invalidate_all(a, b)
+#define mem_cache_invalidate(a,b,c)
+#define mem_cache_set_enable(a)
+#endif
+
 /* ---------------------------------------------------------------- 
  * BFT helper functions
  * ---------------------------------------------------------------- */
@@ -596,8 +602,10 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
         	l2_desc_va_add = mmu_guest_pa_to_va(l2_desc_pa_add, curr_vm->config);
         	l2_desc = *((uint32_t *) l2_desc_va_add);
         	l2_type = l2_desc & DESC_TYPE_MASK;
-            if(!(l2Desc_validityChecker_dispatcher(l2_type, l2_desc, l2_base_pa_add)))
+            if(!(l2Desc_validityChecker_dispatcher(l2_type, l2_desc, l2_base_pa_add))){
+            	printf("Sanity checker false!:%d : %d : %x\n", l2_idx, l2_desc_pa_add, l2_desc);
             	sanity_checker = FALSE;
+            }
         }
 
     if(sanity_checker)

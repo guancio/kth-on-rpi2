@@ -269,7 +269,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 		if(dmmu_l1_pt_map((addr_t)desc_va, table2_pa, attrs))
 			printf("\n\tCould not map L1 PT in set PMD\n");
 
-#if 1
+#if 0
 		/*Changing a mapping leaves other page tables unconsistent
 		 *now we just change the master pgd, but we should probably change
 		 *all existing PGDs*/
@@ -360,6 +360,13 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	addr_t virt_transl_for_pmd = (addr_t)((pmd - pgd_va) << MMU_L1_SECTION_SHIFT);
 
 	if(desc == 0){
+#if 1
+		uint32_t linux_va = pmd[0] - phys_start + page_offset;
+		COP_WRITE(COP_SYSTEM, COP_TLB_INVALIDATE_MVA, linux_va);
+		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, linux_va);
+		dsb();
+		isb();
+#endif
 		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd))
 			printf("\n\tCould not unmap L1 entry in set PMD\n");
 		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd+SECTION_SIZE))
@@ -373,13 +380,29 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 			printf("\n\tCould not unmap L2 pt in set PMD\n");
 		if(dmmu_l2_map_entry((uint32_t)l2pt_pa & L2_BASE_MASK, table2_idx+l2_idx, MMU_L2_SMALL_ADDR((uint32_t)*pmd),  l2_rw_attrs))
 			printf("\n\tCould not map L2 entry in set PMD\n");
+
+		/*Flush entry*/
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
+		dsb();
 	}
 	else{
+#if 1
+		uint32_t linux_va = desc - phys_start + page_offset;
+		COP_WRITE(COP_SYSTEM, COP_TLB_INVALIDATE_MVA, linux_va);
+		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, linux_va);
+		dsb();
+		isb();
+#endif
+
 
 		if(dmmu_l1_pt_map(virt_transl_for_pmd, MMU_L2_SMALL_ADDR(desc), attrs))
 			printf("\n\tCould not map L1 PT in set PMD\n");
 		if(dmmu_l1_pt_map(virt_transl_for_pmd + SECTION_SIZE, MMU_L2_SMALL_ADDR(desc) + 0x400, attrs))
 			printf("\n\tCould not map L1 PT in set PMD\n");
+
+		/*Flush entry*/
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
+		dsb();
 	}
 	if(switch_back){
 		COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, curr_pgd_pa); // Set TTB0
@@ -389,7 +412,11 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	/*Flush entry*/
 	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
 	dsb();
-
+#if 1
+	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	  mem_cache_set_enable(TRUE);
+#endif
 }
 
 /*va is the virtual address of the page table entry for linux pages
