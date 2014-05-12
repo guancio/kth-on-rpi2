@@ -91,6 +91,11 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
     }
 
     hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
+#if 1
+	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	  mem_cache_set_enable(TRUE);
+#endif
 }
 
 /*New pages for processes, copys kernel space from master pages table
@@ -201,7 +206,11 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 	if(dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va))){
 		printf("\n\tCould not create L1 pt in new pgd\n");
 	}
-
+#if 0
+	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+	  mem_cache_set_enable(TRUE);
+#endif
 }
 
 
@@ -359,6 +368,8 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	/*Get virtual address of the translation for pmd*/
 	addr_t virt_transl_for_pmd = (addr_t)((pmd - pgd_va) << MMU_L1_SECTION_SHIFT);
 
+
+
 	if(desc == 0){
 #if 1
 		uint32_t linux_va = pmd[0] - phys_start + page_offset;
@@ -371,6 +382,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 			printf("\n\tCould not unmap L1 entry in set PMD\n");
 		if(dmmu_unmap_L1_pageTable_entry(virt_transl_for_pmd+SECTION_SIZE))
 			printf("\n\tCould not unmap L1 entry in set PMD\n");
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
 
 		/*We need to make the l2 page RW again so that
 		 *OS can reuse the address */
@@ -381,8 +393,8 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 		if(dmmu_l2_map_entry((uint32_t)l2pt_pa & L2_BASE_MASK, table2_idx+l2_idx, MMU_L2_SMALL_ADDR((uint32_t)*pmd),  l2_rw_attrs))
 			printf("\n\tCould not map L2 entry in set PMD\n");
 
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)&l2pt_va[l2_idx]);
 		/*Flush entry*/
-		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
 		dsb();
 	}
 	else{
@@ -402,7 +414,9 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 
 		/*Flush entry*/
 		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)&l2pt_va[l2_idx]);
 		dsb();
+
 	}
 	if(switch_back){
 		COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE0, curr_pgd_pa); // Set TTB0
@@ -412,7 +426,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	/*Flush entry*/
 	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
 	dsb();
-#if 1
+#if 0
 	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
 	  mem_cache_set_enable(TRUE);
