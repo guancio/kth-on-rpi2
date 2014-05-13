@@ -91,11 +91,6 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
     }
 
     hypercall_dcache_clean_area((uint32_t)pgd_va, 0x4000);
-#if 1
-	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
-	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-	  mem_cache_set_enable(TRUE);
-#endif
 }
 
 /*New pages for processes, copys kernel space from master pages table
@@ -175,19 +170,27 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 		uint32_t table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
 		table2_idx *= 0x100; /*256 pages per L2PT*/
 
-    	uint32_t l2_entry_idx = (((uint32_t)pgd_va << 12) >> 24);
+    	uint32_t l2_entry_idx = (((uint32_t)pgd_va << 12) >> 24) + table2_idx;
 
-		uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa, (curr_vm->config)));
+		uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa & L2_BASE_MASK, (curr_vm->config)));
 		uint32_t page_pa = MMU_L2_SMALL_ADDR(l2_page_entry[l2_entry_idx]);
 
-		i = table2_idx + l2_entry_idx;
-		end = i + 4 ;
-        for(; i < end;i++, page_pa+=0x1000){
+		addr_t clean_va;
+        for(i = l2_entry_idx; i < l2_entry_idx +4;i++, page_pa+=0x1000){
         	if(dmmu_l2_unmap_entry(table2_pa & L2_BASE_MASK, i))
         		printf("\n\tCould not unmap L2 entry in new PGD\n");
         	uint32_t ro_attrs = 0xE | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
         	if(dmmu_l2_map_entry(table2_pa & L2_BASE_MASK, i, page_pa,  ro_attrs))
         		printf("\n\tCould not map L2 entry in new pgd\n");
+
+        	clean_va = LINUX_VA(MMU_L2_SMALL_ADDR(l2_page_entry[i]));
+        	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, &l2_page_entry[i]);
+       		dsb();
+
+       		COP_WRITE(COP_SYSTEM, COP_TLB_INVALIDATE_MVA,clean_va);
+       		COP_WRITE(COP_SYSTEM, COP_BRANCH_PRED_INVAL_ALL, clean_va); /*Update cache with new values*/
+       		dsb();
+       		isb();
         }
 	}
 
@@ -206,11 +209,6 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 	if(dmmu_create_L1_pt(LINUX_PA((addr_t)pgd_va))){
 		printf("\n\tCould not create L1 pt in new pgd\n");
 	}
-#if 0
-	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
-	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-	  mem_cache_set_enable(TRUE);
-#endif
 }
 
 
@@ -406,7 +404,6 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 		isb();
 #endif
 
-
 		if(dmmu_l1_pt_map(virt_transl_for_pmd, MMU_L2_SMALL_ADDR(desc), attrs))
 			printf("\n\tCould not map L1 PT in set PMD\n");
 		if(dmmu_l1_pt_map(virt_transl_for_pmd + SECTION_SIZE, MMU_L2_SMALL_ADDR(desc) + 0x400, attrs))
@@ -426,11 +423,6 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	/*Flush entry*/
 	COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, (uint32_t)pmd);
 	dsb();
-#if 0
-	  mem_mmu_tlb_invalidate_all(TRUE, TRUE);
-	  mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-	  mem_cache_set_enable(TRUE);
-#endif
 }
 
 /*va is the virtual address of the page table entry for linux pages
