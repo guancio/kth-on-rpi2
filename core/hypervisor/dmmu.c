@@ -726,7 +726,7 @@ int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add
     uint32_t ph_block_pt = PA_TO_PH_BLOCK(l2_base_pa_add);
     dmmu_entry_t *bft_entry_pt = get_bft_entry_by_block_idx(ph_block_pt);
 
-    // Extracting access permission from the give page attribute
+    // Extracting access permission from the given page attribute
     ap = GET_L2_AP(attrs);
     if((ap != 1) && (ap != 2) && (ap != 3))
     	return ERR_MMU_AP_UNSUPPORTED;
