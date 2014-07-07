@@ -112,7 +112,7 @@ void memory_init()
      * Here hypervisor already runs in virtual address since boot.S, now just setup guests
      */
 
-    // We clear the memory are that contains the L2s that can be created in the 32KB are of slpt_va
+    // We clear the memory that contains the L2s that can be created in the 32KB of slpt_va
     memset(slpt_va, 0, 0x8000);
 
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
@@ -164,7 +164,7 @@ void setup_handlers()
 
 void guests_init()
 {
-	uint32_t i, guest = 0;
+    uint32_t i, guest = 0;
     vm_0.id = 0;
     vm_0.next = &vm_0; //Only one VM
 
@@ -221,17 +221,17 @@ void guests_init()
     // this must be a loop
     uint32_t va_offset;
     for (va_offset = 0;
-	 va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /*+ 1MB at end for L1PT*/
-	 va_offset += SECTION_SIZE) {
-        uint32_t offset, pmd;
-        uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
-        uint32_t pa = guest_pstart + va_offset;
-        pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
+        va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /*+ 1MB at end for L1PT*/
+        va_offset += SECTION_SIZE) {
+          uint32_t offset, pmd;
+          uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
+          uint32_t pa = guest_pstart + va_offset;
+          pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
 
-        /* Invalidate the new created entries */
-        offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
-        pmd = (uint32_t *)((uint32_t)flpt_va + offset);
-        COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);        
+          /* Invalidate the new created entries */
+          offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
+          pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+          COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
        // printf("%x -> %x\n", va, pa); // DEBUG
     }
 
@@ -247,7 +247,7 @@ void guests_init()
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
     }
     // END initialization of the MATER PAGE TABLE
-    // START initialization of the FIRST gest PT
+    // START initialization of the FIRST guest PT
 
     // now the master page table is ready
     // it contains

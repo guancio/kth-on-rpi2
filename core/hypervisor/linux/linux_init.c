@@ -130,23 +130,29 @@ void init_linux_page()
 	}
 }
 
-uint32_t linux_l2_index_p =0;
+uint32_t linux_l2_index_p = 0;
 
 addr_t linux_pt_get_empty_l2()
 {
-	uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
-	uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
-	if((linux_l2_index_p * 0x400) > SECTION_SIZE){ // Set max size of L2 pages
-		printf("No more space for more L2s\n");
-		while(1); //hang
-		return 0;
-	}
-	else{
-		addr_t index = linux_l2_index_p * 0x400;
-		memset( (uint32_t *)((uint32_t)va_l2_pt + index), 0, 0x400);
-		linux_l2_index_p++;
-		return (uint32_t)(pa_l2_pt + index);
-	}
+  uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
+  uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
+  if((linux_l2_index_p * 0x400) > SECTION_SIZE){ // Set max size of L2 pages
+    printf("No more space for more L2s\n");
+    while(1); //hang
+    return 0;
+  }
+  else{
+    addr_t index = linux_l2_index_p * 0x400;
+    memset( (uint32_t *)((uint32_t)va_l2_pt + index), 0, 0x400);
+    uint32_t l2_base_add = (uint32_t)(pa_l2_pt + index);
+
+    // assuming that va_l2_pt is 4kb aligned
+    linux_l2_index_p++;
+    if ((linux_l2_index_p & 0b10) == 0b10)
+      linux_l2_index_p = (linux_l2_index_p & (~0b11)) + 4;
+
+    return l2_base_add;
+  }
 
 }
 void linux_init_dmmu()
@@ -188,8 +194,8 @@ void linux_init_dmmu()
     /*Set whole 1MB reserved address region in Linux as L2_pt*/
     addr_t reserved_l2_pts_va = mmu_guest_pa_to_va(reserved_l2_pts_pa, curr_vm->config);
 
-    /*Memsetting the reserved L2 pages to 0
-     *There is alot of garbage occupying the L2 page addressin real HW
+    /*Memory setting the reserved L2 pages to 0
+     *There is a lot of garbage occupying the L2 page address in real HW
      *Only using 0x10000 and not whole MB   */
     memset((addr_t*)reserved_l2_pts_va, 0,0x10000);
 

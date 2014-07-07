@@ -47,8 +47,12 @@ addr_t pt_get_empty_l2()
 	else{
 		addr_t index = l2_index_p * 0x400;
 		memset( (uint32_t *)((uint32_t)slpt_va + index), 0, 0x400);
+		uint32_t l2_base_add = (uint32_t)(GET_PHYS(slpt_va) + index);
+
 		l2_index_p++;
-		return (uint32_t)(GET_PHYS(slpt_va) + index);
+		if ((l2_index_p & 0b10) == 0b10)
+		  l2_index_p = (l2_index_p & (~0b11)) + 4;
+		return l2_base_add;
 	}
 
 }
