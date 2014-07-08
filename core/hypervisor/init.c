@@ -7,6 +7,7 @@
 
 
 //#define DEBUG_PG_CONTENT
+#define DEBUG_L1_PG_TYPE
 /*
  * Function prototypes
  */
@@ -275,15 +276,13 @@ void guests_init()
     isb();
     memory_commit();
 
-    // Initialize the datastructures with the type for the initial L1
-   // This should be done by MMU_CREATE_L1
-
-    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 0].type = PAGE_INFO_TYPE_L1PT;
-    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 1].type = PAGE_INFO_TYPE_L1PT;
-    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 2].type = PAGE_INFO_TYPE_L1PT;
-    bft[PA_TO_PH_BLOCK(guest_pt_pa) + 3].type = PAGE_INFO_TYPE_L1PT;
-
-
+   // Calling the create_L1_pt API to check the correctness of the L1 content and to change the page table type to 1
+    dmmu_create_L1_pt(guest_pt_pa);
+#ifdef DEBUG_L1_PG_TYPE
+    uint32_t index;
+    for(index=0; index < 4; index++)
+      printf("Initial L1 page table's page type:%x \n", bft[PA_TO_PH_BLOCK(guest_pt_pa) + index].type);
+#endif
     // Initialize the datastructures with the type for the initial L1
     // create the attribute that allow the guest to read/write/execute
     uint32_t attrs;
@@ -295,8 +294,8 @@ void guests_init()
 
 #else
     attrs = 0x12; // 0b1--10
-        attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-        attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+    attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+    attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
     // As default the guest has a 1-to-1 mapping to all its memory
     uint32_t offset;
     for (offset = 0;
