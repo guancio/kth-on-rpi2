@@ -182,7 +182,12 @@ void linux_init_dmmu()
     uint32_t offset;
     /*Can't map from offset = 0 because start addresses contains page tables*/
     /*Maps PA-PA for boot*/
-    for (offset = SECTION_SIZE;
+
+    /*  /\
+     *  ||
+     * The above comment is not valid any more since page tables are moved to always cacheable region
+     */
+    for (offset = 0; //SECTION_SIZE;
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
     	if(guest_pstart+offset >> 20 == 0x879)
@@ -191,7 +196,7 @@ void linux_init_dmmu()
     		dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs);
     }
     /*Maps VA-PA for kernel */
-    for (offset = SECTION_SIZE;
+    for (offset = 0; //SECTION_SIZE;
     	 offset + SECTION_SIZE <= (guest_psize - SECTION_SIZE*16) ;
     	 offset += SECTION_SIZE) {
 
@@ -209,7 +214,6 @@ void linux_init_dmmu()
     memset((addr_t*)reserved_l2_pts_va, 0,0x10000);
 
     for(i = reserved_l2_pts_pa; i < reserved_l2_pts_pa + 0x10000; i += PAGE_SIZE){
-    	//printf("Initial L2 pts %x offset %x gstart %x \n", i, curr_vm->config->pa_initial_l2_offset, guest_pstart);
     	if((error = dmmu_create_L2_pt(i)))
     			printf("\n\tCould not map L2 PT: %d :P \n", error);
     }
