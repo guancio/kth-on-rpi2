@@ -10,6 +10,9 @@
 #define DMMU_BFT_SIZE  (DMMU_BFT_COUNT * sizeof(dmmu_entry_t))
 
 #define __PACKED __attribute__ ((packed))
+
+
+
 /* bft entry type */
 enum dmmu_entry_type { 
     DMMU_TYPE_DATA, DMMU_TYPE_L1PT, DMMU_TYPE_L2PT, DMMU_TYPE_INVALID
@@ -55,7 +58,7 @@ typedef __PACKED struct l1_sec
   uint32_t addr         : 12;
 } l1_sec_t;
 
-typedef __PACKED struct l1_small
+typedef __PACKED struct l2_small
 {
     uint32_t xn           : 1;
     uint32_t cnst         : 1; // cnst = 1
@@ -67,11 +70,11 @@ typedef __PACKED struct l1_small
     uint32_t s            : 1;
     uint32_t ng           : 1;
     uint32_t addr         : 20;
-} l1_small_t;
+} l2_small_t;
 
 /* Error messages */
 #define ERR_MMU_RESERVED_VA                 (1)
-#define ERR_MMU_ENTRY_UNMAPPED 		          (2)
+#define ERR_MMU_ENTRY_UNMAPPED 		        (2)
 #define ERR_MMU_OUT_OF_RANGE_PA             (3)
 #define ERR_MMU_SECTION_NOT_UNMAPPED        (4)
 #define ERR_MMU_PH_BLOCK_NOT_WRITABLE       (5)
@@ -80,7 +83,7 @@ typedef __PACKED struct l1_small
 #define ERR_MMU_ALREADY_L1_PT               (8)
 #define ERR_MMU_ALREADY_L2_PT               (8)
 #define ERR_MMU_SANITY_CHECK_FAILED         (9)
-#define ERR_MMU_PT_REGION				            (10)
+#define ERR_MMU_PT_REGION				    (10)
 #define ERR_MMU_NO_UPDATE                   (11)
 #define ERR_MMU_IS_NOT_L2_PT                (12)
 #define ERR_MMU_XN_BIT_IS_ON                (13)
@@ -91,11 +94,13 @@ typedef __PACKED struct l1_small
 #define ERR_MMU_REFERENCE_L2                (18)
 #define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
 #define ERR_MMU_IS_NOT_L1_PT                (20)
-#define ERR_MMU_REFERENCED				          (21)
-#define ERR_MMU_FREE_ACTIVE_L1				      (22)
-#define ERR_MMU_SUPERSECTION				        (23)
-#define ERR_MMU_NEW_L1_NOW_WRITABLE			    (24)
+#define ERR_MMU_REFERENCED				    (21)
+#define ERR_MMU_FREE_ACTIVE_L1				(22)
+#define ERR_MMU_SUPERSECTION				(23)
+#define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
 #define ERR_MMU_L2_BASE_OUT_OF_RANGE        (25)
+#define ERR_MMU_NOT_CACHEABLE               (26)
+#define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 

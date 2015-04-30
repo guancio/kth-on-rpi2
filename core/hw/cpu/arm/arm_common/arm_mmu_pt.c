@@ -83,21 +83,21 @@ BOOL pt_create_section( addr_t *l1, addr_t va, addr_t pa, uint32_t mem_type)
             val |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
             val = (val & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT)  ;
             l1[index] = val;
-//            printf("CREATED section for USER%d, val = %x\n", index, val);
+            //printf("CREATED section for USER %d, val = %x\n", index, val);
             return TRUE;
         }
         if(mem_type == MLT_TRUSTED_RAM){
             val |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
             val = (val & (~0x10)) | 0xC | (HC_DOM_TRUSTED << MMU_L1_DOMAIN_SHIFT);
             l1[index] = val;
-//            printf("CREATED section for TRUSTED%d, val = %x\n", index, val);
+            //printf("CREATED section for TRUSTED %d, val = %x\n", index, val);
             return TRUE;
         }
         if(mem_type == MLT_HYPER_RAM){
             val |= MMU_AP_SUP_RW << MMU_SECTION_AP_SHIFT;
             val = (val & (~0x10)) | 0xC | (HC_DOM_DEFAULT << MMU_L1_DOMAIN_SHIFT);
             l1[index] = val;
-//          printf("CREATED section for HYPER%d, val = %x\n", index, val);
+            //printf("CREATED section for HYPER %d, val = %x\n", index, val);
             return TRUE;
         }
     

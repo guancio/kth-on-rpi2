@@ -6,6 +6,7 @@
 
 // DEBUG FLAGS
 #define DEBUG_DMMU_L1_CHECKERS 1
+//#define DEBUG_DMMU_CACHEABILITY_CHECKERS
 
 extern virtual_machine *curr_vm;
 extern uint32_t *flpt_va;
@@ -15,6 +16,9 @@ extern uint32_t *flpt_va;
 #define mem_cache_invalidate(a,b,c)
 #define mem_cache_set_enable(a)
 #endif
+
+#define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart | 0x6800000 //0x87800000
+#define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart | 0x6A00000  //0x87A00000
 
 /* ---------------------------------------------------------------- 
  * BFT helper functions
@@ -88,6 +92,14 @@ BOOL guest_pa_range_checker(pa, size) {
 	return TRUE;
 }
 
+BOOL guest_pt_range_checker(pa, size) {
+	uint32_t guest_pt_start_pa = PG_ADDR_LOWER_BOUND;
+	uint32_t guest_pt_end_pa = PG_ADDR_UPPER_BOUND;
+	if ((guest_pt_start_pa >= pa) || (guest_pt_end_pa <= pa + size)){
+		return FALSE;
+	}
+	return TRUE;
+}
 
 /* -------------------------------------------------------------------
  * L1 creation API it checks validity of created L1 by the guest
@@ -128,6 +140,20 @@ BOOL l1Sec_checker(uint32_t l1_desc, addr_t l1_base_pa_add)
 
 	l1_sec_t  *sec = (l1_sec_t *) (&l1_desc) ;
 	ap = GET_L1_AP(sec);
+
+
+    // Cacheability attribute check
+	for(sec_idx = 0; sec_idx < 256; sec_idx++)
+	{
+		uint32_t sec_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(sec)) | sec_idx;
+		if ((PA_TO_PH_BLOCK(PG_ADDR_LOWER_BOUND) < sec_block) && (sec_block + PAGE_SIZE < PA_TO_PH_BLOCK(PG_ADDR_UPPER_BOUND))){
+#ifdef DEBUG_DMMU_CACHEABILITY_CHECKERS
+			printf("Section block %x \n", sec_block);
+#endif
+			if (sec->c != 1)
+				return ERR_MMU_NOT_CACHEABLE;
+		}
+	}
 
 	if(sec->secIndic == 1) // l1_desc is a super section descriptor
 		err_flag = ERR_MMU_SUPERSECTION;
@@ -241,6 +267,9 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 	  if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
 		  return ERR_MMU_OUT_OF_RANGE_PA;
 
+	  if (!guest_pt_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
+		  return ERR_MMU_OUT_OF_CACHEABLE_RANGE;
+
 	  /* 16KB aligned ? */
 	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
 		  return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
@@ -325,6 +354,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
   uint32_t l1_desc_va_add;
   uint32_t l1_desc_pa_add;
   uint32_t ap;
+  int sec_idx;
 
   isb();
   mem_mmu_tlb_invalidate_all(TRUE, TRUE);
@@ -378,7 +408,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
     }
   else if(ap == 3)
     {
-      int sec_idx;
+
       BOOL sanity_check = TRUE;
       for(sec_idx = 0; sec_idx < 256; sec_idx++)
       {
@@ -391,7 +421,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
       }
       if(!sanity_check)
     	  return ERR_MMU_PH_BLOCK_NOT_WRITABLE;
-      for(sec_idx = 0; sec_idx < 256; sec_idx++)
+      for(sec_idx = 0; sec_idx < 256 ; sec_idx++) //&& (l1_sec_desc->addr != 0x879)
       {
     	  uint32_t ph_block = PA_TO_PH_BLOCK(START_PA_OF_SECTION(l1_sec_desc)) | (sec_idx);
     	  dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(ph_block);
@@ -486,10 +516,18 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
 /* -------------------------------------------------------------------
  * L2 creation API it checks validity of created L2 by the guest
  -------------------------------------------------------------------*/
-BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l1_small_t *pg_desc)
+BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l2_small_t *pg_desc)
 {
 	uint32_t ap = ((pg_desc->ap_3b) << 2) | (pg_desc->ap_0_1bs);
 	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
+
+	if ((PA_TO_PH_BLOCK(PG_ADDR_LOWER_BOUND) < pg_desc->addr) && (pg_desc->addr + PAGE_SIZE < PA_TO_PH_BLOCK(PG_ADDR_UPPER_BOUND))){
+#ifdef DEBUG_DMMU_CACHEABILITY_CHECKERS
+		printf("Small block %x \n", pg_desc->addr);
+#endif
+		if (pg_desc->c != 1)
+			return FALSE;
+	}
 
 	if (ap == 1 || ap == 2)
 		return TRUE;
@@ -511,7 +549,7 @@ BOOL l2Pt_desc_ap(addr_t l2_base_pa_add, l1_small_t *pg_desc)
 
 BOOL l2PT_checker(addr_t l2_base_pa_add, uint32_t l2_desc)
 {
-	l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
+	l2_small_t *pg_desc = (l2_small_t *) (&l2_desc) ;
 	dmmu_entry_t *bft_entry = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
 
 	if((bft_entry->refcnt < (MAX_30BIT - 1024)) && l2Pt_desc_ap(l2_base_pa_add, pg_desc))
@@ -540,7 +578,7 @@ void create_L2_refs_update(addr_t l2_base_pa_add)
 		l2_desc_va_add = mmu_guest_pa_to_va(l2_desc_pa_add, curr_vm->config);
 		uint32_t l2_desc = *((uint32_t *) l2_desc_va_add);
 		uint32_t l2_type = l2_desc & DESC_TYPE_MASK;
-		l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
+		l2_small_t *pg_desc = (l2_small_t *) (&l2_desc) ;
 		if((l2_type == 2) || (l2_type == 3))
 		{
 			uint32_t ap = ((pg_desc->ap_3b) << 2) | (pg_desc->ap_0_1bs);
@@ -582,6 +620,10 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     if (!guest_pa_range_checker(l2_base_pa_add, PAGE_SIZE))
 		  return ERR_MMU_OUT_OF_RANGE_PA;
 
+    //printf("Hyper L2 base in L2 create %x \n", l2_base_pa_add);
+    if (!guest_pt_range_checker(l2_base_pa_add, PAGE_SIZE))
+		  return ERR_MMU_OUT_OF_CACHEABLE_RANGE;
+
      //not 4KB aligned ?
     if(l2_base_pa_add != (l2_base_pa_add & L2_BASE_MASK))
         return ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED;
@@ -606,7 +648,7 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
         	l2_desc = *((uint32_t *) l2_desc_va_add);
         	l2_type = l2_desc & DESC_TYPE_MASK;
             if(!(l2Desc_validityChecker_dispatcher(l2_type, l2_desc, l2_base_pa_add))){
-            	printf("Sanity checker false!:%d : %d : %x\n", l2_idx, l2_desc_pa_add, l2_desc);
+            	printf("Sanity checker false!:%d : %x : %x\n", l2_idx, l2_desc_pa_add, l2_desc);
             	sanity_checker = FALSE;
             }
         }
@@ -743,8 +785,11 @@ int dmmu_l2_map_entry(addr_t l2_base_pa_add, uint32_t l2_idx, addr_t page_pa_add
     if (ap == 3) {
     	if (bft_entry_pg->refcnt == MAX_30BIT)
     		return ERR_MMU_INCOMPATIBLE_AP;
-    	if (bft_entry_pg->type != PAGE_INFO_TYPE_DATA)
+    	if (bft_entry_pg->type != PAGE_INFO_TYPE_DATA){
     		return ERR_MMU_INCOMPATIBLE_AP;
+    		printf(":PPPPPPPPPPPPPPPPPPPPPPP \n");
+
+    	}
     	// The above check on page_pa_add already guarantee that we are not
     	// mapping to the hypervisor memory
     }
@@ -806,7 +851,7 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
   if ((l2_type != 0b10) && (l2_type != 0b11))
        return 0;
 
-	l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
+	l2_small_t *pg_desc = (l2_small_t *) (&l2_desc) ;
 	dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
 
 	ap = ((uint32_t)pg_desc->ap_3b) << 2 | pg_desc->ap_0_1bs;
@@ -862,7 +907,7 @@ int dmmu_unmap_L2_pt(addr_t l2_base_pa_add)
     		l2_desc_pa_add = L2_DESC_PA(l2_base_pa_add, l2_idx); // base address is 4KB aligned
     		l2_desc_va_add = mmu_guest_pa_to_va(l2_desc_pa_add, curr_vm->config);
     		l2_desc = *((uint32_t *) l2_desc_va_add);
-    		l1_small_t *pg_desc = (l1_small_t *) (&l2_desc) ;
+    		l2_small_t *pg_desc = (l2_small_t *) (&l2_desc) ;
     		dmmu_entry_t *bft_entry_pg = get_bft_entry_by_block_idx(PA_TO_PH_BLOCK(START_PA_OF_SPT(pg_desc)));
     		ap = ((uint32_t)pg_desc->ap_3b) << 2 | pg_desc->ap_0_1bs;
     		l2_type = l2_desc & DESC_TYPE_MASK;

@@ -158,7 +158,7 @@ addr_t linux_pt_get_empty_l2()
 void linux_init_dmmu()
 {
 	uint32_t error;
-	uint32_t sect_attrs, small_attrs, page_attrs,table2_idx, i;
+	uint32_t sect_attrs, sect_attrs_ro, small_attrs, small_attrs_ro, page_attrs,table2_idx, i;
 	addr_t table2_pa;
     addr_t guest_vstart = curr_vm->config->firmware->vstart;
     addr_t guest_pstart = curr_vm->config->firmware->pstart;
@@ -170,17 +170,25 @@ void linux_init_dmmu()
     sect_attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
     sect_attrs |= (MMU_FLAG_B | MMU_FLAG_C);
 
+
+    sect_attrs_ro = MMU_L1_TYPE_SECTION;
+    sect_attrs_ro |= MMU_AP_USER_RO << MMU_SECTION_AP_SHIFT;
+    sect_attrs_ro |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+    sect_attrs_ro |= (MMU_FLAG_B | MMU_FLAG_C);
     /*Map the 1MB reserved region for each guest, located end of guest physical mem*/
    // dmmu_map_L1_section(guest_vstart + guest_psize, guest_pstart + guest_psize, attrs);
 
+    //printf("attrs %x %x \n", sect_attrs, sect_attrs_ro );
     uint32_t offset;
     /*Can't map from offset = 0 because start addresses contains page tables*/
     /*Maps PA-PA for boot*/
     for (offset = SECTION_SIZE;
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
-
-    	dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs);
+    	if(guest_pstart+offset >> 20 == 0x879)
+    		dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs_ro);
+    	else
+    		dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs);
     }
     /*Maps VA-PA for kernel */
     for (offset = SECTION_SIZE;
@@ -191,6 +199,7 @@ void linux_init_dmmu()
     }
 
     addr_t reserved_l2_pts_pa = curr_vm->config->pa_initial_l2_offset + guest_pstart;
+
     /*Set whole 1MB reserved address region in Linux as L2_pt*/
     addr_t reserved_l2_pts_va = mmu_guest_pa_to_va(reserved_l2_pts_pa, curr_vm->config);
 
@@ -200,8 +209,9 @@ void linux_init_dmmu()
     memset((addr_t*)reserved_l2_pts_va, 0,0x10000);
 
     for(i = reserved_l2_pts_pa; i < reserved_l2_pts_pa + 0x10000; i += PAGE_SIZE){
+    	//printf("Initial L2 pts %x offset %x gstart %x \n", i, curr_vm->config->pa_initial_l2_offset, guest_pstart);
     	if((error = dmmu_create_L2_pt(i)))
-    			printf("\n\tCould not map L2 PT: %d\n", error);
+    			printf("\n\tCould not map L2 PT: %d :P \n", error);
     }
 
     /*L1PT attrs*/
@@ -211,22 +221,27 @@ void linux_init_dmmu()
     /*Small page with CB on and RW*/
     small_attrs = MMU_L2_TYPE_SMALL;
     small_attrs |= (MMU_FLAG_B | MMU_FLAG_C);
+    small_attrs_ro |= small_attrs | (MMU_AP_USER_RO <<  MMU_L2_SMALL_AP_SHIFT);
     small_attrs |= MMU_AP_USER_RW <<  MMU_L2_SMALL_AP_SHIFT;
 
     /*Map last 16MB as coarse*/
     for (;offset + SECTION_SIZE <= guest_psize; offset += SECTION_SIZE) {
     	table2_pa = linux_pt_get_empty_l2(); /*pointer to private L2PTs in guest*/
-        if((error = dmmu_l1_pt_map((addr_t)guest_vstart + offset, table2_pa, page_attrs)))
-        	printf("\n\tCould not map L1 PT in set PMD: %d\n", error);
+        if((error = dmmu_l1_pt_map((addr_t)guest_vstart + offset, table2_pa, page_attrs))){
+        	printf("\n\tCould not map L1 PT in set PMD: %d Base %x\n", error, table2_pa);
+        	while(1);
+        }
 
         /*Get index of physical L2PT */
         table2_idx = (table2_pa - (table2_pa & L2_BASE_MASK)) >> MMU_L1_PT_SHIFT;
         table2_idx *= 0x100; /*256 pages per L2PT*/
         uint32_t end = table2_idx + 0x100;
         uint32_t page_pa;
-        for(i = table2_idx, page_pa = offset; i < end;i++, page_pa+=0x1000){
-        	if(dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs))
-        		printf("\n\tCould not map L2 entry in new pgd\n");
+        for(i = table2_idx, page_pa = offset; i < end ; i++, page_pa+=0x1000){
+        	if(!(curr_vm->config->pa_initial_l2_offset <= page_pa && page_pa <= ( curr_vm->config->pa_initial_l2_offset|0x0000F000)))
+        		dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs);
+        	else
+        	    dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs_ro);
         }
 
     }
