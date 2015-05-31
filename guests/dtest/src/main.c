@@ -867,6 +867,97 @@ void unit_test()
 {
  //############
 }
+
+void cache_attack(){
+	char * test_name= "CACHE ATTACK";
+	printf("Main Test: %s\n", test_name);
+
+	uint32_t pa, va, attrs, res;
+	int j, t_id = 0;
+
+
+/*
+	Scenario
+	1- creating two different L2 page tables
+	Note: one is completely empty and the other one is pointing to (va_base + 0x330000)
+	1-1 writing two page-tables data using a cacheable virtual address
+	1-2 unmapping L1 entry
+	1-3 calling L2_create handler
+
+    2- Mapping the first L2 in the current L1 as a second level translation table
+	3- free the second newly created L2 (with hope that its data is still in the cache)
+	4- mapping unmpapped L2's base address in the first L2 as a writable but non-cacheable address
+	5- writing some invalid data in the unmpapped L2's base address
+	6- Unmapping the first L2 entry which points the unmpapped L2's base address
+	7- calling L2_create handler to create a L2 in physical address pointed by the unmpapped L2's base address
+*/
+
+	va = (va_base + 0x300000) ;
+	pa = va2pa(va);
+
+    // First L2
+	for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x0);
+	memcpy((void*)va + 0x10000, l2, sizeof l2);
+
+    // Second L2
+	for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x87930036);
+	memcpy((void*)va + 0x20000, l2, sizeof l2);
+
+	// unmap the section
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(++t_id,"Successful unmapping entry in the current L1", SUCCESS, res);
+
+
+	// creating L2
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(va + 0x10000), 0, 0);
+	expect(++t_id,"Successful creating a new L2", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(va + 0x20000), 0, 0);
+	expect(++t_id,"Successful creating a new L2", SUCCESS, res);
+
+	// Mapping the first L2 in the current L1 as a second level translation table
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, va2pa(va + 0x10000), 0x21);
+	expect(++t_id,"Mapping a L2 table page in  the the active L1", SUCCESS, res);
+
+	// free the second newly created L2 (with hope that its data is still in the cache)
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, va2pa(va + 0x20000), 0, 0);
+	expect(t_id,"Successful freeing the given L2", SUCCESS, res);
+
+	// mapping unmpapped L2's base address in the first L2 as a writable but non-cacheable address
+    res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(va + 0x10000), 0xc2, va2pa(va + 0x20000), 0x32);
+	expect(++t_id,"Successful mapping an entry in the first L2", SUCCESS, res);
+
+	// writing some invalid data in the unmpapped L2's base address
+	for(j = 0; j < 1024; j++)
+		  l2[j] = ((uint32_t)0x87910036);
+	//printf("Desc from Second L2 = %x \n", *((uint32_t*)(0xc03c2000)));
+    memcpy((void*)(0xC03C2000), l2, sizeof l2);
+	//printf("Desc from Second L2 = %x \n", *((uint32_t*)(0xc03c2000)));
+
+    //Unmapping the first L2 entry which points the unmpapped L2's base address
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, va2pa(va + 0x10000), 0xc2, 0);
+	expect(++t_id,"Unmapping an entry of the first L2", SUCCESS, res);
+
+	// calling L2_create handler to create a L2 in physical address pointed by the unmpapped L2's base address
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(va + 0x20000), 0, 0);
+	expect(++t_id,"Successful creating a new L2 (This should fail)", SUCCESS, res);
+
+	// More test: trying to overwrite an old L2 (the first one)
+	// unmap the section
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, 0xC0400000, 0, 0);
+	expect(++t_id,"Successful unmapping entry in the current L1", SUCCESS, res);
+
+	// Mapping the second L2 in the current L1 as a second level translation table
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, 0xC0400000, va2pa(va + 0x20000), 0x21);
+	expect(++t_id,"Mapping the second L2 table page in  the active L1", SUCCESS, res);
+
+	*((uint32_t*)(0xC04C2000)) = 2;
+	printf("Value is read from overwritten L2 %x \n", *((uint32_t*)(0xC04C2000)));
+
+}
+
 void _main()
 {
 	uint32_t p0, p1, p2 , p3;
@@ -932,6 +1023,7 @@ void _main()
   // Standard execution if no test has been specified
   printf("no test has been specified\n");
 #endif
+  cache_attack();
   printf("TEST COMPLETED\n");
 }
 

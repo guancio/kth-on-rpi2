@@ -1,6 +1,7 @@
 #include "hw.h"
 #include "arm_common.h"
 #include "cpu_cop.h"
+#include "cache.h"
 
 extern uint32_t __hyper_pt_start__[]; // Symbols address is the value (linker script)
 
@@ -67,8 +68,11 @@ static return_value default_catcher(uint32_t r0, uint32_t r1, uint32_t r2)
 void cpu_init()
 {
     /* Invalidate and enable cache*/
-    mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
-    mem_cache_set_enable(TRUE);
+    //mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
+    //mem_cache_set_enable(TRUE);
+	CacheDataCleanInvalidateAll();
+	CacheInstInvalidateAll();
+    CacheEnable(CACHE_ALL);
 #if 1
     //Setup page table pointer 1
     /* PTWs cacheable, inner WB not shareable, outer WB not shareable */
@@ -127,7 +131,8 @@ void cpu_init()
     /*Setting alignment fault with beagleboard crashes it*/
     //mmu_config |= CR_A; // Set Alignment fault checking
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_CONTROL, mmu_config);
-    mem_cache_set_enable(TRUE);
+    //mem_cache_set_enable(TRUE);
+    CacheEnable(CACHE_ALL);
 #endif
 }
 

@@ -112,17 +112,41 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 
 			/*Page table operations*/
 			case HYPERCALL_SWITCH_MM:
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				hypercall_dyn_switch_mm(param0, param1);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				//hypercall_switch_mm(param0, param1);
 				return;
 
 			case HYPERCALL_NEW_PGD:
 				//hypercall_new_pgd((uint32_t*)param0);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				hypercall_dyn_new_pgd((uint32_t *)param0);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				return;
 			case HYPERCALL_FREE_PGD:
 				//hypercall_free_pgd((uint32_t*)param0);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				hypercall_dyn_free_pgd((uint32_t*)param0);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				return;
 			case HYPERCALL_CREATE_SECTION:
 				/*Not used anymore, DMMU init sets up everything in advance
@@ -131,14 +155,31 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 				return;
 			case HYPERCALL_SET_PMD:
 #ifdef USE_DMMU
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				hypercall_dyn_set_pmd(param0, param1);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 #else
 				hypercall_set_pmd((uint32_t*)param0, param1);
 #endif
 				return;
 			case HYPERCALL_SET_PTE:
 				//hypercall_set_pte((uint32_t*)param0, param1, param2);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
+				//CacheDataCleanInvalidateBuff((uint32_t)((addr_t *)((addr_t ) ((uint32_t*)param0) - 0x800)),4);
 				hypercall_dyn_set_pte((uint32_t*)param0, param1,param2);
+#ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				CacheDataCleanInvalidateAll();
+				dsb();
+#endif
 				return;
 			/****************************/
 			/*RPC*/

@@ -2,6 +2,10 @@
 #ifndef _DMMU_H_
 #define _DMMU_H_
 
+// Disabling aggressive flushing
+//#define AGGRESSIVE_FLUSHING
+#define AGGRESSIVE_FLUSHING_HANDLERS
+
 /* bft base and size definition */
 #define DMMU_BFT_BASE_PY  (MB + HAL_PHYS_START)
 #define DMMU_BFT_BASE_VA  (DMMU_BFT_BASE_PY - HAL_OFFSET)
