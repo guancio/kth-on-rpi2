@@ -3,8 +3,7 @@
 #define _DMMU_H_
 
 // Disabling aggressive flushing
-//#define AGGRESSIVE_FLUSHING
-#define AGGRESSIVE_FLUSHING_HANDLERS
+//#define AGGRESSIVE_FLUSHING_HANDLERS
 
 /* bft base and size definition */
 #define DMMU_BFT_BASE_PY  (MB + HAL_PHYS_START)
@@ -15,7 +14,11 @@
 
 #define __PACKED __attribute__ ((packed))
 
-
+// To check if all the page tables are allocated form the region that is always chackable or not
+//#define DEBUG_DMMU_CACHEABILITY_CHECKERS
+#define CHECK_PAGETABLES_CACHEABILITY
+#define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart | 0x6800000
+#define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart | 0x6A00000
 
 /* bft entry type */
 enum dmmu_entry_type { 

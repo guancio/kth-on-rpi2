@@ -1,4 +1,5 @@
         .global CP15ICacheDisable
+        .global CP15UnifiedCacheDisable
         .global CP15DCacheDisable
         .global CP15ICacheEnable
         .global CP15DCacheEnable
@@ -32,6 +33,11 @@ CP15ICacheDisable:
     bic     r0,  r0, #0x00001000
     mcr     p15, #0, r0, c1, c0, #0
     bx      lr
+
+CP15UnifiedCacheDisable:
+	mrc p15, #0, r0, c1, c0, #1
+	bic r0, r0, #0x00000002
+	mcr p15, #0, r0, c1, c0, #1
 
 CP15DCacheDisable:
     push    {r4-r11, lr}

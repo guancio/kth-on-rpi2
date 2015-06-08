@@ -70,6 +70,7 @@ extern void CP15DCacheCleanFlushBuff(unsigned int bufPtr, unsigned int size);
 extern void CP15DCacheFlushBuff(unsigned int bufPtr, unsigned int size);
 extern void CP15ICacheFlushBuff(unsigned int bufPtr, unsigned int size);
 extern void CP15ICacheDisable(void);
+extern void CP15UnifiedCacheDisable(void);
 extern void CP15DCacheDisable(void);
 extern void CP15ICacheEnable(void);
 extern void CP15DCacheEnable(void);

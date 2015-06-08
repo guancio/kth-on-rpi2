@@ -5,6 +5,9 @@
 #include "hypercalls.h"
 #include "print_err.h"
 
+#define SECTION_SIZE (0x00100000)
+#define PAGE_SIZE (0x00001000)
+
 enum mmu_ap { MMU_AP_NONE = 0, MMU_AP_SUP_RW, MMU_AP_USER_RO, MMU_AP_USER_RW };
 #define MMU_SECTION_AP_SHIFT 10
 #define MMU_PT_AP_SHIFT 4
@@ -44,7 +47,5 @@ uint32_t va_base;
 uint32_t va2pa(uint32_t va) {
 	return va - vstart + pstart;
 }
-
-void test_map_l1_section();
 
 #endif /* _DTEST_H_ */

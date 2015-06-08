@@ -113,11 +113,15 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			/*Page table operations*/
 			case HYPERCALL_SWITCH_MM:
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
 				hypercall_dyn_switch_mm(param0, param1);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
@@ -127,11 +131,15 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_NEW_PGD:
 				//hypercall_new_pgd((uint32_t*)param0);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
 				hypercall_dyn_new_pgd((uint32_t *)param0);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
@@ -139,11 +147,15 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_FREE_PGD:
 				//hypercall_free_pgd((uint32_t*)param0);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
 				hypercall_dyn_free_pgd((uint32_t*)param0);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
@@ -156,11 +168,15 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_SET_PMD:
 #ifdef USE_DMMU
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
 				hypercall_dyn_set_pmd(param0, param1);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
@@ -171,12 +187,16 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 			case HYPERCALL_SET_PTE:
 				//hypercall_set_pte((uint32_t*)param0, param1, param2);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif
 				//CacheDataCleanInvalidateBuff((uint32_t)((addr_t *)((addr_t ) ((uint32_t*)param0) - 0x800)),4);
 				hypercall_dyn_set_pte((uint32_t*)param0, param1,param2);
 #ifdef AGGRESSIVE_FLUSHING_HANDLERS
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
 				CacheDataCleanInvalidateAll();
 				dsb();
 #endif

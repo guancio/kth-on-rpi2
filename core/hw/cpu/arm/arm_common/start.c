@@ -1,5 +1,6 @@
 #include "hyper.h"
 #include "guest_blob.h"
+#include<cache.h>
 
 extern virtual_machine *curr_vm;
 
@@ -14,7 +15,8 @@ void start(){
 #endif
     
     printf("Branching to address: %x\n", start);
-        
+
+
 #if !defined(LINUX)
     __asm__ volatile (
 		"mov LR, %0\n"
@@ -36,6 +38,5 @@ void start(){
     	"MOVS PC, LR\n"
     	:: "r"(start), "r"(LINUX_ARCH_ID), "r"(start - 0x10000 + 0x100), "r"(0));
 #endif
-
 
 }

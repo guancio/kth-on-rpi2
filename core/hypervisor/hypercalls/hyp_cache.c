@@ -71,21 +71,28 @@ void hypercall_cache_op(enum hyp_cache_op op, addr_t va, uint32_t size)
 	switch (op){
 		case FLUSH_ALL:
 			hypercall_flush_all();
+			//CacheDataInvalidateAll();
+			//CacheInstInvalidateAll();
 			return;
 		case FLUSH_D_CACHE_AREA:
 			hypercall_dcache_flush_area(va, size);
+			//CacheDataInvalidateBuff(va, size);
 			return;
 		case CLEAN_D_CACHE_AREA:
-			hypercall_dcache_clean_area(va, size);
+			//hypercall_dcache_clean_area(va, size);
+			CacheDataCleanBuff(va, size);
 			return;
 		case INVAL_D_CACHE_MVA:
-			hypercall_dcache_invalidate_mva(va);
+			//hypercall_dcache_invalidate_mva(va);
+			CacheDataCleanBuff(va, 4);
 			return;
 		case FLUSH_I_CACHE_ALL:
-			hypercall_icache_invalidate_all();
+			//hypercall_icache_invalidate_all();
+			CacheInstInvalidateAll();
 			return;
 		case FLUSH_I_CACHE_MVA:
-			hypercall_icache_invalidate_mva(va);
+			//hypercall_icache_invalidate_mva(va);
+			CacheInstInvalidateBuff(va, 4);
 			return;
 		case INVAL_ALL_BRANCH:
 			hypercall_branch_invalidate_all();

@@ -929,6 +929,8 @@ void cache_attack(){
     res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(va + 0x10000), 0xc2, va2pa(va + 0x20000), 0x32);
 	expect(++t_id,"Successful mapping an entry in the first L2", SUCCESS, res);
 
+	syscall_cache_op();
+
 	// writing some invalid data in the unmpapped L2's base address
 	for(j = 0; j < 1024; j++)
 		  l2[j] = ((uint32_t)0x87910036);
@@ -955,6 +957,113 @@ void cache_attack(){
 
 	*((uint32_t*)(0xC04C2000)) = 2;
 	printf("Value is read from overwritten L2 %x \n", *((uint32_t*)(0xC04C2000)));
+
+}
+
+void cache_attack_confidentiality()
+{
+	char * test_name= "CACHE ATTACK CONFIDENTIALITY";
+	printf("Main Test: %s\n", test_name);
+
+	uint32_t va_1, va_2, l2_va_1, l2_va_2, l2_va_3, shared_page, res;
+	int j, t_id = 0;
+
+
+/*
+	TODO Scenario
+
+*/
+
+	va_1 = (va_base + 0x300000) ;
+	va_2 = (va_base + 0x400000) ;
+
+	l2_va_1 = va_1 + 0x10000;
+	l2_va_2 = va_2 + 0x10000;
+	l2_va_3 = va_1 + 0x20000;
+
+	shared_page = va2pa(va_1 + 0x05000);
+
+	for(j = 0; j < 1024; j++)
+		l2[j] = ((uint32_t)0x0);
+    // First L2
+	memcpy((void*)l2_va_1, l2, sizeof l2);
+
+    // Second L2
+	memcpy((void*)l2_va_2, l2, sizeof l2);
+
+
+	for(j = 0; j < 1024; j++)
+		l2[j] = ((uint32_t)0x87910022);
+	    // First L2
+	memcpy((void*)l2_va_3, l2, sizeof l2);
+
+	// unmap the section
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va_1, 0, 0);
+	expect(++t_id,"Successful unmapping entry in the current L1", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va_2, 0, 0);
+	expect(++t_id,"Successful unmapping entry in the current L1", SUCCESS, res);
+	//--
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, (va_base + 0x100000), 0, 0);
+	expect(++t_id,"Successful unmapping entry in the current L1", SUCCESS, res);
+
+	// creating L2
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(l2_va_1), 0, 0);
+	expect(++t_id,"Successful creating a new L2", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(l2_va_2), 0, 0);
+	expect(++t_id,"Successful creating a new L2", SUCCESS, res);
+    //--
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, va2pa(l2_va_3), 0, 0);
+	expect(++t_id,"Successful creating a new L2", SUCCESS, res);
+
+	// Mapping the L2 PTs in the current L1 as a second level translation table
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va_1, va2pa(l2_va_1), 0x21);
+	expect(++t_id,"Mapping the first L2 table page in  the the active L1", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va_2, va2pa(l2_va_2), 0x21);
+	expect(++t_id,"Mapping the second L2 table page in  the the active L1", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, (va_base + 0x100000), va2pa(l2_va_3), 0x21);
+	expect(++t_id,"Mapping the second L2 table page in  the the active L1", SUCCESS, res);
+
+	// mapping  L2 page tables entries
+    res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_1), 0x00, shared_page, 0x32);
+    res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_1), 0x01, shared_page, 0x3a);
+    //res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_1), 0x20, va2pa(va_1 + 0x50000), 0x3a);
+    //res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_1), 0x30, va2pa(va_1 + 0x60000), 0x3a);
+	expect(++t_id,"Successful mapping entries in the first L2", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_2), 0x00, shared_page, 0x32);
+	//res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, va2pa(l2_va_2), 0x1, shared_page, 0x32);
+	expect(++t_id,"Successful mapping entries in the second L2", SUCCESS, res);
+
+    for(j = 0; j < PAGE_SIZE/4; j++)
+    	printf("l2_desc %x \t", *((uint32_t*)(0xC0100000 | j << 2)));
+
+	// writing into the page using noncacheable address
+	memset((void*)(0xC0400000), 0x2 , PAGE_SIZE);
+	// writing into the page using cacheable address
+	memset((void*)(0xC0300000), 0x1 , PAGE_SIZE);
+
+
+//	// write some data into the same cache line as 0xC0300000
+//	// Our aim is to fill the other cache lines that share the same set index
+//	memset((void*)(0xC0310000),0x7 , PAGE_SIZE);
+//	memset((void*)(0xC0320000),0x7 , PAGE_SIZE);
+//	memset((void*)(0xC0330000),0x7 , PAGE_SIZE);
+//
+//	// secret
+//	uint32_t secret = 1, read_value;
+//
+//	if (secret == 1)
+//		//read_value = *((uint32_t*)(0xC0310000));
+//		for (j=0; j < 200; j ++)
+//		memset((void*)(0xC0310000),0x3 , PAGE_SIZE);
+//	else
+//		read_value = *((uint32_t*)(0xC0401000));
+//	syscall_cache_op();
+	printf("Value read from va_2 %x \n", *((uint32_t*)(0xC0301000)));
 
 }
 
@@ -1024,6 +1133,7 @@ void _main()
   printf("no test has been specified\n");
 #endif
   cache_attack();
+  //cache_attack_confidentiality();
   printf("TEST COMPLETED\n");
 }
 
