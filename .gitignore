@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Object files
 *.o
 *.ko
@@ -30,3 +31,29 @@
 
 # Debug files
 *.dSYM/
+
+.svn
+*.to
+*.ho
+*.o
+*.exe
+*.log
+.cproject
+.project
+build
+*~
+.project
+.cproject
+sth.patch
+ovp_*.data
+*.cpio
+zImage
+zImage.bin
+.cproject
+*.sh
+*.to
+*.o
+*.ho
+.svn
+qemu
+guests/dtest/test.cfg
