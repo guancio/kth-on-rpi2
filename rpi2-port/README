@@ -1,8 +1,26 @@
 This directory contains all the files related to the RPi2 port of the
 hypervisor.
 
-Both the test kernels (test-kernel-1 and test-kernel-2) are built with CMake
-using the commands:
+Tools you will need to use everything in this folder:
+CMake (for compiling the kernels): sudo apt-get install cmake
+ARM cross-compiler (for compiling the kernels): sudo apt-get install gcc-arm-none-eabi
+mkimage (for creating U-Boot images): sudo apt-get install mkimage
+A LaTeX distribution (for compiling the Guide): Your choice, although we
+recommend TexMaker: sudo apt-get install texmaker
+The Raspberry Pi 2 firmware (to get things working on the RPi2): You can
+download it to the current folder with: git clone https://github.com/raspberrypi/firmware
+
+For the convenience of not swapping the SD card physically:
+U-Boot (the remote bootloader tool): You can download it to the current folder 
+with: git clone http://git.denx.de/u-boot.git
+ARM cross-compiler for U-Boot (to compile U-Boot): apt-get install gcc-arm-linux-gnueabihf
+U-Boot tools (for configuring U-Boot): apt-get install u-boot-tools
+xinetd (to set up the server to remote boot from): sudo apt-get install xinetd
+tftpd (TFTP server): sudo apt-get install tftpd
+tftp (TFTP client): sudo apt-get install tftp
+
+Both the test kernels (test-kernel-1 and test-kernel-2) are built with using the 
+commands:
 
 ./configure.sh
 make
