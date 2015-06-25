@@ -1,0 +1,7 @@
+usb start
+setenv scriptaddr 0x02000000
+setenv serverip 130.229.149.236
+setenv ipaddr 130.237.224.169
+setenv bootargs "console=tty0"
+tftp ${kernel_addr_r} zImage
+bootz ${kernel_addr_r}

@@ -50,7 +50,7 @@ ovp_*.data
 zImage
 zImage.bin
 .cproject
-*.sh
+#*.sh why ignore shell scripts?
 *.to
 *.o
 *.ho

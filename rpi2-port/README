@@ -1,1 +1,18 @@
-This directory contains all the files related to the RPi2 port of the hypervisor.
+This directory contains all the files related to the RPi2 port of the
+hypervisor.
+
+Both the test kernels (test-kernel-1 and test-kernel-2) are built with CMake
+using the commands:
+
+./configure.sh
+make
+
+in their respective directories. This will create an ELF in the current
+directory, and an image file called "zImage" in the folder /tftpboot/ (at the
+bottom of the directory tree). Make sure you have prepared that folder in
+advance, or change the target directory at the bottom of CMakeLists.txt.
+
+boot.scr is a U-Boot boot script which should first be made an image by
+executing the command "mkimage -A arm -O linux -T script -C none -n Boot Script 
+-d boot.scr boot.scr.uimg" (without quotation marks) in this folder, and then
+placed in the root folder of the SD card.
