@@ -57,3 +57,9 @@ zImage.bin
 .svn
 qemu
 guests/dtest/test.cfg
+
+#LaTeX-related files
+*.aux
+#*.log is already ignored
+*.synctex.gz
+*.pdf
