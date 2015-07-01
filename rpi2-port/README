@@ -6,9 +6,9 @@ CMake (for compiling the kernels): sudo apt-get install cmake
 ARM cross-compiler (for compiling the kernels): sudo apt-get install gcc-arm-none-eabi
 mkimage (for creating U-Boot images): sudo apt-get install mkimage
 A LaTeX distribution (for compiling the Guide): Your choice, although we
-recommend TexMaker: sudo apt-get install texmaker
+recommend simply using TexMaker: sudo apt-get install texmaker
 The Raspberry Pi 2 firmware (to get things working on the RPi2): You can
-download it to the current folder with: git clone https://github.com/raspberrypi/firmware
+download it to your current folder with: git clone https://github.com/raspberrypi/firmware
 
 For the convenience of not swapping the SD card physically:
 U-Boot (the remote bootloader tool): You can download it to the current folder 
@@ -28,9 +28,12 @@ make
 in their respective directories. This will create an ELF in the current
 directory, and an image file called "zImage" in the folder /tftpboot/ (at the
 bottom of the directory tree). Make sure you have prepared that folder in
-advance, or change the target directory at the bottom of CMakeLists.txt. The test kernels are meant for use with U-Boot, unless they are suffixed with "-standalone"
+advance, or change the target directory at the bottom of CMakeLists.txt.
+
+The test kernels are all meant for use with U-Boot, unless they are suffixed 
+with "-standalone", which means that they should simply replace kernel.img/kernel7.img.
 
 boot.scr is a U-Boot boot script which should first be made an image by
 executing the command "mkimage -A arm -O linux -T script -C none -n Boot Script 
 -d boot.scr boot.scr.uimg" (without quotation marks) in this folder, and then
-placed in the root folder of the SD card.
+placed in the root folder of the SD card, if you want to use U-Boot.
