@@ -19,7 +19,7 @@ xinetd (to set up the server to remote boot from): sudo apt-get install xinetd
 tftpd (TFTP server): sudo apt-get install tftpd
 tftp (TFTP client): sudo apt-get install tftp
 
-Both the test kernels (test-kernel-1 and test-kernel-2) are built with using the 
+All the test kernels are built using the 
 commands:
 
 ./configure.sh
@@ -28,7 +28,7 @@ make
 in their respective directories. This will create an ELF in the current
 directory, and an image file called "zImage" in the folder /tftpboot/ (at the
 bottom of the directory tree). Make sure you have prepared that folder in
-advance, or change the target directory at the bottom of CMakeLists.txt.
+advance, or change the target directory at the bottom of CMakeLists.txt. The test kernels are meant for use with U-Boot, unless they are suffixed with "-standalone"
 
 boot.scr is a U-Boot boot script which should first be made an image by
 executing the command "mkimage -A arm -O linux -T script -C none -n Boot Script 

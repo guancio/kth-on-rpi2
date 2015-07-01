@@ -51,6 +51,6 @@ add_executable( test-kernel
 
 add_custom_command(
     TARGET test-kernel POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} ./Test Kernel 1${CMAKE_EXECUTABLE_SUFFIX} -O binary /tftpboot/zImage
+    COMMAND ${CMAKE_OBJCOPY} ./test-kernel ${CMAKE_EXECUTABLE_SUFFIX} -O binary /tftpboot/zImage
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Convert the ELF output file to a binary image" )
