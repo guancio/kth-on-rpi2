@@ -1,0 +1,3 @@
+This test kernel is meant to be used in conjunction with U-Boot.
+
+When running, it will blink the green "OK" LED on the RPi2.

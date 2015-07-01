@@ -1,0 +1,4 @@
+This kernel is meant to be used in conjunction with U-Boot.
+
+When running, it will print the words "Hello, Kernel World!" and
+"Goodbye, Kernel World!" on the UART of the RPi2, alternately.

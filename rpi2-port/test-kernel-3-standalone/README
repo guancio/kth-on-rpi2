@@ -1,0 +1,5 @@
+This test kernel is meant to be used on its own together with only the RPi2
+firmware and bootloader.
+
+It will configure the pins of the RPi2 to communicate using JTAG, and then blink
+the green "OK" LED.
