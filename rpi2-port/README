@@ -27,11 +27,13 @@ make
 
 in their respective directories. This will create an ELF in the current
 directory, and an image file called "zImage" in the folder /tftpboot/ (at the
-bottom of the directory tree). Make sure you have prepared that folder in
-advance, or change the target directory at the bottom of CMakeLists.txt.
+bottom of the directory tree) unless you are compiling a standalone kernel.
+Make sure you have prepared the tftpboot folder in advance, or change the target
+directory at the bottom of CMakeLists.txt.
 
 The test kernels are all meant for use with U-Boot, unless they are suffixed 
-with "-standalone", which means that they should simply replace kernel.img/kernel7.img.
+with "-standalone", which means that they should simply replace kernel.img or
+kernel7.img on a SD card with just the RPi2 firmware.
 
 boot.scr is a U-Boot boot script which should first be made an image by
 executing the command "mkimage -A arm -O linux -T script -C none -n Boot Script 
