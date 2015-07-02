@@ -107,7 +107,10 @@ Several useful example programs (or ``test kernels'') can be found in the GitHub
 This test kernel will make the green LED on the RPi2 blink, with approximately one-second intervals between each flash. This simple program is good for testing if your pipeline to get code running on the RPi2 is working correctly.
 
 \subsubsection{test-kernel-2}
-This test kernel will infinitely write alternately ``Hello, Kernel World!'' and ``Goodbye, Kernel World!'' over the UART, with approximately one second of waiting in between each output. This is useful for testing the serial connection.
+This test kernel will write alternately ``Hello, Kernel World!'' and ``Goodbye, Kernel World!'' over the UART in perpetuity, with approximately one second of waiting in between each output. This is useful for testing the serial connection.
+
+\subsubsection{test-kernel-3}
+This test kernel will first setup certain pins on the RPi2 for Jtag communication, and then blink and write alternately ``Hello, kernel world!'' and ``Goodbye, kernel world!'' over the UART in perpetuity, with approximately two second of waiting in between each output. This is useful for testing the both JTAG and serial connection.
 
 \section{Booting over a network}
 Start by downloading the GitHub repository \texttt{raspberrypi/firmware} (if you do not already have it downloaded) and copy the contents of the \texttt{boot} folder to your SD card, as described before. Then, open the file \texttt{config.txt} on your SD card, and change it to read \texttt{kernel=u-boot.bin}, instead of where \texttt{kernel} pointed to before.
@@ -269,8 +272,5 @@ openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
 Your OpenOCD should now detect the processor of your debug target. It will list the number of processors, and their respective breakpoints and so on, and then wait. At this point, you want to open a new terminal window and connect to OpenOCD, for example by executing the command \texttt{telnet localhost 4444} to communicate via Telnet. That will put you in communication with OpenOCD and you will be able to execute a number of commands in that environment. First, try the command \texttt{help} to see what you can do. For a simple test, you can execute the command \texttt{targets} followed by \texttt{halt} and then \texttt{targets} again to verify that you can use JTAG. Execute the command \texttt{exit} to exit the Telnet connection.
 
 Now, we also want to be able to communicate via UART at the same time. At some point before you connect to OpenOCD and halt the processors (if you have already done this, shut down OpenOCD and remove power from your RPi2, then connect to power and re-connect OpenOCD as described above), you can connect to one of the channels of the adapter. Use \texttt{dmesg | grep usb} and look for lines which say \texttt{FTDI USB Serial Device converter now attached to ttyUSBX}, where \texttt{X} is an integer. If you have connected OpenOCD, you will see that one of these have been disconnected - that is where the adapter communicates via JTAG with OpenOCD. Connect to the remaining one using \texttt{sudo screen /dev/ttyUSBY 115200}, where \texttt{Y} is the number of the remaining connection. Using any of the test kernels described in this section, you should see the lines ``Hello, kernel world!'' and ``Goodbye, kernel world!'' printed alternately in perpetuity.
-
-\section{Changes to the hypervisor}
-TODO
 
 \end{document}
