@@ -15,6 +15,7 @@
 \usepackage{textcomp}
 \usepackage{tikz}
 \usepackage{subfig}
+\usepackage{fancyvrb}
 
 \title{Bare-metal programming on the Raspberry Pi 2}
 \author{Didrik Lundberg\\
@@ -23,7 +24,7 @@
 \begin{document}
 \maketitle
 \noindent
-This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run the SICS Thin Hypervisor for the Raspberry Pi 2. If you have any questions, please send an E-mail to the author.
+This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run the SICS Thin Hypervisor for the Raspberry Pi 2. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. If you have any questions, please send an E-mail to the author.
 \section{Introduction}
 In order to follow this guide, you will need some equipment:
 \begin{itemize}
@@ -33,6 +34,9 @@ In order to follow this guide, you will need some equipment:
   \item An SD card reader
   \item A serial-to-USB converter cable
   \item A USB to serial interface converter module (for JTAG)
+   \begin{itemize}
+    \item ... including the USB cable to connect it to your PC
+  \end{itemize}
   \item For testing the hardware:
   \begin{itemize}
     \item A USB mouse and a USB keyboard
@@ -97,7 +101,7 @@ You will require a compiler which can compile code to run on other hardware. Thi
 However, in reality we never just compile a single C file. We are going to have multiple files in C and ARM assembly language, and so we will need firstly a linker script and secondly CMake, in order to keep things neat.
 
 \subsection{Example code}
-Two useful example programs (or ``test kernels'') can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder.
+Several useful example programs (or ``test kernels'') can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder.
 
 \subsubsection{test-kernel-1}
 This test kernel will make the green LED on the RPi2 blink, with approximately one-second intervals between each flash. This simple program is good for testing if your pipeline to get code running on the RPi2 is working correctly.
@@ -110,7 +114,9 @@ Start by downloading the GitHub repository \texttt{raspberrypi/firmware} (if you
 
 Next, you will need to create a script that U-Boot will run once it is started. Create a file called \texttt{boot.scr}, and enter the following:
 
-\begin{verbatim}
+\begin{figure}[hb]
+\begin{center}
+\begin{BVerbatim}
 usb start
 setenv scriptaddr 0x02000000
 setenv serverip 130.229.149.236
@@ -118,7 +124,11 @@ setenv ipaddr 130.237.224.169
 setenv bootargs "console=tty0"
 tftp ${kernel_addr_r} zImage
 bootz ${kernel_addr_r}
-\end{verbatim}
+\end{BVerbatim}
+\end{center}
+\caption{Boot script for U-Boot}
+\label{fig:boots}
+\end{figure}
 
 where you replace the IP address after \texttt{serverip} by the one of your computer (which will act as a TFTP server later on). Your IP address can be found by looking at your \texttt{inet addr} after executing the \texttt{ifconfig} command in a terminal window.
 
@@ -134,19 +144,26 @@ Now we only have one part left - U-Boot itself. First, we have to download U-Boo
 }, which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card. Now, you can eject your SD card and place it in your RPi2.
 
 We are now going to set up your computer as a TFTP server. First, we install the required tools by executing the command \texttt{sudo apt-get install xinetd tftpd tftp}. Edit (or create, if it does not exist) \texttt{tftp} in \texttt{etc/xinet.d/}, which should contain the following:
-\begin{verbatim}
+
+\begin{figure}[hb]
+\begin{center}
+\begin{BVerbatim}
 service tftp
 {
-	protocol        = udp
-	port            = 69
-	socket_type     = dgram
-	wait            = yes
-	user            = nobody
-	server          = /usr/sbin/in.tftpd
-	server_args     = /tftpboot
-	disable         = no
+    protocol        = udp
+    port            = 69
+    socket_type     = dgram
+    wait            = yes
+    user            = nobody
+    server          = /usr/sbin/in.tftpd
+    server_args     = /tftpboot
+    disable         = no
 }
-\end{verbatim}
+\end{BVerbatim}
+\end{center}
+\caption{TFTP server configuration}
+\label{fig:boots}
+\end{figure}
 
 Then, create a directory called \texttt{tftpboot} in \texttt{/}. Make sure you do not have too stingy access rights by executing the commands \texttt{sudo chmod -R 777 /tftpboot} and \texttt{sudo chown -R nobody /tftpboot} in the directory where you created \texttt{tftpboot}. Then, make your changes take effect by executing \texttt{sudo service xinetd restart}.
 
@@ -157,7 +174,101 @@ The setup is now complete. Plug in an Ethernet cable and a HDMI cable connected 
 If at any point you should shut down your computer, you will need to start the server again by writing \texttt{sudo /etc/init.d/xinetd restart}, and take a second look if the IP addresses in your boot script can still be used; otherwise you will need to change the bootscript, create the boot script image again, and transfer it to the SD card.
 
 \section{Setting up JTAG}
-TODO
+Communicating over JTAG with you PC can be very useful when debugging code on an external device. We will therefore look into the matter of using a JTAG adapter for this purpose. In this guide, we will be using a FT2232H Mini-Module, which is very cheap, fast, and allows us to communicate both over UART and JTAG at the same time using only one adapter.
+
+First, we need to be sure that the hardware is working. The FT2232H Mini-Module has two pin blocks, which are distinguished by their names ``CN2'' and ``CN3'' (channel 2 and channel 3, respectively) which can be found at the edge of the pin blocks on both sides of the board. The pins on the blocks are physically numbered starting from the pin marked by a square on one side of the board as pin 1, the pin which is on the same row of two as pin 1 being pin 2, and so on. So one of the two long rows of the pin blocks consists of odd numbers, and vice versa.
+
+The adapter is not powered unless you make some connections between the pins on the board itself. For this purpose, you will need to use jumper cables.
+
+\begin{figure}[hb]
+\begin{center}
+\begin{itemize}
+\item VBUS to VCC:
+		\begin{itemize}
+		\item CN3-1 to CN3-3
+		\end{itemize}
+\item V3V3 to VIO:
+		\begin{itemize}
+		\item CN2-1 to CN2-11
+		\item CN2-3 to CN3-12
+		\item CN2-5 to CN2-21
+		\item CN2-9 to CN2-10
+		\end{itemize}
+\end{itemize}
+\end{center}
+\caption{Trivial jumper cable connections}
+\label{fig:con1}
+\end{figure}
+
+Connect jumper cables between the pins as described in the list above, and then plug a mini-USB cable into the adapter on one end and your PC on the other end. At this point, you should be able to find the adapter listed when using \texttt{lsusb} and the two different device names of the different channels when using \texttt{dmesg | grep usb} (using the connections above, \texttt{/dev/tty0} for the JTAG and \texttt{/dev/tty1} for UART).
+
+When you have verified that the above works, disconnect the adapter from its power source and set up the cabling described below.
+
+\begin{figure}[hb]
+\begin{center}
+\begin{itemize}
+	\item JTAG: (FT2232H board left, RPi2 right)
+		\begin{itemize}
+		\item TCK:   CN2-7   to 22 (GPIO number 25)
+		\item TDI:   CN2-10  to 7 (GPIO number 4)
+		\item TDO:   CN2-9   to 18 (GPIO number 24)
+		\item TMS:   CN2-12  to 13 (GPIO number 27)
+		\end{itemize}
+	\item UART:
+		\begin{itemize}
+		\item TXRX:  CN3-26  to 10 (GPIO number 15)
+		\item RXTX:  CN3-25  to 8 (GPIO number 14)
+		\end{itemize}
+	\item Ground:
+		\begin{itemize}
+		\item GND:   CN2-2   to 6
+		\end{itemize}
+	\item RPi2 to RPi2:
+		\begin{itemize}
+		\item V3V3 to TRST:  1    to 15 (GPIO number 22)
+		\end{itemize}
+	\item FTDI board to FTDI board:
+		\begin{itemize}
+		\item V3V3 to VCCIO: CN2-1   to CN2-11
+		\item VBUS to VCC:   CN3-1   to CN3-3
+		\end{itemize}
+\end{itemize}
+\end{center}
+\caption{JTAG and UART jumper cable connections}
+\label{fig:con1}
+\end{figure}
+
+If you happen to have a FT4232H Mini-Module instead, the connections at this point are identical except for the UART, where you would instead connect pins 8 and 10 on the RPi2 to the CN2-17 and the CN2-18 pins on the adapter, respectively. I have also listed the GPIO number of the RPi2 pins.
+
+Next, before we plug this in, we need to install the software we need. To communicate over UART, we will simply use the tools we used before (\texttt{screen} or \texttt{minicom}). To communicate over JTAG, we will need the latest version of OpenOCD. For following this guide, we recommend at least version 0.9.0. In general, for getting the latest version of this tool, I recommend cloning the OpenOCD Git repository. First, you need to acquire some dependencies. Do so by executing the command \texttt{sudo apt-get install make libtool pkg-config autoconf automake texinfo}.
+
+You can use either FTDI's own drivers (ftd2xx) or the open-source driver library libFTDI. At some point in time, the ftd2xx driver was much faster, although the issues with using it consists of not being able to redistribute your compiled code. Currently, I think they are about as fast and so it is more convenient for us to use libFTDI. Install libFTDI by executing the command \texttt{sudo apt-get install libusb-1.0-0-dev}.
+
+Now clone the OpenOCD Git repository by executing the command \texttt{git clone git://git.code.sf.net/p/openocd/code}. Navigate to the directory where OpenOCD was cloned, and type \texttt{./configure --enable-ftdi}, which should do the trick for configuration.s Then type \texttt{make} (make sure there are no errors!) and then \texttt{sudo make install}.
+
+OpenOCD is now installed! Now, you need to run it. For this, you will need two configuration files. One for the JTAG adapter and one for the SoC board. In other words, use something similar to:
+
+\begin{verbatim}
+openocd -f interface/ADAPTER.cfg -f target/MYTARGET.cfg
+\end{verbatim}
+
+where you replace \texttt{interface/ADAPTER.cfg} and \texttt{target/MYTARGET.cfg} with the corresponding files for your JTAG adapter and the board you want to debug on. In our case this becomes
+
+\begin{verbatim}
+openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
+\end{verbatim}
+
+You might not have a file for the RPi2 on your OpenOCD installation, though. If you do not, you must create one. The installed OpenOCD scripts are stored at \texttt{/usr/local/share/OpenOCD/scripts}. To easily create new files, execute the command \texttt{gksudo thunar}, and use the Thunar graphical file manager to navigate the the directory of the scripts and create and modify files there. Specifically for the RPi2 script, create a new file containing the Tcl code found at \texttt{rpi2-port/raspberrypi2.cfg}, in the \texttt{guancio/kth-on-rpi2} GitHub repository.
+
+Now, you will need to write a kernel which enables the pins you have connected your JTAG adapter for JTAG communication. One such example, which can be used with U-Boot as described above, can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder, named \texttt{test-kernel-3}. Start your RPi2 as described in the U-Boot section above (or use the test kernel \texttt{test-kernel-3-standalone} instead if you do not want U-Boot), and plug the USB cable connected to your FT2232H Mini-Module into your computer. You must then wait for the pins to be enabled for JTAG use. You can tell this is the case when the green ``OK'' LED is blinking with two-second intervals. Then, execute the command
+
+\begin{verbatim}
+openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
+\end{verbatim}
+
+Your OpenOCD should now detect the processor of your debug target. It will list the number of processors, and their respective breakpoints and so on, and then wait. At this point, you want to open a new terminal window and connect to OpenOCD, for example by executing the command \texttt{telnet localhost 4444} to communicate via Telnet. That will put you in communication with OpenOCD and you will be able to execute a number of commands in that environment. First, try the command \texttt{help} to see what you can do. For a simple test, you can execute the command \texttt{targets} followed by \texttt{halt} and then \texttt{targets} again to verify that you can use JTAG. Execute the command \texttt{exit} to exit the Telnet connection.
+
+Now, we also want to be able to communicate via UART at the same time. At some point before you connect to OpenOCD and halt the processors (if you have already done this, shut down OpenOCD and remove power from your RPi2, then connect to power and re-connect OpenOCD as described above), you can connect to one of the channels of the adapter. Use \texttt{dmesg | grep usb} and look for lines which say \texttt{FTDI USB Serial Device converter now attached to ttyUSBX}, where \texttt{X} is an integer. If you have connected OpenOCD, you will see that one of these have been disconnected - that is where the adapter communicates via JTAG with OpenOCD. Connect to the remaining one using \texttt{sudo screen /dev/ttyUSBY 115200}, where \texttt{Y} is the number of the remaining connection. Using any of the test kernels described in this section, you should see the lines ``Hello, kernel world!'' and ``Goodbye, kernel world!'' printed alternately in perpetuity.
 
 \section{Changes to the hypervisor}
 TODO
