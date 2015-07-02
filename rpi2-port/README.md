@@ -1,7 +1,7 @@
-This directory contains all the files related to the RPi2 port of the
-hypervisor.
+RPi2 accessories
+======================
 
-Tools you will need to use everything in this folder:
+Dependencies you will need to use everything in this folder:
 - CMake (for compiling the kernels): sudo apt-get install cmake
 - ARM cross-compiler (for compiling the kernels): sudo apt-get install gcc-arm-none-eabi
 - mkimage (for creating U-Boot images): sudo apt-get install mkimage
@@ -31,7 +31,7 @@ Make sure you have prepared the tftpboot folder in advance, or change the target
 directory at the bottom of CMakeLists.txt.
 
 The test kernels are all meant for use with U-Boot, unless they are suffixed 
-with "-standalone", which means that they should simply replace kernel.img or
+with "-standalone", which means that the .img file created when compiling should simply replace kernel.img or
 kernel7.img on a SD card with just the RPi2 firmware.
 
 boot.scr is a U-Boot boot script which should first be made an image by
