@@ -1,3 +1,7 @@
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 //Function prototypes and imports
 extern void write_to_address(unsigned int, unsigned int);
 extern unsigned int read_from_address(unsigned int);
@@ -84,27 +88,91 @@ extern void delay(unsigned int);
 #define UART0_TDR 0x3F20108C
 ////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//			UART FUNCTIONS
+////////////////////////////////////////////////////////////////////////////////
+
+//Returns the length of a C-style string.
+size_t strlen(const char* str){
+	size_t ret = 0;
+	while ( str[ret] != 0 )
+		ret++;
+	return ret;
+}
+
+void uart_write_char(unsigned char byte){
+	//Wait for UART to become ready to transmit - wait while bit 5 in
+	//UART_FR is set, meaning that the transmit FIFO is full.
+	while (read_from_address(UART0_FR) & (1 << 5)){
+		//Do nothing...
+	}
+	
+	//When FIFO is enabled, data written to UART_DR will be put in the FIFO.
+	write_to_address(UART0_DR, byte);
+}
+/*
+unsigned char uart_getc(){
+	//Wait for UART to become ready to receive - wait while bit 4 in
+	//UART_FR is set, meaning that the receive FIFO is empty.
+	while (mmio_read(UART0_FR) & (1 << 4)){
+		//Do nothing...
+	}
+
+	//TODO: if the FIFOs are enabled, the data byte and the 4-bit status
+	//(break, frame, parity, and overrun) is pushed onto the 12-bit wide re
+	//ceive FIFO 
+	return mmio_read(UART0_DR);
+}
+*/
+
+//Writes all the chars in buffer to the UART.
+void uart_write_chars(const unsigned char* buffer, size_t size){
+	for (size_t i = 0; i < size; i++){
+		uart_write_char(buffer[i]);
+	}
+}
+
+//Simply a wrapper for uart_write_chars
+void uart_write_string(const char* str){
+	uart_write_chars((const unsigned char*) str, strlen(str));
+}
+
+
 int kernel_main ( void ){
 	unsigned int register_a;
 	unsigned int register_b;
-	
+
+	//TODO: Since this is supposed to be used with U-Boot, we do not
+	//initialize UART...
+
 	//Pull-up/pull-down thingy enabling us to write on GPIO addresses...
 	write_to_address(GPPUD,0);
 	for(register_a = 0; register_a < 150; register_a++){
 		delay(register_a);
 	}
-	//... specifically, GPIO pins 4, 22, 24, 25 and 27
-	write_to_address(GPPUDCLK0,(1<<4)|(1<<21)|(1<<22)|(1<<24)|(1<<25)|(1<<27));
+	//... specifically, GPIO pins 4, 22, 24, 25 and 27 TODO: 14 and 15
+	write_to_address(GPPUDCLK0,(1<<4)|(1<<14)|(1<<15)|(1<<21)|(1<<22)|(1<<24)|(1<<25)|(1<<27));
 	for(register_a = 0; register_a < 150; register_a++){
 		delay(register_a);
 	}
 	write_to_address(GPPUDCLK0,0);
+
+	//TODO: Try initializing UART...
+	write_to_address(UART0_ICR, 0x7FF);
+	write_to_address(UART0_IBRD, 1); //NOTE: Number not in hexadecimal
+	write_to_address(UART0_FBRD, 40); //NOTE: Number not in hexadecimal
+	write_to_address(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+	write_to_address(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
+	                       (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
+	write_to_address(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
 	
+	//Set GPIO4 to alternative function 5 by writing to register at GPFSEL0s
 	register_a = read_from_address(GPFSEL0);
 	register_a &= ~(7<<12); //gpio4
 	register_a |= 2<<12; //gpio4 alt5 ARM_TDI
 	write_to_address(GPFSEL0, register_a);
 
+	//Set other GPIOs to alternative functions by writing at GPFSEL2
 	register_a = read_from_address(GPFSEL2);
 	register_a &= ~(7<<6); //gpio22
 	register_a |= 3<<6; //alt4 ARM_TRST
@@ -119,9 +187,11 @@ int kernel_main ( void ){
 	write_to_address(ARM_TIMER_CTL, 0x00F90000);
 	write_to_address(ARM_TIMER_CTL, 0x00F90200);
 
+	//Infinite loop with timed blinks
 	register_b = read_from_address(ARM_TIMER_CNT);
 	while(1){
 		write_to_address(LED_GPSET,1<<15);
+		uart_write_string("Hello, kernel world!\r\n");
 		while(1){
 			register_a = read_from_address(ARM_TIMER_CNT);
 			if((register_a - register_b) >= TIMEOUT){
@@ -130,6 +200,7 @@ int kernel_main ( void ){
 		}
 		register_b += TIMEOUT;
 		write_to_address(LED_GPCLR,1<<15);
+		uart_write_string("Goodbye, kernel world!\r\n");
 		while(1){
 			register_a = read_from_address(ARM_TIMER_CNT);
 			if((register_a - register_b) >= TIMEOUT){

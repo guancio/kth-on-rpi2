@@ -1,4 +1,5 @@
 This test kernel is meant to be used in conjunction with U-Boot.
 
 It will configure the pins of the RPi2 to communicate using JTAG, and then blink
-the green "OK" LED.
+the green "OK" LED, and alternately output "Hello, kernel world!" and
+"Goodbye, kernel world!" on the UART.

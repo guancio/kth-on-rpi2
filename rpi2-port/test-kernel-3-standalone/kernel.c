@@ -88,7 +88,7 @@ int kernel_main ( void ){
 	unsigned int register_a;
 	unsigned int register_b;
 
-	//Pull-up/pull-down thingy enabling us to write on GPIO addresses...
+	//Pull-up/pull-down thingy procedure enabling us to write on GPIO addresses...
 	write_to_address(GPPUD,0);
 	for(register_a = 0; register_a < 150; register_a++){
 		delay(register_a);
@@ -100,11 +100,13 @@ int kernel_main ( void ){
 	}
 	write_to_address(GPPUDCLK0,0);
 
+	//Set GPIO4 to alternative function 5 by writing to register at GPFSEL0
 	register_a = read_from_address(GPFSEL0);
 	register_a &= ~(7<<12); //gpio4
 	register_a |= 2<<12; //gpio4 alt5 ARM_TDI
 	write_to_address(GPFSEL0, register_a);
 
+	//Set other GPIOs to alternative functions by writing at GPFSEL2
 	register_a = read_from_address(GPFSEL2);
 	register_a &= ~(7<<6); //gpio22
 	register_a |= 3<<6; //alt4 ARM_TRST
@@ -119,9 +121,11 @@ int kernel_main ( void ){
 	write_to_address(ARM_TIMER_CTL, 0x00F90000);
 	write_to_address(ARM_TIMER_CTL, 0x00F90200);
 
+	//Infinite loop with timed blinks
 	register_b = read_from_address(ARM_TIMER_CNT);
 	while(1){
-		write_to_address(LED_GPSET,1<<15);
+		//LED on!
+		write_to_address(LED_GPSET, 1<<15);
 		while(1){
 			register_a = read_from_address(ARM_TIMER_CNT);
 			if((register_a - register_b) >= TIMEOUT){
@@ -129,7 +133,8 @@ int kernel_main ( void ){
 			}
 		}
 		register_b += TIMEOUT;
-		write_to_address(LED_GPCLR,1<<15);
+		//LED off!
+		write_to_address(LED_GPCLR, 1<<15);
 		while(1){
 			register_a = read_from_address(ARM_TIMER_CNT);
 			if((register_a - register_b) >= TIMEOUT){
