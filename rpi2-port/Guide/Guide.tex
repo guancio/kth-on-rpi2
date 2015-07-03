@@ -46,7 +46,7 @@ In order to follow this guide, you will need some equipment:
     \item A monitor with a HDMI cable connection
   \end{itemize}
 \end{itemize}
-Most items should be pretty straightforward to acquire. RPi2 uses micro-SD cards, so you will require your SD card reader to be able to read those. The serial port of the RPi2 is more specifically a UART using the 3.3V TTL standard of voltages - please note that converter cables which use other standards, such as RS-232, may fry your RPi2! However, some cables work for both RS-232 and 3.3V TTL. Look up the specifications of the chip in the converter cable you are buying just to be sure.
+Most items should be pretty straightforward to acquire. RPi2 uses micro-SD cards, so you will require your SD card reader to be able to read those. The serial port of the RPi2 is more specifically a UART using the 3.3V TTL standard of voltages - please note that converter cables which use other standards, such as RS-232, may fry your Pi2! However, some cables work for both RS-232 and 3.3V TTL. Look up the specifications of the chip in the converter cable you are buying just to be sure.
 
 The UART communicates via two GPIO pins on the ordinary RPi2 pin block. However, the serial-to-USB converter cable should typically have four jumper wire connectors on one end and a USB connector on the other (the two additional wires providing ground and 5V power). If you find this to be confusing to sort it out yourself, I bought a serial-to-USB converter cable which uses the PL2303HX chip to transform the signal which I recommend - that chip name might be a good word to search the Internet for if you want to buy one yourself.
 
@@ -66,7 +66,7 @@ Now it is time to connect the RPi2 to your computer with serial-to-USB converter
   \item \textbf{5V power}: Red. WARNING! Do not plug this cable in if you are also supplying power via a micro-USB cable - that might fry the RPi2. This cable is an alternate way of providing power to the RPi2 without using a micro-USB cable.
 \end{itemize}
 
-It is important to note that the pin layout of the RPi2 is closely resembles that of other versions, the difference being that it has more pins (40 compared to 26 for the RPi). The 26 first pins counting from the pin closest to the SD card have the same functions. There are two ways of numbering the GPIO pins - using their GPIO numbers by which they are referred to by the computer, or using how they are physically ordered on the board, which might be a source of some confusion.
+It is important to note that the pin layout of the RPi2 is closely resembles that of other versions, the difference being that it has more pins (40 compared to 26 for the RPi1). The 26 first pins counting from the pin closest to the SD card have the same functions. There are two ways of numbering the GPIO pins - using their GPIO numbers by which they are referred to by the computer, or using how they are physically ordered on the board, which might be a source of some confusion.
 \begin{figure}[hb]
 \begin{center}
    \includegraphics[scale=0.3]{connection.png}
@@ -78,7 +78,7 @@ It is important to note that the pin layout of the RPi2 is closely resembles tha
 \begin{center}
    \includegraphics[scale=0.3]{GPIO_Pi2.png}
  \end{center}
- \caption{The RPi2 pin numbering}
+ \caption{The RPi2 pin numbering~\cite{pinout}}
  \label{fig:pins}
 \end{figure}
 
@@ -91,20 +91,35 @@ Setting up the connection on the RPi2 should be easy - simply write \texttt{sudo
 \section{Writing a test program}
 Now, you will need an empty SD card. Either re-format the one you have, again to FAT-32, or use another one, which might be more handy if you need Raspbian later on.
 
-Writing a bare-metal program requires intimate knowledge about the hardware. The hardware of the RPi2 is very similar to that of the RPi, whose chip BCM2835 has excellent documentation~\cite{bcm2835}. The only significant difference is the processor, and the increased RAM of the RPi2. Indeed, there are more differences, such as for example a mini-UART which is not on the RPi2, but these differences are not relevant for this guide.
+Writing a bare-metal program requires intimate knowledge about the hardware. The hardware of the RPi2 is very similar to that of the RPi, whose chip BCM2835 has excellent documentation~\cite{bcm2835}. The only significant difference is the processor, and the increased RAM of the RPi2, the consequences of which we need to handle. Indeed, there are more differences, such as for example a mini-UART on the RPi1 which is not on the RPi2 board, but these differences are not relevant for this guide.
 
-It follows that we can use the BCM2835 documentation for working with the RPi2, with a few important corrections: the base address of the peripherals has changed from \texttt{0x20000000} to \texttt{0x3F000000}, and the memory bus address offset \texttt{0x40000000} has changed to \texttt{0xC0000000}. Accordingly, all addresses you read in the documentation will have to be adjusted with this in mind. Typically, this just means that you replace \texttt{20} at the start of a hexadecimal number with \texttt{3F}. The rest of the changes between BCM2835 and BCM2836 are processor-related.
+It follows that we can use the BCM2835 documentation for working with the RPi2, with a few important address corrections: the physical base address of the peripherals (which we will use when programming) has changed from \texttt{0x20000000} to \texttt{0x3F000000}, and the size of the memory has increased to 1 GiB (although some is reserved for the GPU by the bootloader which is run before the kernel, but that is irrelevant at this point).
 
-Technically speaking, we are going to write a kernel - although our ``kernel'' will not have much of the functionality we associate with one, it will take the place of a kernel during the boot process. It follows that we require a bootloader and other accessories to get running. The easiest way to solve this is to obtain the GitHub repository \texttt{raspberrypi/firmware} and copy the contents of the \texttt{boot} folder to your SD card, deleting the files \texttt{kernel.img} and \texttt{kernel7.img} (which are the existing kernels). We end up with some redundant files, but are guaranteed things will work.
+Accordingly, all addresses you read in guides for programming on the RPi1 will have to be adjusted with this in mind. Typically, this just means that you replace \texttt{20} at the start of a physical address with \texttt{3F}.
+
+Technically speaking, we are going to write a kernel - although our ``kernel'' will not have much of the functionality we associate with one, it will take the place of a kernel during the boot process. It follows that we require a bootloader and other accessories to get running. The easiest way to solve this is to obtain the GitHub repository \texttt{raspberrypi/firmware} through \texttt{git clone https://github.com/raspberrypi/firmware.git} and copy the contents of the {\texttt{boot} folder to your SD card, deleting the files \texttt{kernel.img} and \texttt{kernel7.img} (which are the existing kernels). We end up with some redundant files, but are guaranteed things will work.
 
 \subsection{Setting up a cross-compiler}
-You will require a compiler which can compile code to run on other hardware. This is easily solved by the GNU ARM Embedded Toolchain, which is installed by the command \texttt{sudo apt-get install gcc-arm-none-eabi} and you are good to go. Then, to compile \texttt{test.c}, you would use \texttt{arm-none-eabi-gcc -O2 -mfpu=vfp -mfloat-abi=hard -march=armv7-a -mtune=cortex-a7 -nostartfiles test.c -o kernel.elf}. However, we do not want an ELF file, but a binary which only includes machine code, so we extract that part from \texttt{kernel.elf} using the \texttt{objcopy} utility: \texttt{arm-none-eabi-objcopy kernel.elf -O binary kernel.img}, and get the binary we want in \texttt{kernel.img}. This can then be put on the SD card together with the bootloader, as described above, which will look for the kernel.img and execute it.
+You will require a compiler which can compile code to run on other hardware. This is easily solved by the GNU ARM Embedded Toolchain, which is installed by the command \texttt{sudo apt-get install gcc-arm-none-eabi} and you are good to go. Then, to compile (for example) \texttt{test.c}, you would use (on one line):
+
+\begin{verbatim}
+arm-none-eabi-gcc -O2 -mfpu=vfp -mfloat-abi=hard -mcpu=cortex-a7 
+-nostartfiles test.c -o kernel.elf
+\end{verbatim}
+
+However, we do not want an ELF file, but a binary which only includes machine code, so we extract that part from \texttt{kernel.elf} using the \texttt{objcopy} utility: \texttt{arm-none-eabi-objcopy kernel.elf -O binary kernel.img}, and get the binary we want in \texttt{kernel.img}. This can then be put on the SD card together with the bootloader, as described above, which will look for the kernel.img and execute it.
 
 \subsection{Setting up CMake}
 However, in reality we never just compile a single C file. We are going to have multiple files in C and ARM assembly language and so we will need CMake, in order to keep things neat and tidy. To install CMake, execute the command \texttt{sudo apt-get install cmake}. Now, the CMake-related files you start out with are \texttt{CMakeLists.txt}, \texttt{configure.sh}, and \texttt{toolchain-arm-none-eabi.cmake}. These are fairly self-explanatory, but you should know that you will need to change them if you change the structure of your project (add more files, change names of files, and so on). Otherwise, all you need to know is that you set up CMake by executing \texttt{./configure.sh}, and then build simply with \texttt{make}. 
 
 \subsection{Example code}
-Several useful example programs (or ``test kernels'') can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} directory. These consists of code in C, ARM assembly language, and a linker file called \texttt{linker.ld}
+Several useful example programs (or ``test kernels'') can be found in the \texttt{rpi2-port} sub-directory if you
+
+\begin{verbatim}
+git clone https://github.com/guancio/kth-on-rpi2
+\end{verbatim}
+
+These consists of code in C, ARM assembly language, and a linker file called \texttt{linker.ld}
 
 The linker script decides where to physically put different parts of the code in the binary file, for example the magic number we want in order to pose as a Linux kernel when using U-Boot. If you change the linker script or the assembly code in \texttt{boot.S}, make sure that the magic number is in the correct position if you are using U-Boot as described below (this can easily be ensured by adding new sections for your own code in \texttt{boot.S} and inserting them after \text{.magic} in the linker script).
 
@@ -120,7 +135,7 @@ This test kernel will blink and write alternately ``Hello, Kernel World!'' and `
 This test kernel will first setup certain pins on the RPi2 for JTAG communication, and then blink and write alternately ``Hello, kernel world!'' and ``Goodbye, kernel world!'' over the UART in perpetuity, with approximately two seconds of waiting in between each output. This is useful for testing both JTAG and serial connection.
 
 \section{Booting over a network}
-Start by downloading the GitHub repository \texttt{raspberrypi/firmware} (if you do not already have it downloaded) and copy the contents of the \texttt{boot} folder to your SD card, as described before. Then, open the file \texttt{config.txt} on your SD card, and change it to read \texttt{kernel=u-boot.bin}, instead of where \texttt{kernel} pointed to before.
+Start by cloning the GitHub repository \texttt{raspberrypi/firmware} (if you have not already done so by following the steps above) and copy the contents of the \texttt{boot} folder to your SD card, as described before. Then, open the file \texttt{config.txt} on your SD card, and change it to read \texttt{kernel=u-boot.bin}, instead of where \texttt{kernel} pointed to before.
 
 Next, you will need to create a script that U-Boot will run once it is started. Create a file called \texttt{boot.scr}, and enter the following:
 
@@ -148,10 +163,15 @@ It might also be worth noting that \texttt{usb start} scans bus 0 for storage an
 
 This bootscript presupposes that you have a monitor connected to the RPi2 via a HDMI cable. If you instead rely on serial connection to see what is happening (not recommended at this point), you should replace \texttt{console=tty0} with \texttt{console=ttyAMA0} (or simply use both). Bootargs usually also sets properties of the file system, but since we are not using it in our trivial examples, it is not needed here.
 
-Now that we have written the bootscript, we want to convert it to an image. Do this by executing the command \texttt{mkimage -A arm -O linux -T script -C none -n Boot Script -d boot.scr boot.scr.uimg}. The result will be stored in \texttt{boot.scr.uimg} - transfer this file to your SD card.
+Now that we have written the bootscript, we want to convert it to an image. Do so by executing the command \texttt{mkimage -A arm -O linux -T script -C none -n Boot Script -d boot.scr boot.scr.uimg}. The result will be stored in \texttt{boot.scr.uimg} - transfer this file to your SD card.
 
-Now we only have one part left - U-Boot itself. First, we have to download U-Boot. Download it by executing the command \texttt{git clone git://git.denx.de/u-boot.git
-}, which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card. Now, you can eject your SD card and place it in your RPi2.
+Now we only have one part left - U-Boot itself. First, we have to download U-Boot. Download it by executing the command
+
+\begin{verbatim}
+git clone git://git.denx.de/u-boot.git
+\end{verbatim}
+
+which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card. Now, you can eject your SD card and place it in your RPi2.
 
 We are now going to set up your computer as a TFTP server. First, we install the required tools by executing the command \texttt{sudo apt-get install xinetd tftpd tftp}. Edit (or create, if it does not exist) \texttt{tftp} in \texttt{etc/xinet.d/}, which should contain the following:
 
@@ -275,7 +295,13 @@ where you replace \texttt{interface/ADAPTER.cfg} and \texttt{target/MYTARGET.cfg
 openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
 \end{verbatim}
 
-You might not have a file for the RPi2 on your OpenOCD installation, though. If you do not, you must create one. The installed OpenOCD scripts are stored at \texttt{/usr/local/share/OpenOCD/scripts}. To easily create new files, execute the command \texttt{gksudo thunar}, and use the Thunar graphical file manager to navigate the the directory of the scripts and create and modify files there. Specifically for the RPi2 script, create a new file containing the Tcl code found at \texttt{rpi2-port/raspberrypi2.cfg}, in the \texttt{guancio/kth-on-rpi2} GitHub repository.
+You might not have a file for the RPi2 on your OpenOCD installation, though. If you do not, you must create one. The installed OpenOCD scripts are stored at \texttt{/usr/local/share/OpenOCD/scripts}. To easily create new files, execute the command \texttt{gksudo thunar} (do \texttt{sudo apt-get install gksudo} if you do not have this utility), and use the Thunar graphical file manager to navigate the the directory of the scripts and create and modify files there. Specifically for the RPi2 script, create a new file containing the Tcl code found at \texttt{rpi2-port/raspberrypi2.cfg}, in the \texttt{guancio/kth-on-rpi2} GitHub repository - clone this with
+
+\begin{verbatim}
+git clone https://github.com/guancio/kth-on-rpi2
+\end{verbatim}
+
+if you have not already done so.
 
 Now, you will need to write a kernel which enables the pins you have connected your JTAG adapter for JTAG communication. One such example, which can be used with U-Boot as described above, can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder, named \texttt{test-kernel-3}. Start your RPi2 as described in the U-Boot section above (or use the test kernel \texttt{test-kernel-3-standalone} instead if you do not want U-Boot), and plug the USB cable connected to your FT2232H Mini-Module into your computer. You must then wait for the pins to be enabled for JTAG use. You can tell this is the case when the green ``OK'' LED is blinking with two-second intervals. Then, execute the command
 
