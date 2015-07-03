@@ -1,3 +1,6 @@
-This test kernel is meant to be used in conjunction with U-Boot.
+This kernel is meant to be used in conjunction with U-Boot, or as a standalone
+kernel (replacing kernel.img or kernel7.img on a RPi2 with only the firmware on).
 
-When running, it will blink the green "OK" LED on the RPi2.
+When running, it will blink the green "OK" LED.
+
+This is useful for making sure that you entire process for compilation and getting the code running on the RPi2 works.

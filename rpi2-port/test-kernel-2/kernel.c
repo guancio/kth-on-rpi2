@@ -128,7 +128,7 @@ void uart_write_string(const char* str){
 //			MAIN
 ////////////////////////////////////////////////////////////////////////////////
 
-int kernel_main ( void ){
+int kernel_main (void){
 	unsigned int register_a;
 	unsigned int register_b;
 
@@ -156,6 +156,11 @@ int kernel_main ( void ){
 	//Initialization of timer
 	write_to_address(ARM_TIMER_CTL, 0x00F90000);
 	write_to_address(ARM_TIMER_CTL, 0x00F90200);
+
+	//Initialize LED
+	register_a = read_from_address(LED_GPFSEL);
+	register_a |= (1 << 21);
+	write_to_address(LED_GPFSEL, register_a);
 
 	//Infinite loop with timed blinks
 	register_b = read_from_address(ARM_TIMER_CNT);
