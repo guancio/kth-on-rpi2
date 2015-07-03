@@ -1,6 +1,9 @@
 RPi2 accessories
 ======================
 
+This folder contains test programs and a guide to set up OpenOCD for
+JTAG debugging, communicate over the UART and remote boot via U-Boot.
+
 Dependencies you will need to use everything in this folder:
 - CMake (for compiling the kernels): sudo apt-get install cmake
 - ARM cross-compiler (for compiling the kernels): sudo apt-get install gcc-arm-none-eabi
@@ -17,6 +20,19 @@ with: git clone http://git.denx.de/u-boot.git
 - xinetd (to set up the server to remote boot from): sudo apt-get install xinetd
 - tftpd (TFTP server): sudo apt-get install tftpd
 - tftp (TFTP client): sudo apt-get install tftp
+
+For serial communication:
+- screen: sudo apt-get install screen
+
+For JTAG debugging:
+- OpenOCD dependencies (install these before installing OpenOCD): sudo apt-get install make libtool pkg-config autoconf automake texinfo
+- GNU Debugger: sudo apt-get install gdb
+- libFTDI driver: sudo apt-get install libusb-1.0-0
+- OpenOCD: We recommend
+	git clone git://git.code.sf.net/p/openocd/code
+	./configure --enable-ftdi
+	make
+	make install
 
 All the test kernels are built using the 
 commands:
