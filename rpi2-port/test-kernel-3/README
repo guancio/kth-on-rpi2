@@ -1,5 +1,9 @@
-This test kernel is meant to be used in conjunction with U-Boot.
+This kernel is meant to be used in conjunction with U-Boot, or as a standalone
+kernel (replacing kernel.img or kernel7.img on a RPi2 with only the firmware on).
 
 It will configure the pins of the RPi2 to communicate using JTAG, and then blink
-the green "OK" LED, and alternately output "Hello, kernel world!" and
-"Goodbye, kernel world!" on the UART.
+the green "OK" LED, and print "Hello, kernel world!" and "Goodbye, kernel world!"
+alternately.
+
+This is useful for making sure that the JTAG configuration works, and that you
+can communicate both over JTAG and UART at the same time.

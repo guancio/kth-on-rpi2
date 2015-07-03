@@ -1,4 +1,7 @@
-This kernel is meant to be used in conjunction with U-Boot.
+This kernel is meant to be used in conjunction with U-Boot, or as a standalone
+kernel (replacing kernel.img or kernel7.img on a RPi2 with only the firmware on).
 
-When running, it will print the words "Hello, Kernel World!" and
+When running, it will blink and print the words "Hello, Kernel World!" and
 "Goodbye, Kernel World!" on the UART of the RPi2, alternately.
+
+This is useful for making sure that the UART works.

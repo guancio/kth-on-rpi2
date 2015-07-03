@@ -238,7 +238,14 @@ When you have verified that the above works, disconnect the adapter from its pow
 \end{itemize}
 \end{center}
 \caption{JTAG and UART jumper cable connections}
-\label{fig:con1}
+\label{fig:con2}
+\end{figure}
+\begin{figure}[hb]
+\begin{center}
+   \includegraphics[scale=0.3]{connection2.png}
+ \end{center}
+ \caption{The FT2232H Mini-Module as it looks connected to the RPi2 via both JTAG (yellow cables), ground (black cable) and the UART (green and white cable)}
+ \label{fig:conn2}
 \end{figure}
 
 If you happen to have a FT4232H Mini-Module instead, the connections at this point are identical except for the UART, where you would instead connect pins 8 and 10 on the RPi2 to the CN2-17 and the CN2-18 pins on the adapter, respectively. I have also listed the GPIO number of the RPi2 pins.
