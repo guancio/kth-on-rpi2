@@ -16,15 +16,18 @@
 \usepackage{tikz}
 \usepackage{subfig}
 \usepackage{fancyvrb}
+\usepackage{hyperref}
 
-\title{Bare-metal programming on the Raspberry Pi 2}
+\title{\mbox{Bare-metal programming on the Raspberry Pi 2}}
 \author{Didrik Lundberg\\
 \texttt{didrikl@kth.se}}
 \date{\today}
 \begin{document}
 \maketitle
 \noindent
-This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run the SICS Thin Hypervisor for the Raspberry Pi 2. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. If you have any questions, please send an E-mail to the author.
+This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run and debug the SICS Thin Hypervisor~\cite{do14sth} for the Raspberry Pi 2. Ubuntu 15.04 was used in the writing of this guide, but expect similar behaviour on similar systems. If you have any questions, please send an E-mail to the author.
+
+Furthermore, I would like to thank Brian Sidebotham~\cite{sidebotham14guide} and David Welch~\cite{welch14guide} for their excellent guides for bare-metal programming on the Raspberry Pi 1 and 2.
 \section{Introduction}
 In order to follow this guide, you will need some equipment:
 \begin{itemize}
@@ -43,18 +46,18 @@ In order to follow this guide, you will need some equipment:
     \item A monitor with a HDMI cable connection
   \end{itemize}
 \end{itemize}
-The four first items should be pretty straightforward to acquire. RPi2 uses micro-SD cards, so you will require your SD card reader to be able to read those. The serial port of the RPi2 is more specifically a UART using the 3.3V TTL standard of voltages - please note that converter cables which use other standards, such as RS-232, may fry your RPi2! However, some cables work for both RS-232 and 3.3V TTL. Look up the specifications of the chip in the converter cable you are buying just to be sure.
+Most items should be pretty straightforward to acquire. RPi2 uses micro-SD cards, so you will require your SD card reader to be able to read those. The serial port of the RPi2 is more specifically a UART using the 3.3V TTL standard of voltages - please note that converter cables which use other standards, such as RS-232, may fry your RPi2! However, some cables work for both RS-232 and 3.3V TTL. Look up the specifications of the chip in the converter cable you are buying just to be sure.
 
 The UART communicates via two GPIO pins on the ordinary RPi2 pin block. However, the serial-to-USB converter cable should typically have four jumper wire connectors on one end and a USB connector on the other (the two additional wires providing ground and 5V power). If you find this to be confusing to sort it out yourself, I bought a serial-to-USB converter cable which uses the PL2303HX chip to transform the signal which I recommend - that chip name might be a good word to search the Internet for if you want to buy one yourself.
 
 \section{Testing the equipment}
-First, we must make sure that all our equipment is functional. To do this, we first download NOOBS from the homepage of the Raspberry Foundation. NOOBS is an operating systems installer, which we will use to comfortably set up Raspbian for testing purposes.
+First, we must make sure that all our equipment is functional. To do this, we first download NOOBS from the homepage of the Raspberry Pi Foundation~\cite{noobs}. NOOBS is an operating systems installer, which we will use to comfortably set up Raspbian for testing purposes.
 
 Simply format your SD card in the FAT32 file system (using for example \texttt{gparted}) and transfer the decompressed contents of the NOOBS folder to it, and you are ready to boot your RPi2 for the first time. Put your SD card in the RPi2, connect the Ethernet cable, the USB keyboard and mouse, the monitor, and then finally plug in the micro-USB cable (connected to your PC or to a USB power adapter of good quality on the other end) to supply power and your RPi2 will boot into NOOBS.
 
-Install Raspbian, and inside Raspbian install the \texttt{screen} utility by typing \texttt{sudo apt-get install screen} in the terminal. Also install \texttt{screen} on the PC you are programming on.
+Install Raspbian, and inside Raspbian install the \texttt{screen} utility by typing \texttt{sudo apt-get install screen} in the terminal. Also install \texttt{screen} on the PC you are programming on in the same way.
 
-Now it is time to connect the RPi2 to your computer with serial-to-USB converter cable. You must do this with great care, since connecting the wrong jumper wire to certain pins might fry your RPi2. We will explain how to do this for our generic PL2303HX cable. It has four jumper wires:
+Now it is time to connect the RPi2 to your computer with serial-to-USB converter cable. You must do this with great care, since connecting the wrong jumper wire to certain pins might fry your equipment. We will explain how to do this for our generic PL2303HX cable. It has four jumper wires:
 
 \begin{itemize}
   \item \textbf{TxD}: Green. The ``T'' in the acronym stands for ``transmission'' - should be connected to the UART receiver pin (RxD) on the RPi2 block.
@@ -88,29 +91,33 @@ Setting up the connection on the RPi2 should be easy - simply write \texttt{sudo
 \section{Writing a test program}
 Now, you will need an empty SD card. Either re-format the one you have, again to FAT-32, or use another one, which might be more handy if you need Raspbian later on.
 
-Writing a bare-metal program requires intimate knowledge about the hardware. The hardware of the RPi2 is very similar to that of the RPi, whose chip BCM2835 has excellent documentation. The only significant difference is the processor, and the increased RAM of the RPi2. Indeed, there are more differences, such as for example a mini-UART which is not on the RPi2, but these differences are not relevant for this guide.
+Writing a bare-metal program requires intimate knowledge about the hardware. The hardware of the RPi2 is very similar to that of the RPi, whose chip BCM2835 has excellent documentation~\cite{bcm2835}. The only significant difference is the processor, and the increased RAM of the RPi2. Indeed, there are more differences, such as for example a mini-UART which is not on the RPi2, but these differences are not relevant for this guide.
 
-It follows that we can use the BCM2835 documentation for working with the RPi2, with a few important corrections: the base address of the peripherals has changed from \texttt{0x20000000} to \texttt{0x3F000000}, and the memory bus address offset \texttt{0x40000000} has changed to \texttt{0xC0000000}. Accordingly, all addresses you read in the documentation will have to be adjusted with this in mind. Typically, this just means that you replace \texttt{20} at the start of a hexadecimal number with \texttt{3F}.
+It follows that we can use the BCM2835 documentation for working with the RPi2, with a few important corrections: the base address of the peripherals has changed from \texttt{0x20000000} to \texttt{0x3F000000}, and the memory bus address offset \texttt{0x40000000} has changed to \texttt{0xC0000000}. Accordingly, all addresses you read in the documentation will have to be adjusted with this in mind. Typically, this just means that you replace \texttt{20} at the start of a hexadecimal number with \texttt{3F}. The rest of the changes between BCM2835 and BCM2836 are processor-related.
 
-Technically speaking, we are going to write a kernel -  although our ``kernel'' will not have much of the functionality we associate with one, it will take the place of a kernel during the boot process. It follows that we require a bootloader and other accessories to get running. The easiest way to solve this is to obtain the GitHub repository \texttt{raspberrypi/firmware} and copy the contents of the \texttt{boot} folder to your SD card, deleting the files \texttt{kernel.img} and \texttt{kernel7.img} (which are the existing kernels). We end up with some redundant files, but are guaranteed things will work.
+Technically speaking, we are going to write a kernel - although our ``kernel'' will not have much of the functionality we associate with one, it will take the place of a kernel during the boot process. It follows that we require a bootloader and other accessories to get running. The easiest way to solve this is to obtain the GitHub repository \texttt{raspberrypi/firmware} and copy the contents of the \texttt{boot} folder to your SD card, deleting the files \texttt{kernel.img} and \texttt{kernel7.img} (which are the existing kernels). We end up with some redundant files, but are guaranteed things will work.
 
 \subsection{Setting up a cross-compiler}
 You will require a compiler which can compile code to run on other hardware. This is easily solved by the GNU ARM Embedded Toolchain, which is installed by the command \texttt{sudo apt-get install gcc-arm-none-eabi} and you are good to go. Then, to compile \texttt{test.c}, you would use \texttt{arm-none-eabi-gcc -O2 -mfpu=vfp -mfloat-abi=hard -march=armv7-a -mtune=cortex-a7 -nostartfiles test.c -o kernel.elf}. However, we do not want an ELF file, but a binary which only includes machine code, so we extract that part from \texttt{kernel.elf} using the \texttt{objcopy} utility: \texttt{arm-none-eabi-objcopy kernel.elf -O binary kernel.img}, and get the binary we want in \texttt{kernel.img}. This can then be put on the SD card together with the bootloader, as described above, which will look for the kernel.img and execute it.
 
 \subsection{Setting up CMake}
-However, in reality we never just compile a single C file. We are going to have multiple files in C and ARM assembly language, and so we will need firstly a linker script and secondly CMake, in order to keep things neat.
+However, in reality we never just compile a single C file. We are going to have multiple files in C and ARM assembly language and so we will need CMake, in order to keep things neat and tidy. To install CMake, execute the command \texttt{sudo apt-get install cmake}. Now, the CMake-related files you start out with are \texttt{CMakeLists.txt}, \texttt{configure.sh}, and \texttt{toolchain-arm-none-eabi.cmake}. These are fairly self-explanatory, but you should know that you will need to change them if you change the structure of your project (add more files, change names of files, and so on). Otherwise, all you need to know is that you set up CMake by executing \texttt{./configure.sh}, and then build simply with \texttt{make}. 
 
 \subsection{Example code}
-Several useful example programs (or ``test kernels'') can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder.
+Several useful example programs (or ``test kernels'') can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} directory. These consists of code in C, ARM assembly language, and a linker file called \texttt{linker.ld}
+
+The linker script decides where to physically put different parts of the code in the binary file, for example the magic number we want in order to pose as a Linux kernel when using U-Boot. If you change the linker script or the assembly code in \texttt{boot.S}, make sure that the magic number is in the correct position if you are using U-Boot as described below (this can easily be ensured by adding new sections for your own code in \texttt{boot.S} and inserting them after \text{.magic} in the linker script).
+
+A more thorough description of the C and assembly code of these test kernels can be found in the comments inside the files, please also keep the BCM2835 documentation as a reading companion.
 
 \subsubsection{test-kernel-1}
 This test kernel will make the green LED on the RPi2 blink, with approximately one-second intervals between each flash. This simple program is good for testing if your pipeline to get code running on the RPi2 is working correctly.
 
 \subsubsection{test-kernel-2}
-This test kernel will write alternately ``Hello, Kernel World!'' and ``Goodbye, Kernel World!'' over the UART in perpetuity, with approximately one second of waiting in between each output. This is useful for testing the serial connection.
+This test kernel will blink and write alternately ``Hello, Kernel World!'' and ``Goodbye, Kernel World!'' over the UART in perpetuity, with approximately one second of waiting in between each output. This is useful for testing serial connection over the UART.
 
 \subsubsection{test-kernel-3}
-This test kernel will first setup certain pins on the RPi2 for Jtag communication, and then blink and write alternately ``Hello, kernel world!'' and ``Goodbye, kernel world!'' over the UART in perpetuity, with approximately two second of waiting in between each output. This is useful for testing the both JTAG and serial connection.
+This test kernel will first setup certain pins on the RPi2 for JTAG communication, and then blink and write alternately ``Hello, kernel world!'' and ``Goodbye, kernel world!'' over the UART in perpetuity, with approximately two seconds of waiting in between each output. This is useful for testing both JTAG and serial connection.
 
 \section{Booting over a network}
 Start by downloading the GitHub repository \texttt{raspberrypi/firmware} (if you do not already have it downloaded) and copy the contents of the \texttt{boot} folder to your SD card, as described before. Then, open the file \texttt{config.txt} on your SD card, and change it to read \texttt{kernel=u-boot.bin}, instead of where \texttt{kernel} pointed to before.
@@ -165,7 +172,7 @@ service tftp
 \end{BVerbatim}
 \end{center}
 \caption{TFTP server configuration}
-\label{fig:boots}
+\label{fig:server}
 \end{figure}
 
 Then, create a directory called \texttt{tftpboot} in \texttt{/}. Make sure you do not have too stingy access rights by executing the commands \texttt{sudo chmod -R 777 /tftpboot} and \texttt{sudo chown -R nobody /tftpboot} in the directory where you created \texttt{tftpboot}. Then, make your changes take effect by executing \texttt{sudo service xinetd restart}.
@@ -177,7 +184,7 @@ The setup is now complete. Plug in an Ethernet cable and a HDMI cable connected 
 If at any point you should shut down your computer, you will need to start the server again by writing \texttt{sudo /etc/init.d/xinetd restart}, and take a second look if the IP addresses in your boot script can still be used; otherwise you will need to change the bootscript, create the boot script image again, and transfer it to the SD card.
 
 \section{Setting up JTAG}
-Communicating over JTAG with you PC can be very useful when debugging code on an external device. We will therefore look into the matter of using a JTAG adapter for this purpose. In this guide, we will be using a FT2232H Mini-Module, which is very cheap, fast, and allows us to communicate both over UART and JTAG at the same time using only one adapter.
+Communicating over JTAG with you PC can be very useful when debugging code on an external device. We will therefore look into the matter of using a JTAG adapter for this purpose. In this guide, we will be using a FT2232H Mini-Module~\cite{ft2232h}~\cite{ft2232hmm}, which is very cheap, fast, and allows us to communicate both over UART and JTAG at the same time using only one adapter.
 
 First, we need to be sure that the hardware is working. The FT2232H Mini-Module has two pin blocks, which are distinguished by their names ``CN2'' and ``CN3'' (channel 2 and channel 3, respectively) which can be found at the edge of the pin blocks on both sides of the board. The pins on the blocks are physically numbered starting from the pin marked by a square on one side of the board as pin 1, the pin which is on the same row of two as pin 1 being pin 2, and so on. So one of the two long rows of the pin blocks consists of odd numbers, and vice versa.
 
@@ -280,4 +287,6 @@ Your OpenOCD should now detect the processor of your debug target. It will list 
 
 Now, we also want to be able to communicate via UART at the same time. At some point before you connect to OpenOCD and halt the processors (if you have already done this, shut down OpenOCD and remove power from your RPi2, then connect to power and re-connect OpenOCD as described above), you can connect to one of the channels of the adapter. Use \texttt{dmesg | grep usb} and look for lines which say \texttt{FTDI USB Serial Device converter now attached to ttyUSBX}, where \texttt{X} is an integer. If you have connected OpenOCD, you will see that one of these have been disconnected - that is where the adapter communicates via JTAG with OpenOCD. Connect to the remaining one using \texttt{sudo screen /dev/ttyUSBY 115200}, where \texttt{Y} is the number of the remaining connection. Using any of the test kernels described in this section, you should see the lines ``Hello, kernel world!'' and ``Goodbye, kernel world!'' printed alternately in perpetuity.
 
+\bibliography{Guide}{}
+\bibliographystyle{acm}
 \end{document}

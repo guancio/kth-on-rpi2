@@ -1,10 +1,11 @@
 # -*- Makefile -*-
-# Target configuration
+#Target configuration
 #PLATFORM=ovp_arm9
 #PLATFORM=ovp_integratorCP
 #PLATFORM=u8500_ref
 PLATFORM=beagleboard
 #PLATFORM=beaglebone
+#PLATFORM=raspberrypi2
 
 #SOFTWARE=minimal
 #SOFTWARE = trusted linux
