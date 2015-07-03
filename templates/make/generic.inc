@@ -2,7 +2,7 @@
 # generic make
 
 
-# defults
+# defaults
 ASM_DIRS ?= $(SRC_DIRS)
 
 ##
