@@ -4,6 +4,9 @@ RPi2 accessories
 This folder contains test programs and a guide to set up OpenOCD for
 JTAG debugging, communicate over the UART and remote boot via U-Boot.
 
+For optimal ease of reading, open the guide in a .pdf reader which 
+can display hyperlinks.
+
 Dependencies you will need to use everything in this folder:
 - CMake (for compiling the kernels): sudo apt-get install cmake
 - ARM cross-compiler (for compiling the kernels): sudo apt-get install gcc-arm-none-eabi
