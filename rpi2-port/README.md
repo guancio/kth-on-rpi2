@@ -31,14 +31,6 @@ For JTAG debugging:
 - OpenOCD dependencies (install these before installing OpenOCD): sudo apt-get install make libtool pkg-config autoconf automake texinfo
 - GNU Debugger: sudo apt-get install gdb
 - libFTDI driver: sudo apt-get install libusb-1.0-0
-- OpenOCD: We recommend
-
-		git clone git://git.code.sf.net/p/openocd/code
-		./configure --enable-ftdi
-		make
-		make install
-
-
 - OpenOCD: We recommend cloning as done below:
 
 		git clone git://git.code.sf.net/p/openocd/code
