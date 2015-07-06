@@ -2,7 +2,7 @@
 #define _SOC_UART_H_
 
 //Again, what kind of address is this?
-#define USART0_BASE 0xFFFD0000
+#define USART0_BASE 0x3F201000
 
 typedef struct {
     uint32_t cr;

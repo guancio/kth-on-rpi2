@@ -1,9 +1,10 @@
 #ifndef _SOC_CLOCKS_H_
 #define  _SOC_CLOCKS_H_
 
-//What type of address is this?
+//Powersaving?
 #define POWERSAVING_BASE 0xffff4000
 
+//TODO: Correct entries
 typedef struct {
 	uint32_t cr;
 	uint32_t pcer;

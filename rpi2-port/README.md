@@ -29,6 +29,7 @@ For JTAG debugging:
 - GNU Debugger: sudo apt-get install gdb
 - libFTDI driver: sudo apt-get install libusb-1.0-0
 - OpenOCD: We recommend
+
 	git clone git://git.code.sf.net/p/openocd/code
 	./configure --enable-ftdi
 	make

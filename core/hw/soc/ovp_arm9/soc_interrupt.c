@@ -55,7 +55,7 @@ void cpu_irq_acknowledge(int number)
 
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
-                                     BOOL level_sensetive)
+                                     BOOL level_sensitive)
 {
     uint32_t tmp;
     
@@ -63,7 +63,7 @@ void soc_interrupt_set_configuration(int number, int priority,
     
     tmp = priority & 7;
     if(polarity) tmp |= (1UL << 6);
-    if(!level_sensetive) tmp |= (1UL << 5);
+    if(!level_sensitive) tmp |= (1UL << 5);
     
     aic->smr[number] = tmp;
     

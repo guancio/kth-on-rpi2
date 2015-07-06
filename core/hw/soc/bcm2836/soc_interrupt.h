@@ -1,8 +1,8 @@
 #ifndef _SOC_INTERRUPT_H_
 #define _SOC_INTERRUPT_H_
 
-//Are all these dependent on the specific board or general architecture?
-#define AIC_BASE 0xFFFFF000
+#define AIC_BASE 0x3F000B000
+
 
 #define AIC_IRQ_NUM_FIQ 0
 #define AIC_IRQ_NUM_SWI 1
@@ -19,6 +19,7 @@
 #define AIC_IRQ_NUM_IRQ1 17
 #define AIC_IRQ_NUM_IRQ2 18
 
+//TODO: Correct entries
 typedef struct {
     uint32_t smr[32];
     uint32_t svr[32];
@@ -39,7 +40,7 @@ typedef struct {
 
 extern void soc_interrupt_set_configuration(int number, int priority, 
                                             BOOL polarity,
-                                            BOOL level_sensetive);
+                                            BOOL level_sensitive);
 
 extern void soc_interrupt_init();
 

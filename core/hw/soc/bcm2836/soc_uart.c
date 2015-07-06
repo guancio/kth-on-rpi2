@@ -17,7 +17,8 @@ void stdio_write_char(int c)
         ;
     
     buffer_out[0] = c;
-    usart0->tpr = (uint32_t)GET_PHYS( buffer_out );
+	//Brutal but not effective?
+    usart0->tpr = (uint32_t)GET_PHYS(buffer_out);
     usart0->tcr = 1;
 }
 extern int stdio_read_char()

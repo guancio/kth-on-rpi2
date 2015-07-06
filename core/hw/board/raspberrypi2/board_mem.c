@@ -3,10 +3,7 @@
 
 //The base RAM address - definitely board-dependent.
 //If we want to access RAM directly, we use the physical addresses which start
-//at 0x0. If we want to access RAM via the DMA engines, we instead use the bus
-//address 0xC0000000.
-//TODO: Do we use physical or bus address here?
-//TODO: Base RAM address of the RPi2 should be here?
+//at 0x0.
 #define BASE_RAM_ADDRESS 0x0
 
 //The amount of RAM that the hypervisor gets. This should really be centrally defined and not board-dependent.
@@ -29,10 +26,7 @@
 
 //Here, we reserve RAM space for stuff.
 //Physical addresses of RPi2 RAM range from 0x00000000 to 0x3effffff. (NOTE: 16MB disappeared! This should be so.)
-//Bus addresses of RPi2 RAM range from 0xc0000000 to 0xfefffffff.
 
-//Roberto says the below are peripherals addresses...
-//TODO: Virtual, physical or bus?
 //These are the addresses of peripherals, and the address spaces of the different RAM areas.
 memory_layout_entry memory_padr_layout[] =
 {
@@ -54,8 +48,8 @@ memory_layout_entry memory_padr_layout[] =
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//Read-only address ranges
-	//L4-Wakeup (from Beagleboard)???
-	//System control module (from Beagleboard)???
+	//L4-Wakeup (as in Beagleboard file)???
+	//System control module (as in Beagleboard file)???
 	//Clocks
 	//	Addresses of system timers are between 0x7E003000 and 0x7E003021
 	//	For Raspberry Pi 2, we just change "7E" to "3F".

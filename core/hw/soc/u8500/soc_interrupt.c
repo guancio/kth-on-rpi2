@@ -59,7 +59,7 @@ void cpu_irq_acknowledge(int number)
 
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
-                                     BOOL level_sensetive)
+                                     BOOL level_sensitive)
 {
     /* TODO */
 }

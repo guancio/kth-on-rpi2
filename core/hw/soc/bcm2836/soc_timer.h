@@ -2,9 +2,10 @@
 #ifndef _SOC_TIMER_H_
 #define _SOC_TIMER_H_
 
-#define TIMER_BASE 0xFFFE0000
-#define TIMER_CHANNEL_COUNT 3
+#define TIMER_BASE 0x3F003000
+#define TIMER_CHANNEL_COUNT 4
 
+//TODO: Correct entries
 struct timer_channel {
     uint32_t ccr;
     uint32_t cmr;
@@ -21,7 +22,7 @@ struct timer_channel {
 };
 
 
-
+//TODO: Correct entries
 typedef struct {
     struct timer_channel channels[TIMER_CHANNEL_COUNT];
     uint32_t bcr;

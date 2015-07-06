@@ -1,9 +1,9 @@
-/* Do we just grab a random free chunk of memory or is anything here critical to other parts of the program? */
-//TODO: This entire file...
-
-__page_size__ = 0x1000; /* 4KB page size */
+__page_size__ = 0x1000; /* 4KiB page size */
+//TODO: Is this the address where we start inserting the program into RAM? Should be immediately after U-Boot if using U-Boot or at 0x0 if not using U-Boot.
 __ram_start__ = 0x80000000;
+//TODO: Is this the address where we stop inserting the program into RAM?
 __ram_end__   = 0x88000000;
+//This looks to be overwritten later on...
 __hyperstack_top__ = 0x100000 - 4; /* Hypervisor stack located at end of hypervisor address */
 
 MEMORY 
