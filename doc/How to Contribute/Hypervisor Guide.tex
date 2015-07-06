@@ -1,0 +1,61 @@
+\documentclass[a4paper,11pt,reqno]{amsart}
+
+\pagestyle{headings}
+\usepackage{graphicx}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage{verbatim}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{pstricks}
+\usepackage{mathrsfs}
+\usepackage{textcomp}
+\usepackage{tikz}
+\usepackage{subfig}
+\usepackage{fancyvrb}
+
+\title{How to add functionality to the STH}
+\author{Didrik Lundberg\\
+\texttt{didrikl@kth.se}}
+\date{\today}
+\begin{document}
+\maketitle
+\noindent
+This is a comprehensive guide that will cover all steps of adding compatibility with additional hardware for the STH. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. If you have any questions, please send an E-mail to the author.
+\section{Introduction}
+
+Start off by the file \texttt{target}. Add the new hardware as a new target configuration. Here, you will also need to decide what the name of your new configuration will be - choose wisely.
+
+\section{bin}
+
+\section{core}
+
+\section{doc}
+
+\section{drivers}
+
+\section{guests}
+
+\section{library}
+
+\section{rpi2-port}
+
+\section{simulation}
+
+\section{templates}
+Take a look inside the \texttt{templates} directory. This directory contains three sub-directories (\texttt{cpu}, \texttt{make} and \texttt{platform}).
+
+\texttt{make} contains only contains general templates - you will probably not need to touch that. 
+
+\texttt{cpu} contains templates with compilation flags for compilation on various CPUs - for example ARM9 and Cortex-A7. If you want to use the hypervisor on a platform with a CPU which is not listed here, you will have to create a new .cfg file corresponding to that processor.
+
+\texttt{platform} contains templates for specific platforms (for example, a platform could be a specific one-chip computer). These specify a platform CPU and not much else. You will need to create a new file here for a new platform.
+
+\section{test}
+
+\section{utils}
+
+\end{document}
