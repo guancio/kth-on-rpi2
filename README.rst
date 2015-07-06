@@ -1,3 +1,5 @@
+Port of KTH version of STH to Raspberry Pi 2
+
 ======================
 DISCLAIMER
 ======================
@@ -14,10 +16,6 @@ The STH software is currently primarily used for research purposes and is dual l
 ON WHAT HARDWARE DOES IT RUN?
 ============
 The STH hypervisor currently runs on the 32-bit ARM v5 and v7 architecture. It is highly portable, and can easily be ported to most 32-bit or 64-bit architectures as long as they have a memory management unit (MMU). 
-
-DOCUMENTATION
-============
-The /doc subdirectory contains STH.pdf which have more detailed information about the STH hypervisor, it's API, configurations, build instructions and the para-virtualized Linux guest. 
 
 BUILD DIRECTORY
 ============
@@ -36,8 +34,8 @@ The hypervisor can be built for different platforms and this is specified in the
 	- #PLATFORM=beaglebone
 
 	- #SOFTWARE=minimal
-	- SOFTWARE = trusted linux
-	- #SOFTWARE = linux
+	- #SOFTWARE = trusted linux
+	- SOFTWARE = linux
 	
 	- #Enable this if you want to compile for OVP 
 	- #SIMULATION_OVP = 1
@@ -46,13 +44,15 @@ For example this target configuration builds the hypervisor for the beagleboard 
 
 It is important to perform a Make clean before switching target platform or software, as old lingering object files will lead to bugs and errors.
 
+
 COMPILING
 ============
+In order to build the hypervisor, a binary of the paravirtualized kernel is needed.
+You can download a precompiled version from https://bitbucket.org/guancio/sth_deps.
+Copy zImage.bin into guests/linux/build/
+
 In order to build the Hypervisor, execute the Makefile located at the root of the source tree after configuring the target file with the command
 
 	make
 
-For more information on suggested cross-compiler and tools, see Appendix A.1 in the STH.pdf documentation in /doc subdirectory.
-
-
-
+This produces the file core/build/sth_*platform*.fw.img that includes the hypervisor and the hosted para-virtualized linux.
