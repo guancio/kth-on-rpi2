@@ -5,27 +5,26 @@
 #define UART0_BASE 0x3F201000
 
 typedef struct {
-    uint32_t dr;
-    uint32_t rsrecr;
-	uint32_t unused0;
-	uint32_t unused1;
-	uint16_t unused2;
-	uint16_t fr; 
-
-    uint32_t ier;
-    uint32_t idr;
-    uint32_t imr;
-    uint32_t csr;
-    uint32_t rhr;
-    uint32_t thr;
-    uint32_t brgr;
-    uint32_t rtor;
-    uint32_t ttgr;
-    uint32_t unused0;
-    uint32_t rpr;
-    uint32_t rcr;
-    uint32_t tpr;
-    uint32_t tcr;
+    uint32_t dr; //Data Register
+    uint32_t rsrecr; //???
+	uint32_t unused0[4];
+	uint32_t fr; //Flag register
+    uint32_t ilpr; //Not in use
+    uint32_t ibrd; //Integer Baud rate divisor
+    uint32_t fbrd; //Fractional Baud rate divisor
+    uint32_t lcrh; //Line Control register
+    uint32_t cr; //Control register
+    uint32_t ifls; //Interrupt FIFO Level Select Register
+    uint32_t imsc; //Interrupt Mask Set Clear Register
+    uint32_t ris; //Raw Interrupt Status Register
+    uint32_t mis; //Masked Interrupt Status Register
+    uint32_t icr; //Interrupt Clear Register
+    uint32_t dmacr; //DMA Control Register
+    uint32_t unused1[13];
+    uint32_t itcr; //Test Control Register
+    uint32_t itip; //Integration test input register
+    uint32_t itop; //Integration test output register
+	uint32_t tdr; //Test data register
 } volatile uart_registers;
 
 extern void soc_uart_init();

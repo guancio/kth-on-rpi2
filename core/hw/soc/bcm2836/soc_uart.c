@@ -2,37 +2,43 @@
 
 #define UART_BUFFER_SIZE 8
 
-static char buffer_out[UART_BUFFER_SIZE];
+static char ut[UART_BUFFER_SIZE];
 static char buffer_in[UART_BUFFER_SIZE];
 
-static uart_registers *uart0 = 0;
+static uart_registers *uart0 = (uart_registers *) UART0_BASE;
 
+//This function prints one character over the UART.
 void stdio_write_char(int c){
 
 	char* byte = (char*)&c;
-	while (read_from_address(UART0_FR) & (1 << 5)){
+	while (!stdio_can_write()){
 		//Do nothing...
 	}
 	
 	//When FIFO is enabled, data written to UART_DR will be put in the FIFO.
-	write_to_address(UART0_DR, byte);
+	uart0->dr = byte;
 }
 
 //This function is called when waiting to be able to write.
-//TODO: Should it return C-style true or false when you can write?
+//Returns TRUE if you can, FALSE otherwise
 extern int stdio_can_write(){
-    return (read_from_address(UART0_FR) & (1 << 5));            
+    return (uart0->fr & (1 << 6)) == 0;            
 }
 
 extern int stdio_can_read(){
-    return 0; /* TODO */
+    	return (uart0->fr & (1 << 5)) == 0;
 }
 
 extern int stdio_read_char(){
-    return -1; /* TODO */    
+	while (!stdio_can_read()){
+		//Do nothing...
+	}
+	return uart0->dr;   
 }
 
 /**********************************************************************/
+
+//This might be needed later, but not when we have U-Boot.
 void soc_uart_init()
 {
 #if 0
