@@ -1,40 +1,35 @@
 #include "hw.h"
 
-#define USART_BUFFER_SIZE 16
+#define UART_BUFFER_SIZE 8
 
-//Ah - this is familiar. I can probably rewrite this pretty easily.
+static char buffer_out[UART_BUFFER_SIZE];
+static char buffer_in[UART_BUFFER_SIZE];
 
-static char buffer_out[USART_BUFFER_SIZE];
-static char buffer_in[USART_BUFFER_SIZE];
+static uart_registers *uart0 = 0;
 
-static usart_registers *usart0 = 0;
+void stdio_write_char(int c){
 
-void stdio_write_char(int c)
-{
-    if(!usart0) return;
-    
-    while(usart0->tcr != 0)
-        ;
-    
-    buffer_out[0] = c;
-	//Brutal but not effective?
-    usart0->tpr = (uint32_t)GET_PHYS(buffer_out);
-    usart0->tcr = 1;
-}
-extern int stdio_read_char()
-{
-    return -1; /* TODO */    
+	char* byte = (char*)&c;
+	while (read_from_address(UART0_FR) & (1 << 5)){
+		//Do nothing...
+	}
+	
+	//When FIFO is enabled, data written to UART_DR will be put in the FIFO.
+	write_to_address(UART0_DR, byte);
 }
 
-extern int stdio_can_write()
-{
-    if(!usart0) return 1; /* return 1 to avoid infinite wait before init*/
-    
-    return (usart0->tcr == 0) ? 1 : 0;            
+//This function is called when waiting to be able to write.
+//TODO: Should it return C-style true or false when you can write?
+extern int stdio_can_write(){
+    return (read_from_address(UART0_FR) & (1 << 5));            
 }
-extern int stdio_can_read()
-{
+
+extern int stdio_can_read(){
     return 0; /* TODO */
+}
+
+extern int stdio_read_char(){
+    return -1; /* TODO */    
 }
 
 /**********************************************************************/
