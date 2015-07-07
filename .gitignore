@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Object files
 *.o
 *.ko
@@ -63,3 +62,12 @@ guests/dtest/test.cfg
 #*.log is already ignored
 *.synctex.gz
 *.pdf
+*.dvi
+*.bbl
+*.blg
+
+#CMake-related files
+cmake_install.cmake
+CMakeCache.txt
+.txt
+CMakeFiles
