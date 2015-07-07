@@ -33,7 +33,7 @@ void stdio_write_char(int c)
 	//Originally left shift 5, we change this to left shift 20
         while(!stdio_can_write()){
 			//Do nothing...
-	}
+		}
 	char* byte = (char*)&c;
         uart[UART_DR_OFFSET] = byte;      
     }
@@ -41,17 +41,20 @@ void stdio_write_char(int c)
 
 int stdio_read_char()
 {
-	while (!stdio_can_read()){
-		//Do nothing...
+	if(uart) {
+		while (!stdio_can_read()){
+			//Do nothing...
+		}
+		return uart[UART_DR_OFFSET];
 	}
-	return uart[UART_FR_OFFSET];    
+	return 0;
 }
 
 
 int stdio_can_read()
 {
 	if(uart){
-    	return (uart[UART_DR_OFFSET] & (1 << 5)) == 0;
+    	return (uart[UART_FR_OFFSET] & (1 << 5)) == 0;
 	}
 	return 0;
 }

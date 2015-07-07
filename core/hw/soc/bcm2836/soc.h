@@ -5,6 +5,8 @@
 #include "soc_timer.h"
 #include "soc_interrupt.h"
 #include "soc_uart.h"
+#include "soc_jtag.h"
+#include "soc_gppud.h"
 
 //TODO: GPIO base?
 #define IO_BASE 				0x3F200000

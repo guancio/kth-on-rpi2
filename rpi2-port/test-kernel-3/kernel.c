@@ -14,6 +14,7 @@ extern void delay(unsigned int);
 #define GPPUD 0x3F200094
 // Controls actuation of pull up/down for specific GPIO pin.
 #define GPPUDCLK0 0x3F200098
+#define GPPUDCLK1 0x3F20009C
 
 ////////////////////////////////////////////////////////////////////////////////
 //// 			TIMER STUFF
@@ -137,25 +138,41 @@ int kernel_main (void){
 	unsigned int register_a;
 	unsigned int register_b;
 
-	//Pull-up/pull-down thingy procedure enabling us to write on GPIO addresses...
+	//Control signal: Disable pull-up/pull-down on GPIO pin determined by GPPUDCLK
 	write_to_address(GPPUD,0);
+	//Delay for at least 150 CPU cycles (set-up time of control signal).
 	for(register_a = 0; register_a < 150; register_a++){
 		delay(register_a);
 	}
-	//... specifically, GPIO pins 4, 22, 24, 25 and 27 (JTAG) and others
-	write_to_address(GPPUDCLK0,(1<<4)|(1<<14)|(1<<15)|(1<<21)|(1<<22)|(1<<24)|(1<<25)|(1<<27));
+	//Writing a "1" to a bit in GPPUDCLK0 or GPPUDCLK1 allows us to select
+	//that bit (bits in GPPUDCLK1 are transposed by 32) for control.
+	//JTAG:		4 (Alt5: ARM_TDI), 22 (Alt4: ARM_TRST), 24 (Alt4: ARM_TDO), 25 (Alt4: ARM_TCK), 27 (Alt4: ARM_TMS)
+	//UART:		14 (Alt1: TXD0), 15 (Alt1: RXD0)
+	//LED:		47 (Alt1: OK LED)	
+	write_to_address(GPPUDCLK0,(1<<4)|(1<<14)|(1<<15)|(1<<22)|(1<<24)|(1<<25)|(1<<27));
+	write_to_address(GPPUDCLK1,(1<<15));
+	//Delay for at least 150 CPU cycles (holding time of control signal).
 	for(register_a = 0; register_a < 150; register_a++){
 		delay(register_a);
 	}
+	//Remove the clock and control signal
 	write_to_address(GPPUDCLK0,0);
 
 	//Initialization of UART
+	//Disable the UART (if it should be enabled already).
+	write_to_address(UART0_CR, 0);
+	//Clear interrupts...
 	write_to_address(UART0_ICR, 0x7FF);
+	//Set integer part of Baud rate divisor to 1.
 	write_to_address(UART0_IBRD, 1); //NOTE: Number not in hexadecimal
+	//Set fractional part of Baud rate divisor to 40.
 	write_to_address(UART0_FBRD, 40); //NOTE: Number not in hexadecimal
+	//Enable FIFO and set word length to 8.
 	write_to_address(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+	//Set all supported UART-related interrupt masks.
 	write_to_address(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
 	                       (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
+	//Enable both transmission and reception over the UART.
 	write_to_address(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
 
 	//Initialization of JTAG

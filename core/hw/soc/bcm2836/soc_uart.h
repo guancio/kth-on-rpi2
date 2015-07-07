@@ -2,7 +2,7 @@
 #define _SOC_UART_H_
 
 //The base address of the UART.
-#define UART0_BASE 0x3F201000
+#define UART_BASE 0x3F201000
 
 typedef struct {
     uint32_t dr; //Data Register

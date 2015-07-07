@@ -145,6 +145,8 @@ int kernel_main (void){
 	write_to_address(GPPUDCLK0,0);
 
 	//Initialization of UART
+	//Disable the UART (if it should be enabled already).
+	write_to_address(UART0_CR, 0);
 	write_to_address(UART0_ICR, 0x7FF);
 	write_to_address(UART0_IBRD, 1); //NOTE: Number not in hexadecimal
 	write_to_address(UART0_FBRD, 40); //NOTE: Number not in hexadecimal
