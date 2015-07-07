@@ -5,6 +5,19 @@
 //Technically 64 IRQs, but far from all are used.
 #define IRQ_COUNT 64
 
+typedef struct {
+    uint32_t ibp; //IRQ basic pending
+    uint32_t ip1; //IRQ pending 1
+    uint32_t ip2; //IRQ pending 2
+    uint32_t fc; //FIQ control
+    uint32_t ei1; //Enable IRQs 1
+    uint32_t ei2; //Enable IRQs 2
+    uint32_t ebi; //Enable Basic IRQs
+    uint32_t di1; //Disable IRQs 1
+    uint32_t di2; //Disable IRQs 2
+    uint32_t dbi; //Disable Basic IRQs
+} volatile interrupt_registers;
+
 extern void _interrupt_vector_table();
 
 static interrupt_registers *aic = 0;

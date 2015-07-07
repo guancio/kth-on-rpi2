@@ -3,6 +3,14 @@
 
 //TODO: Apparently empty currently? How important is this?
 
+//TODO: Correct entries
+typedef struct {
+	uint32_t cr;
+	uint32_t pcer;
+	uint32_t pcdr;
+	uint32_t pcsr;
+} volatile powersaving_registers;
+
 void soc_clocks_init()
 {        
 	/*Needs to be rewritten*/

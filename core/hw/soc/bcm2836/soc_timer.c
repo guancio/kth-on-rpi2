@@ -2,7 +2,19 @@
 #include "soc_timer.h"
 #include "soc_interrupt.h"
 
-//The timer on the BCM2836 chip is based on, but not identical to, the ARM SP804 timer. It is described on page 196 onwards of the BCM2835 documentation. 
+//The timer on the BCM2836 chip is based on, but not identical to, the ARM SP804 timer. It is described on page 196 onwards of the BCM2835 documentation.
+
+typedef struct {
+    uint32_t tl; //Timer load register
+	tv; //Timer Value register
+	tc; //Timer control register
+	tic; //Timter IRQ clear register
+	tri; //Timer Raw IRQ register
+	tmi; //Timer Masked IRQ register
+	tr; //Timer Reload register
+	tpd; //The timer pre-divider register (not in ARM SP804)
+	fr; //Free running counter (not in ARM SP804)
+} volatile timer_registers;
 
 static timer_registers *timer = 0;
 static cpu_callback tick_handler = 0;

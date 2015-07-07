@@ -1,5 +1,11 @@
 #include "hw.h"
 
+typedef struct {
+    uint32_t gppud; //GPIO pull-up/pull-down register
+	uint32_t gppudclk0; //GPIO pull-up/pull-down Clock register
+	uint32_t gppudclk1; //GPIO pull-up/pull-down Clock register
+} volatile gppud_registers;
+
 static gppud_registers *gppud = 0;
 
 //Should delay the CPU with [count] cycles.
