@@ -65,7 +65,7 @@ void soc_uart_init(){
 	//"uart" is now a struct located at UART_BASE.
 	//The struct entries are located starting at UART_BASE and upwards every
 	//four bytes.
-	uart = (uart_registers *) UART_BASE;
+	uart = (uart_registers *)IO_VA_ADDRESS(UART_BASE);
 	#if 0
 	//*ms is probably not hard-coded...
 	//What the heck is this and why would we need it???

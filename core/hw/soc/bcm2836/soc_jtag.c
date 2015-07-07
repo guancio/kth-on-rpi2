@@ -15,7 +15,7 @@ static function_select_registers *fsel = 0;
 
 //Initializes certain pins on the RPi2 to function as JTAG pins.
 soc_jtag_init(){
-	fsel = (function_select_registers *) GPFSEL_BASE;
+	fsel = (function_select_registers *)IO_VA_ADDRESS(GPFSEL_BASE);
 	unsigned int register_a;
 
 	//Set GPIO4 to alternative function 5 by writing to GPFSEL0.

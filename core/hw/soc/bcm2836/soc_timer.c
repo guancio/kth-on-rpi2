@@ -80,7 +80,7 @@ void soc_timer_init(){
     
     timer = ms->vadr;
 #endif
-
+	timer = (timer_registers *)IO_VA_ADDRESS(TIMER_BASE);
     //Disable timer clock and interrupts.
     register_a = timer->tcr;
 	register_a &= ~((1<<5)|(1<<7)); //Could write decimal 5 shifted 5 instead

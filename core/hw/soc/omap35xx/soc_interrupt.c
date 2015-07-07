@@ -95,14 +95,14 @@ void cpu_irq_set_enable(int n, BOOL enable)
     /* invalid irq number ?? */
     if(n < 0 || n >= INTC_SOURCE_COUNT) return;
     
-   section = (n >> 5);
+	section = (n >> 5);
     pos = n & 0x1f;    
     
     /* set or clear interrupt mask for this irq */
     if(enable) {
         intc->sections[section].intc_mir &= ~(1 << pos);
         intc->sections[section].intc_mir_clear = 1 << pos;
-    }  else {
+    } else {
         intc->sections[section].intc_mir |= (1 << pos);        
         intc->sections[section].intc_mir_set = 1 << pos;
     }        

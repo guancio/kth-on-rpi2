@@ -16,7 +16,7 @@ static inline void delay(int32_t count){
 
 //Enables writing to the GPIO pins we want to use.
 void soc_gppud_init(){
-	gppud = (gppud_registers *) GPPUD_BASE;
+	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
 
 	//Control signal: Disable pull-up/pull-down on GPIO pin determined by GPPUDCLK.
 	gppud->gppud = 0;
@@ -24,7 +24,6 @@ void soc_gppud_init(){
 	//Delay for at least 150 CPU cycles (set-up time of control signal).
 	delay(150);
 
-	//GPPUDCLK0 is gppud[1].
 	//Writing a "1" to a bit in GPPUDCLK0 or GPPUDCLK1 allows us to select
 	//that bit (bits in GPPUDCLK1 are transposed by 32) for control.
 	//JTAG:		4 (Alt5: ARM_TDI), 22 (Alt4: ARM_TRST), 24 (Alt4: ARM_TDO), 25 (Alt4: ARM_TCK), 27 (Alt4: ARM_TMS)
