@@ -26,4 +26,6 @@ soc_jtag_init(){
 	register_a &= ~(7<<21); //Clear settings for GPIO27.
 	register_a |= 3<<21; //Set GPIO27 to alternative function 4 (ARM_TMS).
 	fsel->gpfsel2 = register_a;
+
+	//Now, physical pins number 7 (GPIO 4), 13 (GPIO 27), 15 (GPIO 22), 18 (GPIO 24) and 22 (GPIO 25) should work as JTAG pins with their respective signals.
 }

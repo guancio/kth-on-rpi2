@@ -1,7 +1,7 @@
 #ifndef _SOC_CLOCKS_H_
 #define  _SOC_CLOCKS_H_
 
-//Powersaving?
+//TODO: Powersaving?
 #define POWERSAVING_BASE 0xffff4000
 
 //TODO: Correct entries

@@ -2,27 +2,23 @@
 #include <mmu.h>
 #include "soc_interrupt.h"
 
-#define IRQ_COUNT 32
-
-//How hardware-dependent is this?
+//Technically 64 IRQs, but far from all are used.
+#define IRQ_COUNT 64
 
 extern void _interrupt_vector_table();
 
-static aic_registers *aic = 0;
+static interrupt_registers *aic = 0;
 cpu_callback interrupt_handlers[IRQ_COUNT];
 
 
-static void default_handler(uint32_t r0, uint32_t r1, uint32_t r2)
-{
+static void default_handler(uint32_t r0, uint32_t r1, uint32_t r2){
    printf("DEFAULT INTERRUPT HANDLER %x:%x:%x\n", r0, r1, r2);
 }
 
-int cpu_irq_get_count()
-{
+int cpu_irq_get_count(){
     return IRQ_COUNT;
 }
-void cpu_irq_set_enable(int number, BOOL enable)
-{
+void cpu_irq_set_enable(int number, BOOL enable){
     if(number < 0 || number >= IRQ_COUNT) return;
     
     if(enable)
@@ -35,8 +31,7 @@ void cpu_irq_set_enable(int number, BOOL enable)
     aic->idcr = 0;    
 }
 
-void cpu_irq_set_handler(int number, cpu_callback handler)
-{
+void cpu_irq_set_handler(int number, cpu_callback handler){
     if(number < 0 || number >= IRQ_COUNT) return;
     
     if(!handler)
@@ -45,16 +40,14 @@ void cpu_irq_set_handler(int number, cpu_callback handler)
     aic->svr[number] = GET_PHYS( (uint32_t) handler);
 }
 
-void cpu_irq_acknowledge(int number)
-{
+void cpu_irq_acknowledge(int number){
     if(number < 0 || number >= IRQ_COUNT) return;
     aic->eoicr = (1UL << number);
 }
 
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
-                                     BOOL level_sensitive)
-{
+                                     BOOL level_sensitive){
     uint32_t tmp;
     
     if(number < 0 || number >= IRQ_COUNT) return;
@@ -67,14 +60,12 @@ void soc_interrupt_set_configuration(int number, int priority,
     
 }
 
-void cpu_irq_get_current()
-{
+void cpu_irq_get_current(){
     /* TODO */
 }
 
 
-void soc_interrupt_init()
-{
+void soc_interrupt_init(){
     /*Needs to be rewritten*/
 #if 0
     int i;

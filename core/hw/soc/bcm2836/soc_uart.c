@@ -1,16 +1,11 @@
 #include "hw.h"
 
-#define UART_BUFFER_SIZE 8
-
-static char buffer_out[UART_BUFFER_SIZE];
-static char buffer_in[UART_BUFFER_SIZE];
-
 static uart_registers *uart = 0; //TODO: Why assign zero?
 
 //This function prints one character over the UART.
 void stdio_write_char(int c){
 
-	char* byte = (char*)&c;
+	unsigned char* byte = (unsigned char*)&c;
 	while (!stdio_can_write()){
 		//Do nothing...
 	}
@@ -72,7 +67,6 @@ void soc_uart_init(){
 	//Flush the transmit FIFO
 	uart->lcrh = (0 << 4);
 	
-
 	//Clear interrupts...
 	uart->icr = 0x7FF;
 	//Set integer part of Baud rate divisor to 1.
@@ -84,7 +78,7 @@ void soc_uart_init(){
 	//Set all supported UART-related interrupt masks.
 	uart->imsc = (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
 	                        (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
-	//Enable both transmission and reception over the UART.
+	//Enable both transmission and reception over the UART (and nothing else).
 	uart->cr = (1 << 0) | (1 << 8) | (1 << 9);
 }
     
