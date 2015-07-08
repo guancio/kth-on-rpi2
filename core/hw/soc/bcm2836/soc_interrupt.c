@@ -1,37 +1,39 @@
 #include <hw.h>
 #include <mmu.h>
 
-//Interrupts are mostly enabled/disabled by the interrupt controller (page 109 in BCM2835 documentation).
-//Please note that messing with the wrong interrupts can adversely impact the behaviour of the GPU.
+//Interrupts are mostly enabled/disabled by the interrupt controller
+//(page 109 onwards in the BCM2835 documentation).
+//Please note that messing with the wrong interrupts can adversely impact the
+//behaviour of the GPU.
 
+//Interrupt masks in other places:
 //Interrupt masks for the UART are set/cleared at the UART IMSC register.
-//Interrupt masks for the SPI/BSC slave are set/cleared at the SPI/BSC slave IMSC register.
+//Interrupt masks for the SPI/BSC slave are set/cleared at the SPI/BSC slave
+//IMSC register.
 //The Timer control register has a bit which enables/disables timer interrupt.
-
-
 
 //Technically 64 IRQs and 8 "basic" IRQs, but far from all are used.
 #define IRQ_COUNT 72
 
 typedef struct {
-    uint32_t ibp; //IRQ basic pending
-    uint32_t ip1; //IRQ pending 1
-    uint32_t ip2; //IRQ pending 2
+	uint32_t irq_pending[3]; //The three entries are:
+    //							Basic IRQs pending
+    //							IRQs pending 1
+    //							IRQs pending 2
     uint32_t fc; //FIQ control
-	uint32_t enable_irq[3];
-    //uint32_t ei1; //Enable IRQs 1
-    //uint32_t ei2; //Enable IRQs 2
-    //uint32_t ebi; //Enable Basic IRQs
-	uint32_t disable_irq[3];
-    //uint32_t di1; //Disable IRQs 1
-    //uint32_t di2; //Disable IRQs 2
-    //uint32_t dbi; //Disable Basic IRQs
+	uint32_t enable_irq[3]; //The three entries are:
+    //							Enable IRQs 1
+    //							Enable IRQs 2
+    //							Enable Basic IRQs
+	uint32_t disable_irq[3]; //The three entries are:
+    //							Disable IRQs 1
+    //							Disable IRQs 2
+    //							Disable Basic IRQs
 } volatile interrupt_registers;
 
 extern uint32_t * _interrupt_vector_table;
 //TODO: Why 128?
 cpu_callback irq_function_table[128] __attribute__ ((aligned (32)));
-
 
 static interrupt_registers *ireg = 0;
 static cpu_callback interrupt_handler = 0;
@@ -42,7 +44,7 @@ static return_value interrupt_handler_stub(uint32_t irq, uint32_t r1, uint32_t r
     	interrupt_handler(irq, r1, r2);
 	}
 
-    return RV_OK;
+    return default_handler(uint32_t irq, uint32_t r1, uint32_t r2);
 }
 
 /* static */ return_value default_handler(uint32_t r0, uint32_t r1, uint32_t r2){
@@ -55,9 +57,9 @@ int cpu_irq_get_count(){
     return IRQ_COUNT;
 }
 
-//Sets or clears interrupt mask for a particular IRQ.
+//Sets or clears the interrupt mask for a particular IRQ.
 void cpu_irq_set_enable(int number, BOOL enable){
-	uint32_t register_a, register_b, register_c;
+	uint32_t register_a, register_b;
 
 	//Check for invalid IRQ number.
     if(number < 0 || number >= IRQ_COUNT){
@@ -81,6 +83,7 @@ void cpu_irq_set_enable(int number, BOOL enable){
     }      
 }
 
+//Assigns a handler to an IRQ.
 void cpu_irq_set_handler(int number, cpu_callback handler){
     //Check for invalid IRQ number.
     if(number < 0 || number >= IRQ_COUNT){
@@ -98,11 +101,36 @@ void cpu_irq_set_handler(int number, cpu_callback handler){
 
 cpu_callback irq_handler();
 
+//Acknowledge the IRQ of number [number].
+//TODO: I'm not 100% what this means in practice - one interpretation is to
+//clear the corresponding interrupt pending.
 void cpu_irq_acknowledge(int number){
-    if(number < 0 || number >= IRQ_COUNT) return;
-    aic->eoicr = (1UL << number);
+	uint32_t register_a, register_b, register_c;
+	
+	//If the integer part of the below division is 1, then the 
+	//interrupt is a basic interrupt, which should go to the first entry of
+	//irq_pending, otherwise it should skip the first entry.
+	if (number / 64){
+		register_a = number - 64;
+	} else {
+		register_a = number + 32;
+	}
+
+	//Check for invalid IRQ number
+    if(number < 0 || number >= IRQ_COUNT){
+		return;
+	}
+
+	//Check which registry entry the IRQ number belongs to.
+	register_b = number / 32;
+	//Check which bit the IRQ number belongs to.
+	register_c = number % 32;
+
+	//Acknowledge the IRQ (clear pending).
+	ireg->irq_pending[register_b] &= ~(1 << register_c);
 }
 
+//TODO
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
                                      BOOL level_sensitive){
@@ -118,11 +146,12 @@ void soc_interrupt_set_configuration(int number, int priority,
     
 }
 
+//TODO
 void cpu_irq_get_current(){
     /* TODO */
 }
 
-
+//TODO: WIP
 void soc_interrupt_init(){
     /*Needs to be rewritten*/
 #if 0
@@ -162,7 +191,7 @@ void soc_interrupt_init(){
     	//Do nothing
     }
     //Turn off all interrupts for now.
-	for(i = 0; i < (int)(IRQ_COUNT/32.0 < 0 ? (IRQ_COUNT/32.0 - 0.5) : (IRQ_COUNT/32.0 + 0.5)); ++i){
+	for(i = 0; i < (int)((IRQ_COUNT/32.0) + 0.5); ++i){
 		disable_irq[i] = 0xFFFFFFFF;
 	}
     for(i = 0; i < IRQ_COUNT; ++i) {
@@ -170,7 +199,7 @@ void soc_interrupt_init(){
         cpu_irq_set_handler(i, default_handler);
     }
 	//I think I have identified IRQ 74 as the UART3 of the Beagleboard.
-	//IRQ 54 is UART on the BCM2836.
+	//IRQ 57 is UART on the BCM2836.
     cpu_irq_set_enable(57, TRUE);
     
 	//TODO: No idea what this does.
