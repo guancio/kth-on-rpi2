@@ -1,5 +1,6 @@
 #include <hw.h>
 #include <mmu.h>
+#include "soc_defs.h"
 
 //Interrupts are mostly enabled/disabled by the interrupt controller
 //(page 109 onwards in the BCM2835 documentation).
@@ -61,7 +62,7 @@ int cpu_irq_get_count(){
 void cpu_irq_set_enable(int number, BOOL enable){
 	uint32_t register_a, register_b;
 
-	//Check for invalid IRQ number.
+	//Check for invalid IRQ number and return function call if one is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
     }
@@ -85,7 +86,7 @@ void cpu_irq_set_enable(int number, BOOL enable){
 
 //Assigns a handler to an IRQ.
 void cpu_irq_set_handler(int number, cpu_callback handler){
-    //Check for invalid IRQ number.
+    //Check for invalid IRQ number and return function call if one is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
     }
@@ -116,7 +117,7 @@ void cpu_irq_acknowledge(int number){
 		register_a = number + 32;
 	}
 
-	//Check for invalid IRQ number
+	//Check for invalid IRQ number and return function call if one is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
 	}
@@ -130,28 +131,36 @@ void cpu_irq_acknowledge(int number){
 	ireg->irq_pending[register_b] &= ~(1 << register_c);
 }
 
-//TODO
+//TODO: The concepts of IRQ priority does not exist in the hardware of the
+//BCM2836. Therefore, I leave this function as a dummy function.  
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
                                      BOOL level_sensitive){
-    uint32_t tmp;
+	/*
+	uint32_t tmp;
     
-    if(number < 0 || number >= IRQ_COUNT) return;
-    
+	//Check for invalid IRQ number and return function call if one is found.
+    if(number < 0 || number >= IRQ_COUNT){
+		return;
+	}
+
     tmp = priority & 7;
     if(polarity) tmp |= (1UL << 6);
     if(!level_sensitive) tmp |= (1UL << 5);
     
     aic->smr[number] = tmp;
-    
+	*/
+
+	//Do nothing then return function call.
+	return;
 }
 
-//TODO
+//TODO: Not implemented in old version.
 void cpu_irq_get_current(){
     /* TODO */
 }
 
-//TODO: WIP
+//Disables, then sets handlers for all IRQs and then enables only UART IRQ.
 void soc_interrupt_init(){
     /*Needs to be rewritten*/
 #if 0
@@ -185,11 +194,15 @@ void soc_interrupt_init(){
     interrupt_handler = (cpu_callback)irq_handler;
     intc = (intc_registers *)IO_VA_ADDRESS(INTC_BASE);
 
-    //TODO: No idea what this does.
+    //TODO: No idea what this does. Since the BCM2836 has no control register
+	//for interrupts, I'll just comment it out.
+	/*
     intc->intc_sysconfig = INTC_SYSCONFIG_RESET;
     while(!(intc->intc_sysstatus & INTC_SYSSTATUS_RESET_DONE)){
     	//Do nothing
     }
+	*/
+
     //Turn off all interrupts for now.
 	for(i = 0; i < (int)((IRQ_COUNT/32.0) + 0.5); ++i){
 		disable_irq[i] = 0xFFFFFFFF;
@@ -198,11 +211,13 @@ void soc_interrupt_init(){
         //cpu_irq_set_enable(i, FALSE); <-- added loop above which is probably faster
         cpu_irq_set_handler(i, default_handler);
     }
+
 	//I think I have identified IRQ 74 as the UART3 of the Beagleboard.
 	//IRQ 57 is UART on the BCM2836.
     cpu_irq_set_enable(57, TRUE);
     
-	//TODO: No idea what this does.
-    intc->intc_control = INTC_CONTROL_NEWIRQAGR;
+	//TODO: No idea what this does. Since the BCM2836 has no control register
+	//for interrupts, I'll just comment it out.
+    //intc->intc_control = INTC_CONTROL_NEWIRQAGR;
 }
 

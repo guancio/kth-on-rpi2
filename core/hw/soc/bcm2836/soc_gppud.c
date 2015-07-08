@@ -1,4 +1,5 @@
 #include "hw.h"
+#include "soc_defs.h"
 
 typedef struct {
     uint32_t gppud; //GPIO pull-up/pull-down register

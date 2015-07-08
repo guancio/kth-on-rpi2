@@ -1,4 +1,3 @@
-
 #include <family_context_top.inc>
 #include "soc_defs.h"
 
@@ -100,8 +99,6 @@ impl_swi:
     store_context_keep_lr
 
     /* get SWI data */
-
-
     ldr r12, =family_callback_swi
     ldr r12, [r12]
 

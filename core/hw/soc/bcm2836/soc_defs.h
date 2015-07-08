@@ -3,7 +3,8 @@
 
 //Virtual base address
 #define IO_BASE 				0xF0000000
-//Currently, the offset is calculated so that the virtual address space overlaps with that of the OMAP35xx
+//Currently, the offset is calculated so that the virtual address space overlaps
+//with that of the OMAP35xx.
 //48 + B2 = FA -> Virtual peripherals base address is 0xFA000000
 //             -> Offset is 0xBB000000
 #define IO_OFFSET				0xBB000000

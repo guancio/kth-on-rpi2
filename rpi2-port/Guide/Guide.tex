@@ -107,7 +107,7 @@ arm-none-eabi-gcc -O2 -mfpu=vfp -mfloat-abi=hard -mcpu=cortex-a7
 -nostartfiles test.c -o kernel.elf
 \end{verbatim}
 
-However, we do not want an ELF file, but a binary which only includes machine code, so we extract that part from \texttt{kernel.elf} using the \texttt{objcopy} utility: \texttt{arm-none-eabi-objcopy kernel.elf -O binary kernel.img}, and get the binary we want in \texttt{kernel.img}. This can then be put on the SD card together with the bootloader, as described above, which will look for the kernel.img and execute it.
+However, we do not want an ELF file, but a binary which only includes machine code, so we extract that part from \texttt{kernel.elf} using the \texttt{objcopy} utility: \texttt{arm-none-eabi-objcopy kernel.elf -O binary kernel.img}, and get the binary we want in \texttt{kernel.img}. This can then be put on the SD card together with the bootloader, as described above, which will look for the kernel.img\footnote{Actually, the RPi2 bootloader will first look for kernel7.img, and then, upon not finding kernel7.img, for kernel.img. Do not have unwanted kernel7.img files lying around on your SD card or the bootloader will use these instead!} and execute it.
 
 \subsection{Setting up CMake}
 However, in reality we never just compile a single C file. We are going to have multiple files in C and ARM assembly language and so we will need CMake, in order to keep things neat and tidy. To install CMake, execute the command \texttt{sudo apt-get install cmake}. Now, the CMake-related files you start out with are \texttt{CMakeLists.txt}, \texttt{configure.sh}, and \texttt{toolchain-arm-none-eabi.cmake}. These are fairly self-explanatory, but you should know that you will need to change them if you change the structure of your project (add more files, change names of files, and so on). Otherwise, all you need to know is that you set up CMake by executing \texttt{./configure.sh}, and then build simply with \texttt{make}. 
@@ -137,6 +137,14 @@ This test kernel will first setup certain pins on the RPi2 for JTAG communicatio
 \section{Booting over a network}
 Start by cloning the GitHub repository \texttt{raspberrypi/firmware} (if you have not already done so by following the steps above) and copy the contents of the \texttt{boot} folder to your SD card, as described before. Then, open the file \texttt{config.txt} on your SD card, and change it to read \texttt{kernel=u-boot.bin}, instead of where \texttt{kernel} pointed to before.
 
+First, we have to download U-Boot. Download it by executing the command
+
+\begin{verbatim}
+git clone git://git.denx.de/u-boot.git
+\end{verbatim}
+
+which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card.
+
 Next, you will need to create a script that U-Boot will run once it is started. Create a file called \texttt{boot.scr}, and enter the following:
 
 \begin{figure}[hb]
@@ -165,13 +173,7 @@ This bootscript presupposes that you have a monitor connected to the RPi2 via a 
 
 Now that we have written the bootscript, we want to convert it to an image. Do so by executing the command \texttt{mkimage -A arm -O linux -T script -C none -n Boot Script -d boot.scr boot.scr.uimg}. The result will be stored in \texttt{boot.scr.uimg} - transfer this file to your SD card.
 
-Now we only have one part left - U-Boot itself. First, we have to download U-Boot. Download it by executing the command
-
-\begin{verbatim}
-git clone git://git.denx.de/u-boot.git
-\end{verbatim}
-
-which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card. Now, you can eject your SD card and place it in your RPi2.
+Now, you can eject your SD card and place it in your RPi2.
 
 We are now going to set up your computer as a TFTP server. First, we install the required tools by executing the command \texttt{sudo apt-get install xinetd tftpd tftp}. Edit (or create, if it does not exist) \texttt{tftp} in \texttt{etc/xinet.d/}, which should contain the following:
 

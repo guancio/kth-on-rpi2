@@ -1,4 +1,5 @@
 #include "hw.h"
+#include "soc_defs.h"
 
 typedef struct {
     uint32_t dr; //Data Register
@@ -25,47 +26,63 @@ typedef struct {
 
 static uart_registers *uart = 0; //TODO: Why assign zero?
 
-//This function prints one character over the UART.
+//This function print a char over the UART.
+//We pass an int even though the char is in the first 8 bits.
+//Bits 8-11 (zero-indexed) contain various error messages (the rest is Reserved)
+//- see page 179 of BCM2835 documentation. 
 void stdio_write_char(int c){
 
-	unsigned char* byte = (unsigned char*)&c;
+	//unsigned char* byte = (unsigned char*)&c;
 	while (!stdio_can_write()){
-		//Do nothing...
+		//While we can't write, loop and do nothing...
 	}
 	
 	//When FIFO is enabled, data written to UART_DR will be put in the FIFO.
-	uart->dr = byte;
+	//It is imperative that bits (zero-indexed) 8-11 are not set, because then
+	//They will be read as errors. Be careful when passing ints here!
+	uart->dr = c;
 }
 
 //This function is called when waiting to be able to write.
 //Returns TRUE if you can, FALSE otherwise.
 extern int stdio_can_write(){
-	//Binary AND of the Flag Register and a "1" in bit 6 (counting from right to left, starting at zero). If that bit is not set, you can write to the UART.
+	//Binary AND of the Flag Register and a "1" in bit 6 (counting from right to
+	//left, starting at zero). If that bit isn't set, you can write to the UART.
     return (uart->fr & (1 << 6)) == 0;            
 }
 
 //This function is called when waiting to be able to write.
 //Returns TRUE if you can, FALSE otherwise.
 extern int stdio_can_read(){
-	//Binary AND of the Flag Register and a "1" in bit 5 (counting from right to left, starting at zero). If that bit is not set, you can read from the UART.
+	//Binary AND of the Flag Register and a "1" in bit 5 (counting from right to
+	//left, starting at zero). If that bit isn't set, you can read from the UART.
 	return (uart->fr & (1 << 5)) == 0;
 }
 
+//This function reads a char from the UART.
+//We return an int even though the char is in the first 8 bits.
+//Bits 8-11 (zero-indexed) contain various error messages (the rest is Reserved)
+//- see page 179 of BCM2835 documentation. 
 extern int stdio_read_char(){
+
+	//Wait for us to be able to read...
 	while (!stdio_can_read()){
-		//Do nothing...
+		//While not able to read, do nothing...
 	}
+	
+	//Return the 32 bits in the DR register.
 	return uart->dr;   
 }
 
 /**********************************************************************/
 
-//This might be needed later, but not when we have U-Boot.
+//Disables, then initializes the UART.
 void soc_uart_init(){
 	//"uart" is now a struct located at UART_BASE.
 	//The struct entries are located starting at UART_BASE and upwards every
 	//four bytes.
 	uart = (uart_registers *)IO_VA_ADDRESS(UART_BASE);
+
 	#if 0
 	//*ms is probably not hard-coded...
 	//What the heck is this and why would we need it???

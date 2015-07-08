@@ -102,7 +102,7 @@ impl_undef:
     bx r3
     /* returns by exception bottom */
     
-impl_swi:    
+impl_swi:
     store_context_keep_lr
 
     /* get SWI data */

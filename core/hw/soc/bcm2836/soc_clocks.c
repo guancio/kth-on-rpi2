@@ -1,5 +1,6 @@
 #include <hw.h>
 #include <mmu.h>
+#include "soc_defs.h"
 
 //TODO: Apparently empty currently? How important is this?
 
