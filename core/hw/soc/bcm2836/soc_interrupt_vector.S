@@ -124,9 +124,11 @@ impl_pabort:
     ldr r3, [r3]
     //Move to r0 from coprocessor p15, with opcode 0,0 and 
 	//coprocessor registers CRn=c6 and CRm=c0.
+	//This gets the instruction fault address register (IFAR).
     mrc p15, 0, r0, c6, c0, 0 //TODO: This last zero could be 0 or 2
 	//Move to r1 from coprocessor p15, with opcode 0,1 and 
-	//coprocessor registers CRn=c5 and CRm=c0.    
+	//coprocessor registers CRn=c5 and CRm=c0.
+	//This gets the instruction fault status register  (IFSR).  
 	mrc p15, 0, r1, c5, c0, 1
 	//Copy the value of lr into r2.   
     mov r2, lr
@@ -159,9 +161,11 @@ impl_dabort:
     clrex
 	//Move to r0 from coprocessor p15, with opcode 0,0 and 
 	//coprocessor registers CRn=c6 and CRm=c0.
+	//This would then get the FAR (fault address).
     mrc p15, 0, r0, c6, c0, 0
 	//Move to r1 from coprocessor p15, with opcode 0,0 and 
 	//coprocessor registers CRn=c5 and CRm=c0.   
+	//This would then get the FAR (fault status register).
     mrc p15, 0, r1, c5, c0, 0
 	//Copy the value of lr into r2. 
     mov r2, lr
@@ -217,11 +221,15 @@ impl_swi:
     ldr r12, [r12]    
 
 
-    /* XXX: this only works from 32-bit mode */
+    //TODO: The following only works in 32-bit mode.
+	//But it should not be too hard to determine what mode you are 
+	//operating in...
     sub r11, lr, #4    
 	//Note: r11 is ARM frame pointer.
     ldr r2, [r11]
 	//bic is the "bit clear" operation, i.e. op1 "AND NOT" op2.
+	//This would copy the first byte octet in r2 back to r2 and
+	//replace the rest of r2 with zeroes. 
     bic r2, r2, #0xFF000000
 
 

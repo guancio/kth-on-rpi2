@@ -75,42 +75,78 @@ impl_irq:
 exception_bottom:
     restore_context    
     movs pc, lr
-    
+
+//Fast IRQ. We do not use this yet, so this is not needed yet.
+//Occurs when FIQ input asserted.
 impl_fiq:
-	/* TODO */
+	/* TODO: Write this when we want to use FIQ. */
     b .
 
+//Implementation of pre-fetch abort interrupt handling.
+//Occurs when executing BKPT or instruction at invalid address.
 impl_pabort:
+    //1. Save context.
+	//////////////////
+	//Link register (function return point) is decremented by 4.
     sub lr, lr, #4
+	//Call store_context_keep_lr.
     store_context_keep_lr
     
+	//2. Get current interrupt.
+	///////////////////////////////////////
+	//Store address to interrupt data in r3.
     ldr r3, =family_callback_inst_abort        
     ldr r3, [r3]
     
+	//Move to r0 from coprocessor p15, with opcode 0,0 and 
+	//coprocessor registers CRn=c6 and CRm=c0.
     #mrc p15, 0, r0, c6, c0, 0
     mrc p15, 0, r0, c6, c0, 2	@get IFAR
+	//Move to r1 from coprocessor p15, with opcode 0,1 and 
+	//coprocessor registers CRn=c5 and CRm=c0. 
     mrc p15, 0, r1, c5, c0, 1	@get IFSR
+	//Copy the value of lr into r2.
     mov r2, lr
     
+	//3. Restore context.
+	//Set link register to the address of exception_bottom.
     ldr lr, =exception_bottom
+	//Branch to r3.
     bx r3
     /* returns by exception bottom */
 
+//Implementation of data-abort interrupt handling.
+//Occurs when reading from or writing to an invalid address.
 impl_dabort:
+	//1. Save context.
+	//////////////////
+	//Link register (function return point) is decremented by 4.
     sub lr, lr, #8
+	//Call store_context_keep_lr.
     store_context_keep_lr
 
+	//2. Get current interrupt.
+	///////////////////////////////////////
+	//Store address to interrupt data in r3.
     ldr r3, =family_callback_data_abort
     ldr r3, [r3]
     
     /*Clear state of exclusive access monitors, used by kuser helpers*/
     clrex
 
+	//Move to r0 from coprocessor p15, with opcode 0,0 and 
+	//coprocessor registers CRn=c6 and CRm=c0.
     mrc p15, 0, r0, c6, c0, 0	@get FAR
+	//Move to r1 from coprocessor p15, with opcode 0,0 and 
+	//coprocessor registers CRn=c5 and CRm=c0. 
     mrc p15, 0, r1, c5, c0, 0	@get FSR
+	//Copy the value of lr into r2. 
     mov r2, lr
     
+	//3. Restore context.
+	//Set link register to the address of exception_bottom.
     ldr lr, =exception_bottom
+	//Branch to r3.
     bx r3
     /* returns by exception bottom */
 
