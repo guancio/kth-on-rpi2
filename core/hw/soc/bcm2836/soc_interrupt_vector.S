@@ -122,13 +122,12 @@ impl_pabort:
     ldr r3, =family_callback_inst_abort
 	//TODO: ???       
     ldr r3, [r3]
-    //Move to r0 from coprocessor p15, with opcode 0,0 and 
-	//coprocessor registers CRn=c6 and CRm=c0.
-	//This gets the instruction fault address register (IFAR).
-    mrc p15, 0, r0, c6, c0, 0 //TODO: This last zero could be 0 or 2
-	//Move to r1 from coprocessor p15, with opcode 0,1 and 
-	//coprocessor registers CRn=c5 and CRm=c0.
-	//This gets the instruction fault status register  (IFSR).  
+	//This stores the instruction fault address register (IFAR) in 
+	//r0.
+	//(Co-processor 15 is the system control co-processor)
+    mrc p15, 0, r0, c6, c0, 2
+	//This stores the instruction fault status register (IFSR) in 
+	//r1.
 	mrc p15, 0, r1, c5, c0, 1
 	//Copy the value of lr into r2.   
     mov r2, lr
@@ -159,13 +158,9 @@ impl_dabort:
     
     //Clear state of exclusive access monitors, used by kuser helpers
     clrex
-	//Move to r0 from coprocessor p15, with opcode 0,0 and 
-	//coprocessor registers CRn=c6 and CRm=c0.
-	//This would then get the FAR (fault address).
+	//This stores the data fault address register (DFAR) in r0.
     mrc p15, 0, r0, c6, c0, 0
-	//Move to r1 from coprocessor p15, with opcode 0,0 and 
-	//coprocessor registers CRn=c5 and CRm=c0.   
-	//This would then get the FAR (fault status register).
+	//This stores the data fault status register (DFSR) in r1.
     mrc p15, 0, r1, c5, c0, 0
 	//Copy the value of lr into r2. 
     mov r2, lr

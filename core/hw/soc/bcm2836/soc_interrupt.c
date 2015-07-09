@@ -8,8 +8,10 @@
 //behaviour of the GPU.
 
 //Interrupt masks in other places:
-//Interrupt masks for the UART are set/cleared at the UART IMSC register.
-//Interrupt masks for the SPI/BSC slave are set/cleared at the SPI/BSC slave
+//Interrupt masks for the UART are set/cleared at the UART IMSC 
+//register.
+//Interrupt masks for the SPI/BSC slave are set/cleared at the SPI/
+//BSC slave
 //IMSC register.
 //The Timer control register has a bit which enables/disables timer interrupt.
 
@@ -62,7 +64,8 @@ int cpu_irq_get_count(){
 void cpu_irq_set_enable(int number, BOOL enable){
 	uint32_t register_a, register_b;
 
-	//Check for invalid IRQ number and return function call if one is found.
+	//Check for invalid IRQ number and return function call if one 
+	//is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
     }
@@ -79,14 +82,15 @@ void cpu_irq_set_enable(int number, BOOL enable){
         ireg->enable_irq[register_a] |= 1 << register_b;
     } else {
 		//Set bit [register_b] to 1 and keep others as they are.
-		//(in effect, this actually clears the enable bit...)
+		//(in effect, setting disable clears the enable bit)
 		ireg->disable_irq[register_a] |= 1 << register_b;    
     }      
 }
 
 //Assigns a handler to an IRQ.
 void cpu_irq_set_handler(int number, cpu_callback handler){
-    //Check for invalid IRQ number and return function call if one is found.
+    //Check for invalid IRQ number and return function call if one 
+	//is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
     }
@@ -103,21 +107,23 @@ void cpu_irq_set_handler(int number, cpu_callback handler){
 cpu_callback irq_handler();
 
 //Acknowledge the IRQ of number [number].
-//TODO: I'm not 100% what this means in practice - one interpretation is to
-//clear the corresponding interrupt pending.
+//TODO: I'm not 100% what this means in practice - one 
+//interpretation is to clear the corresponding interrupt pending.
 void cpu_irq_acknowledge(int number){
 	uint32_t register_a, register_b, register_c;
 	
 	//If the integer part of the below division is 1, then the 
-	//interrupt is a basic interrupt, which should go to the first entry of
-	//irq_pending, otherwise it should skip the first entry.
+	//interrupt is a basic interrupt, which should go to the first 
+	//entry of irq_pending, otherwise it should skip the first 
+	//entry.
 	if (number / 64){
 		register_a = number - 64;
 	} else {
 		register_a = number + 32;
 	}
 
-	//Check for invalid IRQ number and return function call if one is found.
+	//Check for invalid IRQ number and return function call if one 
+	//is found.
     if(number < 0 || number >= IRQ_COUNT){
 		return;
 	}
@@ -131,8 +137,9 @@ void cpu_irq_acknowledge(int number){
 	ireg->irq_pending[register_b] &= ~(1 << register_c);
 }
 
-//TODO: The concepts of IRQ priority does not exist in the hardware of the
-//BCM2836. Therefore, I leave this function as a dummy function.  
+//TODO: The concepts of IRQ priority does not exist in the hardware 
+//of the BCM2836. Therefore, I leave this function as a dummy 
+//function.  
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
                                      BOOL level_sensitive){
@@ -160,7 +167,8 @@ void cpu_irq_get_current(){
     /* TODO */
 }
 
-//Disables, then sets handlers for all IRQs and then enables only UART IRQ.
+//Disables, then sets handlers for all IRQs and then enables only 
+//UART IRQ.
 void soc_interrupt_init(){
     /*Needs to be rewritten*/
 #if 0
@@ -194,8 +202,9 @@ void soc_interrupt_init(){
     interrupt_handler = (cpu_callback)irq_handler;
     intc = (intc_registers *)IO_VA_ADDRESS(INTC_BASE);
 
-    //TODO: No idea what this does. Since the BCM2836 has no control register
-	//for interrupts, I'll just comment it out.
+    //TODO: This performs a software reset of the module. Since the 
+	//BCM2836 has no control register for interrupts, I'll just 
+	//comment it out.
 	/*
     intc->intc_sysconfig = INTC_SYSCONFIG_RESET;
     while(!(intc->intc_sysstatus & INTC_SYSSTATUS_RESET_DONE)){
@@ -208,16 +217,18 @@ void soc_interrupt_init(){
 		disable_irq[i] = 0xFFFFFFFF;
 	}
     for(i = 0; i < IRQ_COUNT; ++i) {
-        //cpu_irq_set_enable(i, FALSE); <-- added loop above which is probably faster
+        //cpu_irq_set_enable(i, FALSE); <-- added loop above which 
+		//is probably faster
         cpu_irq_set_handler(i, default_handler);
     }
 
-	//I think I have identified IRQ 74 as the UART3 of the Beagleboard.
-	//IRQ 57 is UART on the BCM2836.
+	//I think I have identified IRQ 74 as the UART3 of the 
+	//Beagleboard. IRQ 57 is UART on the BCM2836.
     cpu_irq_set_enable(57, TRUE);
     
-	//TODO: No idea what this does. Since the BCM2836 has no control register
-	//for interrupts, I'll just comment it out.
+	//TODO: Resets IRQ output and enables new IRQ generation. Since 
+	//the BCM2836 has no control register for interrupts, I'll just 
+	//comment it out.
     //intc->intc_control = INTC_CONTROL_NEWIRQAGR;
 }
 
