@@ -6,8 +6,11 @@ MEMORY
 
 SECTIONS
 {
+	. = 0x8000;
+	.dummy : { *(.text.dummy*) } > ram
+	.magic ALIGN(0x20): { *(.text.magic*) } > ram
 	.startup : { *(.text.startup*) } > ram
-	.magic : { *(.text.magic*) } > ram
+	.functions : { *(.text.functions*) } > ram
 	.bss : { *(.bss*) } > ram
 }
 

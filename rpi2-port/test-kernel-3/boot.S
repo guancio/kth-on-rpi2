@@ -1,8 +1,7 @@
 .section ".text.dummy"
 
-//We need at least one dummy word, because the compiler will remove zeroes at the start of the program.
-
-
+//We need at least one dummy word, because the compiler will remove zeroes at 
+//the start of the program.
 .word 0x11201045 //Dummy word
 
 .section ".text.magic"
