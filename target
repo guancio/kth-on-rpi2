@@ -3,13 +3,13 @@
 #PLATFORM=ovp_arm9
 #PLATFORM=ovp_integratorCP
 #PLATFORM=u8500_ref
-PLATFORM=beagleboard
+#PLATFORM=beagleboard
 #PLATFORM=beaglebone
-#PLATFORM=raspberrypi2
+PLATFORM=raspberrypi2
 
-#SOFTWARE=minimal
+SOFTWARE=minimal
 #SOFTWARE = trusted linux
-SOFTWARE = linux
+#SOFTWARE = linux
 
 #SOFTWARE = dtest trusted
 

@@ -40,7 +40,11 @@ The hypervisor can be built for different platforms and this is specified in the
 
 For example this target configuration builds the hypervisor for the beagleboard platform with the trusted application and linux kernel as guests. Some specific platforms can also be compiled for simulation on OVP, to do this, remove the comment from SIMULATION_OVP.   
 
-It is important to perform a Make clean before switching target platform or software, as old lingering object files will lead to bugs and errors.
+It is important to perform a Make clean 
+
+	make clean
+
+before switching target platform or software, as old lingering object files will lead to bugs and errors.
 
 
 ## Compiling
@@ -54,3 +58,9 @@ In order to build the Hypervisor, execute the Makefile located at the root of th
 	make
 
 This produces the file core/build/sth_*platform*.fw.img that includes the hypervisor and the hosted para-virtualized linux.
+
+When you want to compile again with a different platform or software, do not forget to
+
+	make clean
+
+first.
