@@ -30,7 +30,7 @@ typedef struct {
 static function_select_registers *fsel = 0;
 
 //Should delay the CPU with [count] cycles.
-static inline void delay(int32_t count){
+static inline void delay(uint32_t count){
 	asm volatile("__delay_%=: subs %[count], %[count], #1; bne __delay_%=\n"
 		 : : [count]"r"(count) : "cc");
 }

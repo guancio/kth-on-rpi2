@@ -41,18 +41,18 @@ cpu_callback irq_function_table[128] __attribute__ ((aligned (32)));
 static interrupt_registers *ireg = 0;
 static cpu_callback interrupt_handler = 0;
 
+/* static */ return_value default_handler(uint32_t r0, uint32_t r1, uint32_t r2){
+	printf("DEFAULT INTERRUPT HANDLER %x:%x:%x\n", r0, r1, r2);
+	return RV_OK;
+}
+
 static return_value interrupt_handler_stub(uint32_t irq, uint32_t r1, uint32_t r2 ){
 
     if(interrupt_handler){
     	interrupt_handler(irq, r1, r2);
 	}
 
-    return default_handler(uint32_t irq, uint32_t r1, uint32_t r2);
-}
-
-/* static */ return_value default_handler(uint32_t r0, uint32_t r1, uint32_t r2){
-	printf("DEFAULT INTERRUPT HANDLER %x:%x:%x\n", r0, r1, r2);
-	return RV_OK;
+    return default_handler(irq, r1, r2);
 }
 
 //Returns the number of different interrupt requests.
@@ -101,7 +101,7 @@ void cpu_irq_set_handler(int number, cpu_callback handler){
     }
 
     //Set handler
-    irq_function_table[n] = handler; 
+    irq_function_table[number] = handler; 
 }
 
 cpu_callback irq_handler();
@@ -124,14 +124,14 @@ void cpu_irq_acknowledge(int number){
 
 	//Check for invalid IRQ number and return function call if one 
 	//is found.
-    if(number < 0 || number >= IRQ_COUNT){
+    if(register_a < 0 || register_a >= IRQ_COUNT){
 		return;
 	}
 
 	//Check which registry entry the IRQ number belongs to.
-	register_b = number / 32;
+	register_b = register_a / 32;
 	//Check which bit the IRQ number belongs to.
-	register_c = number % 32;
+	register_c = register_a % 32;
 
 	//Acknowledge the IRQ (clear pending).
 	ireg->irq_pending[register_b] &= ~(1 << register_c);
@@ -200,7 +200,7 @@ void soc_interrupt_init(){
 
     int i; //Loop index
     interrupt_handler = (cpu_callback)irq_handler;
-    intc = (intc_registers *)IO_VA_ADDRESS(INTC_BASE);
+    ireg = (interrupt_registers *)IO_VA_ADDRESS(INTC_BASE);
 
     //TODO: This performs a software reset of the module. Since the 
 	//BCM2836 has no control register for interrupts, I'll just 
@@ -214,7 +214,7 @@ void soc_interrupt_init(){
 
     //Turn off all interrupts for now.
 	for(i = 0; i < (int)((IRQ_COUNT/32.0) + 0.5); ++i){
-		disable_irq[i] = 0xFFFFFFFF;
+		ireg->disable_irq[i] = 0xFFFFFFFF;
 	}
     for(i = 0; i < IRQ_COUNT; ++i) {
         //cpu_irq_set_enable(i, FALSE); <-- added loop above which 
