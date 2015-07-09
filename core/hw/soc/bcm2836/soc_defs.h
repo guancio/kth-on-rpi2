@@ -14,72 +14,14 @@
 #define INTC_BASE 0x3F00B200
 #define INTC_VIRT_BASE (IO_VA_ADDRESS(INTC_BASE))
 
-//Number of interrupt sources
+//Number of interrupt sources: 64 plus 8
 #define INTC_SOURCE_COUNT 64
-
-//Below might not be needed...
-/*
-#define INTC_SIR_IRQ_ADR 0x10
-#define INTC_SIR_FIQ_ADR 0x11
-#define INTC_CONTROL     0x12
-
-#define INTC_CONTROL_NEWIRQAGR (1 << 0)
-#define INTC_CONTROL_NEWFIQAGR (1UL << 1)
-#define INTC_SYSCONFIG_RESET (1UL << 1)
-#define INTC_SYSCONFIG_AUTOIDLE (1UL << 0)
-#define INTC_SYSSTATUS_RESET_DONE (1UL << 0)
-*/
 
 /* UART DEFINITIONS */
 //The base address of the UART.
 #define UART_BASE 0x3F201000
 
 #define UART_VA_BASE (IO_VA_ADDRESS(UART_BASE))
-
-/*
-#define UART_RHR 0
-#define UART_THR 0
-#define UART_LSR 5
-
-#define UART_LSR_TX_FIFO_E (1UL << 5)
-#define UART_LSR_RX_FIFO_E (1UL << 0)
-
-#define UART_SYSC_SOFTRESET (1UL << 1)
-
-#define UART_SYSS_RESETDONE (1UL << 0)
-
-#define UART_LCR_MODE_OP 0
-#define UART_LCR_MODE_A 0x80
-#define UART_LCR_MODE_B 0xBF
-
-#define UART_LCR_LENGTH_5 ( 0UL << 0)
-#define UART_LCR_LENGTH_6 ( 1UL << 0)
-#define UART_LCR_LENGTH_7 ( 2UL << 0)
-#define UART_LCR_LENGTH_8 ( 3UL << 0)
-
-#define UART_LCR_STOP_1  (0UL << 2)
-#define UART_LCR_STOP_15 (1UL << 2)
-
-#define UART_LCR_PARITY_EN (1UL << 3)
-#define UART_LCR_PARITY_ODD  (0UL << 4)
-#define UART_LCR_PARITY_EVEN (1UL << 4)
-#define UART_LCR_BREAK_EN (1UL << 6)
-#define UART_LCR_DIV_EN (1UL << 7)
-
-#define UART_MCR_DTR ( 1UL << 0)
-#define UART_MCR_RTS ( 1UL << 1)
-
-#define UART_FCR_FIFO_EN  (1UL << 0)
-#define UART_FCR_RX_CLEAR (1UL << 1)
-#define UART_FCR_TX_CLEAR (1UL << 2)
-
-#define UART_MDR1_MODE_DISABLE 7
-#define UART_MDR1_MODE_UART16 0
-
-#define UART_IER_SLEEP (1UL << 4)
-
-#define UART_EFR_ENHANCED_EN (1U << 4)
-*/
 
 /* CLOCKS */
 #define CLOCK_PER 0x3F101070
@@ -91,26 +33,6 @@
 #define CLOCK_PER_FCLKEN (0 / 4)
 #define CLOCK_PER_ICLKEN (0x10 / 4)
 #define CLOCK_PER_CLKSTST (0x4C / 4)
-*/
-
-/* GP IO */
-/*
-#define SMC_CONTROL 0x48002000
-#define SMC_CONTROL_PAD_CONFIG_BASE 0x48002030
-
-#define SMC_CONTROL_PAD_CONFIG_PULLENABLE (1UL << 3)
-#define SMC_CONTROL_PAD_CONFIG_PULLUP (1UL << 4)
-#define SMC_CONTROL_PAD_CONFIG_INPUTENABLE (1UL << 8)
-
-#define SMC_PAD_NUMBER_UART1_TX  166
-#define SMC_PAD_NUMBER_UART1_RTS 167
-#define SMC_PAD_NUMBER_UART1_CTS 168
-#define SMC_PAD_NUMBER_UART1_RX  169
-
-#define SMC_PAD_NUMBER_UART3_CTS 181
-#define SMC_PAD_NUMBER_UART3_RTS 182
-#define SMC_PAD_NUMBER_UART3_RX  183
-#define SMC_PAD_NUMBER_UART3_TX  184
 */
 
 /* DMA */
@@ -168,38 +90,17 @@
 */
 
 /* SOC interrupt sources */
-/*
-#define INTC_IRQ_SDMA_0 12
-#define INTC_IRQ_SDMA_1 13
-#define INTC_IRQ_SDMA_2 14
-#define INTC_IRQ_SDMA_3 15
-#define INTC_IRQ_GPTIMERn(n)  (36 + (n))
 
-#define INTC_IRQ_TIMER0 66
-#define INTC_IRQ_TIMER1_MS 67
-#define INTC_IRQ_TIMER2 68
-#define INTC_IRQ_TIMER3 69
-#define INTC_IRQ_TIMER4 92
-#define INTC_IRQ_TIMER5 93
-#define INTC_IRQ_TIMER6 94
-#define INTC_IRQ_TIMER7 95
+//TODO: Added 64 to all "basic" IRQs to distinguish them from others.
+#define AIC_IRQ_NUM_TIMER 0+64
+#define AIC_IRQ_NUM_MAILBOX 1+64
+#define AIC_IRQ_NUM_DOORBELL0 2+64
+#define AIC_IRQ_NUM_DOORBELL1 3+64
 
-#define INTC_IRQ_EDMACOMP 12
-#define INTC_IRQ_EDMAMPERR 13
-#define INTC_IRQ_EDMAERRINT 14
-*/
-
-
-//TODO: Added 32 to all "basic" IRQs to distinguish them from others.
-#define AIC_IRQ_NUM_TIMER 0+32
-#define AIC_IRQ_NUM_MAILBOX 1+32
-#define AIC_IRQ_NUM_DOORBELL0 2+32
-#define AIC_IRQ_NUM_DOORBELL1 3+32
-
-#define AIC_IRQ_NUM_GPU0HALT 4+32
-#define AIC_IRQ_NUM_GPU1HALT 5+32
-#define AIC_IRQ_NUM_ILLEGALACCESS1 6+32
-#define AIC_IRQ_NUM_ILLEGALACCESS0 7+32
+#define AIC_IRQ_NUM_GPU0HALT 4+64
+#define AIC_IRQ_NUM_GPU1HALT 5+64
+#define AIC_IRQ_NUM_ILLEGALACCESS1 6+64
+#define AIC_IRQ_NUM_ILLEGALACCESS0 7+64
 
 #define INTC_IRQ_AUX_INT 29
 #define INTC_IRQ_I2C_SPI_SLV_INT 43

@@ -50,6 +50,10 @@ impl_irq:
 	//Call store_context. //TODO: Why not store_context_keep_lr?
     store_context
     
+	///////////
+	//OLD CODE:
+	///////////
+
     //TODO: 2. Get current interrupt.
 	///////////////////////////////////////
 	//Load the virtual base address of the interrupt controller into
@@ -66,7 +70,6 @@ impl_irq:
 	//active IRQ.
     and r0, r0, #0x7f
     
-    //3. Clear/ack interrupt in some versions, or
     //3. Jump to handler.
 	//Load the address of the IRQ function table (array with all
 	//IRQ handlers) into r3.
@@ -87,7 +90,7 @@ impl_irq:
 	//the register r0.
     ldr r0, =INTC_VIRT_BASE
 	//TODO: There is no analogue of the below for BCM2836...
-	//Store an "1" at bit 0 in r1 (rest zeroes).
+	//Store a "1" at bit 0 in r1 (rest zeroes).
     ldr r1, =INTC_CONTROL_NEWIRQAGR
 	//Store r1 at the register with offset 4*INTC_CONTROL from the
 	//virtual base address of the interrupt controller. This is the
@@ -95,11 +98,60 @@ impl_irq:
 	//register resets IRQ output and enables new IRQ generation.
     str r1, [r0, #4 * INTC_CONTROL]
 
+	//////////////////
+	//NEW CODE (TODO):
+	//////////////////
+
+	//2. Decide if the interrupt is timer-related, UART-related, or neither.
+	//IRQ Basic pending address: 0xFA00B200
+	//IRQ pending address 0: 0xFA00B204
+	//IRQ pending address 1: 0xFA00B208
+
+		//Get the contents of the IRQ Basic pending register:
+		ldr r0, #0xFA00B200
+		ldr r0, [r0]
+
+		//Check if the Basic pending register has a pending timer interrupt:
+		and r0, r0, #0x1
+		cmp r0, #0x1 //If this is true then we have a timer interrupt
+		//Do something...
+
+		//Get the contents of the IRQ pending register 1:
+		ldr r0, #0xFA00B208
+		ldr r0, [r0]
+
+		//Check if the pending register 1 has a pending UART interrupt:
+		and r0, r0, #0x100000
+		cmp r0, #0x100000 //If this is true then we have a UART interrupt
+		//Do something...
+
+	//3. Jump to the correct handler.
+
+		//Somewhat similar to the previous code
+		//r0 has to be the IRQ number here...
+		ldr r3, =irq_function_table
+		ldr r12, [r3, r0, lsl #2]
+		blx r12
+	
+	//4. At this point, we can clear the pending UART or timer interrupts by
+	//writing to their registers (timer->tic and uart->icr).
+	//uart->icr: 0xFA201044 write: 0x1, timer->tic: 0xFA00B40C write: 0x7FF.
+	
+		//Clear pending UART interrupts.
+		ldr r0, #0xFA201044
+		ldr r0, #0x1
+
+		//Clear pending timer interrupts.
+		ldr r0, #0xFA00B40C
+		ldr r0, #0x7FF
+	//Hopefully step 4
+	//is not 100% crucial but specific to the concept of priority on other SoCs.
+
     //5. Restore context.
 	//Note: This code is shared with some other exception
 	//handlers.   
 exception_bottom:
-    restore_context    
+    restore_context
     movs pc, lr
 
 //Fast IRQ. We do not use this yet, so this is not needed yet.
@@ -122,7 +174,7 @@ impl_pabort:
 	///////////////////////////////////////
 	//Store address to interrupt data in r3.
     ldr r3, =family_callback_inst_abort
-	//TODO: ???       
+	//Resolve the value at the adress stored on the line above.     
     ldr r3, [r3]
 	//This stores the instruction fault address register (IFAR) in 
 	//r0.
@@ -155,7 +207,7 @@ impl_dabort:
 	///////////////////////////////////////
 	//Store address to interrupt data in r3.
     ldr r3, =family_callback_data_abort
-	//TODO: ??? 
+	//Resolve the value at the adress stored on the line above.s
     ldr r3, [r3]
     
     //Clear state of exclusive access monitors, used by kuser helpers
@@ -186,7 +238,7 @@ impl_undef:
 	///////////////////////////////////////
 	//Store address to interrupt data in r3.
     ldr r3, =family_callback_undef
-	//TODO: ??? 
+	//Resolve the value at the adress stored on the line above.
     ldr r3, [r3]
     
 	//Link register (function return point) is decremented by 4 and
@@ -214,7 +266,7 @@ impl_swi:
 	///////////////////////////////////////
 	//Store address to interrupt data in r3.
     ldr r12, =family_callback_swi
-	//TODO: ???
+	//Resolve the value at the adress stored on the line above.
     ldr r12, [r12]    
 
 
