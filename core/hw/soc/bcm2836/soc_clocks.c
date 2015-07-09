@@ -4,7 +4,6 @@
 
 //TODO: Apparently empty currently? How important is this?
 
-//TODO: Correct entries
 typedef struct {
 	uint32_t cr;
 	uint32_t pcer;

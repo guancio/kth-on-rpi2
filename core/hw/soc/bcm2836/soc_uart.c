@@ -1,6 +1,9 @@
 #include "hw.h"
 #include "soc_defs.h"
 
+//The UART on the BCM2836 chip is based on, but not identical to, the PL011
+//UART. It is described on page 175 onwards of the BCM2835 documentation.
+
 typedef struct {
     uint32_t dr; //Data Register
     uint32_t rsrecr; //???
