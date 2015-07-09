@@ -193,8 +193,8 @@
 //TODO: Added 32 to all "basic" IRQs to distinguish them from others.
 #define AIC_IRQ_NUM_TIMER 0+32
 #define AIC_IRQ_NUM_MAILBOX 1+32
-#define AIC_IRQ_NUM_DOORBELL 2+32
-#define AIC_IRQ_NUM_DOORBELL 3+32
+#define AIC_IRQ_NUM_DOORBELL0 2+32
+#define AIC_IRQ_NUM_DOORBELL1 3+32
 
 #define AIC_IRQ_NUM_GPU0HALT 4+32
 #define AIC_IRQ_NUM_GPU1HALT 5+32

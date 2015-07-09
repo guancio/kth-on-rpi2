@@ -6,14 +6,14 @@
 
 typedef struct {
     uint32_t tl; //Timer load register
-	tv; //Timer Value register
-	tc; //Timer control register
-	tic; //Timter IRQ clear register
-	tri; //Timer Raw IRQ register
-	tmi; //Timer Masked IRQ register
-	tr; //Timer Reload register
-	tpd; //The timer pre-divider register (not in ARM SP804)
-	fr; //Free running counter (not in ARM SP804)
+	uint32_t tv; //Timer Value register
+	uint32_t tc; //Timer control register
+	uint32_t tic; //Timer IRQ clear register
+	uint32_t tri; //Timer Raw IRQ register
+	uint32_t tmi; //Timer Masked IRQ register
+	uint32_t tr; //Timer Reload register
+	uint32_t tpd; //The timer pre-divider register (not in ARM SP804)
+	uint32_t fr; //Free running counter (not in ARM SP804)
 } volatile timer_registers;
 
 static timer_registers *timer = 0;
@@ -34,9 +34,9 @@ void timer_tick_start(cpu_callback handler){
     uint32_t register_a;
     
 	//Disable timer and timer interrupt.
-	register_a = timer->tcr;
+	register_a = timer->tc;
 	register_a &= ~((1<<5)|(1<<7)); //Could write decimal 5 shifted 5 instead
-    timer->tcr = register_a;
+    timer->tc = register_a;
     
 	//To remove pending interrupts, just write anything to Timer IRQ clear
 	//register
@@ -56,7 +56,7 @@ void timer_tick_start(cpu_callback handler){
     ////enable timer
     ////timer->channels[1].ier = (1UL << 4);
 	//Enable timer.
-	timer->tcr = (1 << 5)|(1 << 7);
+	timer->tc = (1 << 5)|(1 << 7);
 	//Enable IRQ.
     cpu_irq_set_enable(AIC_IRQ_NUM_TIMER, TRUE);        
     
@@ -68,10 +68,11 @@ void timer_tick_start(cpu_callback handler){
 
 //Stops the timer.
 void timer_tick_stop(){
+	uint32_t register_a;
     //Disable timer clock and interrupts.
-	register_a = timer->tcr;
+	register_a = timer->tc;
 	register_a &= ~((1<<5)|(1<<7)); //Could write decimal 5 shifted 5 instead
-    timer->tcr = register_a; 
+    timer->tc = register_a; 
 }
 
 //Initializes the timer.
@@ -84,11 +85,11 @@ void soc_timer_init(){
     
     timer = ms->vadr;
 	#endif
-
+	uint32_t register_a;
 	timer = (timer_registers *)IO_VA_ADDRESS(TIMER_BASE);
     //Disable timer clock and interrupts.
-    register_a = timer->tcr;
+    register_a = timer->tc;
 	register_a &= ~((1<<5)|(1<<7)); //Could write decimal 5 shifted 5 instead
-    timer->tcr = register_a;
+    timer->tc = register_a;
 
 }
