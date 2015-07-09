@@ -1,6 +1,9 @@
 #include <family_context_top.inc>
 #include "soc_defs.h"
 
+//http://www.ti.com/lit/ug/spruf98y/spruf98y.pdf Chapter 10 contains
+//information about the interrupt controller of OMAP 3550.
+
 	.global impl_irq
 	.global impl_fiq
 	.global impl_swi
@@ -12,39 +15,69 @@
     .align 4
     .section .vector, "ax"
 
- /*
-  * system exception handlers
-  */
-   
+//System exception handlers:
+  
+//Implementation of normal interrupt handling.
+//Occurs when IRQ input asserted.
 impl_irq:
-    /* 1. save context */
+    //1. Save context.
+	//////////////////
+	//Link register (function return point) is decremented by 4.
     sub lr, lr, #4
+	//Call store_context.
     store_context
 
-    /* 2. get current interrupt and call it */
+    //2. Get current interrupt and call it.
+	///////////////////////////////////////
+	//Load the virtual base address of the interrupt controller into
+	//the register r0.
     ldr r0, =INTC_VIRT_BASE
+	//At the virtual base address of the IC, go forward in memory
+	//4*INTC_SIR_IRQ_ADR bytes, where INTC_SIR_IRQ_ADR is the
+	//offset to the INTCPS_SIR_IRQ register, and load 32 bits at
+	//that location into r1.
     ldr r0, [r0, #4 * INTC_SIR_IRQ_ADR]
+	//Binary-AND r0 with 0111 1111: grab the first seven bits of r0.
+	//The first seven bits of r0 is the number of the currently
+	//active IRQ.
     and r0, r0, #0x7f
 
-    /* 3. jump to handler */
+    //3. Jump to handler.
+	//Load the address of the IRQ function table (array with all
+	//IRQ handlers) into r3.
     ldr r3, =irq_function_table
+	//We use a scaled register offset to load the 32 bits at address
+	//r3 + (r0 left shifted two positions (*2^2), zeros in new
+	//positions) into r12.
+	//Since r3 is the IRQ function table and r0 the active IRQ
+	//number, we get the corresponding entry in the table.
+	//We left shift because the table has 32-bit entries, but we
+	//count in bytes.
     ldr r12, [r3, r0, lsl #2]
+	//Branch to r12 with link, and exchange instruction set.
     blx r12
 
-    /* 4. reset interrupt */
+    //4. Reset interrupt.
+	//Load the virtual base address of the interrupt controller into
+	//the register r0.
     ldr r0, =INTC_VIRT_BASE
+	//Store an "1" at bit 0 in r1 (rest zeroes).
     ldr r1, =INTC_CONTROL_NEWIRQAGR
+	//Store r1 at the register with offset 4*INTC_CONTROL from the
+	//virtual base address of the interrupt controller. This is the
+	//INTCPS_CONTROL register and writing an "1" into bit 0 of this
+	//register resets IRQ output and enables new IRQ generation.
     str r1, [r0, #4 * INTC_CONTROL]
         
-    /* 5. restore context 
-     * note: this code is shared with some other
-     * exception handlers */    
+    //5. Restore context.
+	//Note: This code is shared with some other exception
+	//handlers.     
 exception_bottom:
     restore_context    
     movs pc, lr
     
 impl_fiq:
-/* TODO */
+	/* TODO */
     b .
 
 impl_pabort:
