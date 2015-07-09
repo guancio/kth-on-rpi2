@@ -50,7 +50,7 @@ impl_irq:
 	//Call store_context. //TODO: Why not store_context_keep_lr?
     store_context
     
-    //2. Get current interrupt.
+    //TODO: 2. Get current interrupt.
 	///////////////////////////////////////
 	//Load the virtual base address of the interrupt controller into
 	//the register r0.
@@ -59,6 +59,7 @@ impl_irq:
 	//4*INTC_SIR_IRQ_ADR bytes, where INTC_SIR_IRQ_ADR is the
 	//offset to the INTCPS_SIR_IRQ register, and load 32 bits at
 	//that location into r1.
+	//TODO: There is no analogue in BCM2836.
     ldr r0, [r0, #4 * INTC_SIR_IRQ_ADR]
 	//Binary-AND r0 with 0111 1111: grab the first seven bits of r0.
 	//The first seven bits of r0 is the number of the currently
@@ -81,10 +82,11 @@ impl_irq:
 	//Branch to r12 with link, and exchange instruction set.
     blx r12
 
-    //4. Reset interrupt.
+    //TODO: 4. Reset interrupt.
 	//Load the virtual base address of the interrupt controller into
 	//the register r0.
     ldr r0, =INTC_VIRT_BASE
+	//TODO: There is no analogue of the below for BCM2836...
 	//Store an "1" at bit 0 in r1 (rest zeroes).
     ldr r1, =INTC_CONTROL_NEWIRQAGR
 	//Store r1 at the register with offset 4*INTC_CONTROL from the
