@@ -148,6 +148,8 @@ int main(int argc, char **argv)
     int i;
     char command;
     
+	//fprintf(stderr, "Inside guest helper...\n");
+
     if(argc < 3) {
         fprintf(stderr, "Usage %s <command> <guests>\n", argv[0]);
         return 3;
@@ -159,6 +161,8 @@ int main(int argc, char **argv)
     argc -= 2;
     parse_guests(argc, argv);
     
+	//fprintf(stderr, "Guest info parsed.\n");
+
     switch(command) {
     case 'b': 
         print_bin();

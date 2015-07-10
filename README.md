@@ -21,24 +21,26 @@ When building the STH hypervisor, all output files will be stored together in th
 
 ## Configuring 
 
-The hypervisor can be built for different platforms and this is specified in the target file in the root source tree. Exactly one of the PLATFORM and one of the SOFTWARE needs to be defined in order to build successfully. 
+The hypervisor can be built for different platforms, and this is configured in the target file in the root source tree. Exactly one of the PLATFORM and one of the SOFTWARE needs to be defined in order to build successfully. 
 
 	- # -*- Makefile -*-
 	- # Target configuration
 	- #PLATFORM=ovp_arm9
 	- #PLATFORM=ovp_integratorCP
 	- #PLATFORM=u8500_ref
-	- PLATFORM=beagleboard
+	- #PLATFORM=beagleboard
 	- #PLATFORM=beaglebone
+	- PLATFORM=raspberrypi2
 
 	- #SOFTWARE=minimal
-	- #SOFTWARE = trusted linux
-	- SOFTWARE = linux
-	
+	- SOFTWARE = trusted linux
+	- #SOFTWARE = linux
+	- #SOFTWARE = dtest trusted	
+
 	- #Enable this if you want to compile for OVP 
 	- #SIMULATION_OVP = 1
 
-For example this target configuration builds the hypervisor for the beagleboard platform with the trusted application and linux kernel as guests. Some specific platforms can also be compiled for simulation on OVP, to do this, remove the comment from SIMULATION_OVP.   
+For example, this target configuration builds the hypervisor for the Raspberry Pi 2 platform with the trusted application and the Linux kernel as guests. Some specific platforms can also be compiled for simulation on OVP, to do this, remove the comment from SIMULATION_OVP.
 
 It is important to perform a Make clean 
 
@@ -63,4 +65,4 @@ When you want to compile again with a different platform or software, do not for
 
 	make clean
 
-first.
+first, before you change the target file.

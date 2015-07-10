@@ -27,23 +27,37 @@
 This is a comprehensive guide that will cover all steps of adding compatibility with additional hardware for the STH. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. If you have any questions, please send an E-mail to the author.
 \section{Introduction}
 
-Start off by the file \texttt{target}. Add the new hardware as a new target configuration. Here, you will also need to decide what the name of your new configuration will be - choose wisely.
+Start off by the file \texttt{target}. Add the new hardware as a new \texttt{PLATFORM} configuration. Here, you will also need to decide what the name of your new platform will be - choose wisely.
 
 \section{bin}
+
+This directory contains no files that you need to modify.
 
 \section{core}
 
 \section{doc}
 
+This is simply the directory of documentation. If you want to write documentation which does not fit as comments inside the code or in a README file in your directory, you should add it here.
+
 \section{drivers}
+
+This directory contains drivers used by guests. Currently, the only driver used is for the UART of the SoC. You will need to add a new sub-directory with the name of your new platform.
 
 \section{guests}
 
+This directory contains the various guest operative systems. You probably do not need to change anything here, if you do not want to make your own custom guest to perform tests.
+
 \section{library}
+
+This directory contains no files that you need to modify, if you are not building your own guest.
 
 \section{rpi2-port}
 
+This directory contains files which are helpful when getting Raspberry Pi 2 to work with U-Boot, serial communication, and JTAG. Nothing which you need to change, but if you port it to a new platform you might want to create a similar library.
+
 \section{simulation}
+
+This directory contains files related to simulation. You do not need to change anything here unless you are interesting in simulation.
 
 \section{templates}
 Take a look inside the \texttt{templates} directory. This directory contains three sub-directories (\texttt{cpu}, \texttt{make} and \texttt{platform}).
@@ -56,6 +70,10 @@ Take a look inside the \texttt{templates} directory. This directory contains thr
 
 \section{test}
 
+This folder contains some unit testing tools. Nothing you need to change, but some things can be useful when porting to new hardware.
+
 \section{utils}
+
+This directory contains no files that you need to modify, if you are not writing your own guest.
 
 \end{document}
