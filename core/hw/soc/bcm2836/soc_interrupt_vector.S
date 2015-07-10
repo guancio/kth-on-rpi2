@@ -106,50 +106,79 @@ impl_irq:
 	//IRQ Basic pending address: 0xFA00B200
 	//IRQ pending address 0: 0xFA00B204
 	//IRQ pending address 1: 0xFA00B208
+	//In order to do this, we use a "switch" statement.
+	//This switch statement can be easily expanded upon with more interrupts.
+	//TODO: Replace hard-coded addresses with pre-DEFINEd ones.
 
 		//Get the contents of the IRQ Basic pending register:
 		ldr r0, #0xFA00B200
 		ldr r0, [r0]
 
-		//Check if the Basic pending register has a pending timer interrupt:
-		and r0, r0, #0x1
-		cmp r0, #0x1 //If this is true then we have a timer interrupt
-		//Do something...
-
 		//Get the contents of the IRQ pending register 1:
-		ldr r0, #0xFA00B208
-		ldr r0, [r0]
+		ldr r1, #0xFA00B204
+		ldr r1, [r1]
 
-		//Check if the pending register 1 has a pending UART interrupt:
-		and r0, r0, #0x100000
-		cmp r0, #0x100000 //If this is true then we have a UART interrupt
-		//Do something...
+		//Get the contents of the IRQ pending register 2:
+		ldr r2, #0xFA00B208
+		ldr r2, [r2]
 
-	//3. Jump to the correct handler.
+		case_1:
+			//Check if the Basic pending register has a pending timer interrupt:
+			//Binary AND with 1 in position 0, rest zeroes
+			and r3, r0, #0x1
+			cmp r3, #0x1 //If this is true then we have a timer interrupt
+			//If true, Set r0 to IRQ number 64 (0 among basic registers)
+			bne case_2 //Branches to next if cmp is false
+			//Code for case 1 here
+			ldr r0, #64
+			//3. Jump to the correct handler.
+			//Somewhat similar to the previous code
+			//r0 has to be set to the IRQ number before this...
+			ldr r3, =irq_function_table
+			ldr r12, [r3, r0, lsl #2]
+			blx r12
 
-		//Somewhat similar to the previous code
-		//r0 has to be the IRQ number here...
-		ldr r3, =irq_function_table
-		ldr r12, [r3, r0, lsl #2]
-		blx r12
-	
-	//4. At this point, we can clear the pending UART or timer interrupts by
-	//writing to their registers (timer->tic and uart->icr).
-	//uart->icr: 0xFA201044 write: 0x1, timer->tic: 0xFA00B40C write: 0x7FF.
-	
-		//Clear pending UART interrupts.
-		ldr r0, #0xFA201044
-		ldr r0, #0x1
+			//Clear pending timer interrupts.
+			//Write 0x7FF to timer->tic
+			ldr r0, #0xFA00B40C
+			ldr r1, #0x7FF
+			str r1, [r0]
 
-		//Clear pending timer interrupts.
-		ldr r0, #0xFA00B40C
-		ldr r0, #0x7FF
-	//Hopefully step 4
-	//is not 100% crucial but specific to the concept of priority on other SoCs.
+			//branch to after_switch
+			b after_switch
+		case_2:
+			//Check if the pending register 2 has a pending UART interrupt:
+			//Binary AND with 1 in position 5, rest zeroess
+			and r3, r2, #0x100000
+			cmp r3, #0x100000 //If this is true then we have a UART interrupt
+			//If true, Set r0 to IRQ number 57 (57 among "normal" registers)
+			bne case_default //Branches to next if cmp is false
+			//Code for case 2 here
+			ldr r0, #57
+			//3. Jump to the correct handler.
+			//Somewhat similar to the previous code
+			//r0 has to be set to the IRQ number before this...
+			ldr r3, =irq_function_table
+			ldr r12, [r3, r0, lsl #2]
+			blx r12
 
-    //5. Restore context.
-	//Note: This code is shared with some other exception
-	//handlers.   
+			//Clear pending UART interrupts.
+			//Write anything at all to uart->icr
+			ldr r0, #0xFA201044
+			ldr r1, #0x1
+			str r1, [r0]
+
+			//branch to after_switch
+			b after_switch
+		case_default:
+			//TODO: What the heck do we do here???
+			b after_switch
+		after_switch:
+			//TODO: What the heck do we do here???
+
+		//5. Restore context.
+		//Note: This code is shared with some other exception
+		//handlers.
 exception_bottom:
     restore_context
     movs pc, lr
