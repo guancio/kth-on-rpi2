@@ -200,7 +200,7 @@ void soc_interrupt_init(){
 
     int i; //Loop index
     interrupt_handler = (cpu_callback)irq_handler;
-    ireg = (interrupt_registers *)IO_VA_ADDRESS(INTC_BASE);
+    ireg = (interrupt_registers *)IO_VIRT_ADDRESS(INTC_BASE);
 
     //TODO: This performs a software reset of the module. Since the 
 	//BCM2836 has no control register for interrupts, I'll just 
