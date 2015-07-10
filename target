@@ -7,8 +7,8 @@
 #PLATFORM=beaglebone
 PLATFORM=raspberrypi2
 
-SOFTWARE=minimal
-#SOFTWARE = trusted linux
+#SOFTWARE=minimal
+SOFTWARE = trusted linux
 #SOFTWARE = linux
 
 #SOFTWARE = dtest trusted

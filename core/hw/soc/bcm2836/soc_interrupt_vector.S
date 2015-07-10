@@ -4,6 +4,11 @@
 //code that can be found in the entries of the IVT, instead of
 //looking for addresses to exception handlers. This is done elsewhere, though.
 
+/*
+#define _INTC_VIRT_IRQ_BASIC_PENDING 0xFA00B200
+#define _INTC_VIRT_IRQ_PENDING1 0xFA00B204
+#define _INTC_VIRT_IRQ_PENDING2 0xFA00B205
+*/
 #include "family_context_top.inc"
 #include "soc_defs.h"
 
@@ -70,7 +75,7 @@ impl_irq:
 		//Clear pending timer interrupts.
 		//Write 0x7FF(=0111 1111 1111) to timer->tic
 		ldr r0, =TIMER_VIRT_TIC
-		ldr r1, =#0x7FF
+		ldr r1, =0x7FF
 		str r1, [r0]
 
 		//branch to after_switch
@@ -94,14 +99,14 @@ impl_irq:
 		//Clear pending UART interrupts.
 		//Write anything at all to uart->icr
 		ldr r0, =UART_VIRT_ICR
-		ldr r1, =#0x1
+		ldr r1, =0x1
 		str r1, [r0]
 
 		//branch to after_switch
 		b after_switch
 	case_default:
 		//Set r0 to address to any default handler...
-		ldr r0, =#0x0
+		ldr r0, =0x0
 		//3. Jump to the correct handler.
 		//Somewhat similar to the previous code
 		//r0 has to be set to the IRQ number before this...

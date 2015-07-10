@@ -36,7 +36,7 @@ static inline void delay(uint32_t count){
 }
 
 //Enables writing to the GPIO pins we want to use.
-void soc_gppud_init(){
+void soc_gpio_init(){
 	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
 
 	//Control signal: Disable pull-up/pull-down on GPIO pin 

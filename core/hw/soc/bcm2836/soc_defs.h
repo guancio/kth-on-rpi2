@@ -8,7 +8,7 @@
 //48 + B2 = FA -> Virtual peripherals base address is 0xFA000000
 //             -> Offset is 0xBB000000
 #define IO_OFFSET				0xBB000000
-#define IO_VIRT_ADDRESS(x)		((x) + IO_OFFSET)
+#define IO_VA_ADDRESS(x)		((x) + IO_OFFSET)
 
 //The base address of the GPPUD registers.
 #define GPPUD_BASE 0x3F200094

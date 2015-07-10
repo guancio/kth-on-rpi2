@@ -50,7 +50,7 @@ void timer_tick_start(cpu_callback handler){
     //Assign handler.
     tick_handler = handler;
     cpu_irq_set_handler(INTC_IRQ_NUM_TIMER, (cpu_callback)tick_handler_stub);
-    soc_interrupt_set_configuration(INC_IRQ_NUM_TIMER,
+    soc_interrupt_set_configuration(INTC_IRQ_NUM_TIMER,
                                     6, TRUE, TRUE);
     
     ////enable timer
@@ -58,7 +58,7 @@ void timer_tick_start(cpu_callback handler){
 	//Enable timer.
 	timer->tc = (1 << 5)|(1 << 7);
 	//Enable IRQ.
-    cpu_irq_set_enable(INC_IRQ_NUM_TIMER, TRUE);        
+    cpu_irq_set_enable(INTC_IRQ_NUM_TIMER, TRUE);        
     
 	//TODO: What do the below lines do and are they essential?
     ////timer->channels[1].ccr = 0x1;
@@ -86,7 +86,7 @@ void soc_timer_init(){
     timer = ms->vadr;
 	#endif
 	uint32_t register_a;
-	timer = (timer_registers *)IO_VIRT_ADDRESS(TIMER_BASE);
+	timer = (timer_registers *)IO_VA_ADDRESS(TIMER_BASE);
     //Disable timer clock and interrupts.
     register_a = timer->tc;
 	register_a &= ~((1<<5)|(1<<7)); //Could write decimal 5 shifted 5 instead
