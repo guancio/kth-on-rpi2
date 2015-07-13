@@ -148,7 +148,7 @@ int kernel_main (void){
 	//that bit (bits in GPPUDCLK1 are transposed by 32) for control.
 	//JTAG:		4 (Alt5: ARM_TDI), 22 (Alt4: ARM_TRST), 24 (Alt4: ARM_TDO), 25 (Alt4: ARM_TCK), 27 (Alt4: ARM_TMS)
 	//UART:		14 (Alt1: TXD0), 15 (Alt1: RXD0)
-	//LED:		47 (Alt1: OK LED)	
+	//LED:		47 (Alt1: OK LED)
 	write_to_address(GPPUDCLK0,(1<<4)|(1<<14)|(1<<15)|(1<<22)|(1<<24)|(1<<25)|(1<<27));
 	write_to_address(GPPUDCLK1,(1<<15));
 	//Delay for at least 150 CPU cycles (holding time of control signal).

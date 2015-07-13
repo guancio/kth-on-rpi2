@@ -25,7 +25,8 @@
 #define AMOUNT_OF_USER_RAM 0x500000
 
 //Here, we reserve RAM space for stuff.
-//Physical addresses of RPi2 RAM range from 0x00000000 to 0x3effffff. (NOTE: 16MB disappeared! This should be so.)
+//Physical addresses of RPi2 RAM range from 0x00000000 to 0x3e000000, counting
+//with the 64 MiB reserved for the GPU.
 
 //These are the addresses of peripherals, and the address spaces of the different RAM areas.
 memory_layout_entry memory_padr_layout[] =
@@ -44,7 +45,14 @@ memory_layout_entry memory_padr_layout[] =
 	//	Bus addresses of the ARM interrupt register are 0x7E00B000 to
 	//	0x7E00B227 (RPi1), I think (offset to first is 0x200)
 	//	For Raspberry Pi 2, we just change "7E" to "3F".
-	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00B227),
+	{ADDR_TO_PAGE(0x3F00B200), ADDR_TO_PAGE(0x3F00B227),
+	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
+
+	//GPIO
+	//	Bus addresses of the GPIO registers are 0x7E200000 to
+	//	0x7E2000B3 (RPi1).
+	//	For Raspberry Pi 2, we just change "7E" to "3F".
+	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F2000B3),
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//Read-only address ranges
@@ -55,10 +63,11 @@ memory_layout_entry memory_padr_layout[] =
 	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F003021),
 	MLT_IO_RO_REG, MLF_READABLE},
+	
 	//	Addresses of the ARM timer are between 0x7E00B000 and 0x7E00B423
 	//	(offset to first is 0x400)
 	//	For Raspberry Pi 2, we just change "7E" to "3F".
-	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00B423),
+	{ADDR_TO_PAGE(0x3F00B400), ADDR_TO_PAGE(0x3F00B423),
 	MLT_IO_RO_REG, MLF_READABLE},
 	////////////////////////////////////////////////////////////////////////
 

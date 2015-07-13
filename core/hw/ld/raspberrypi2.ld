@@ -1,14 +1,21 @@
 __page_size__ = 0x1000; /* 4KiB page size */
+
 /*TODO: Is this the address where we start inserting the program into RAM? Should be immediately after U-Boot if using U-Boot or at 0x0 if not using U-Boot.*/
-__ram_start__ = 0x80000000;
-/*TODO: Is this the address where we stop inserting the program into RAM? */
-__ram_end__   = 0x88000000;
-/*This looks to be overwritten later on...*/
+/* TODO: Unclear if this is the physical address of RAM or the offset from 0x8000. */
+__ram_start__ = 0x0;
+
+/*TODO: Unused??? */
+/* 3BF00000 is memory end minus 65MiB. */
+/* 40000000 is memory end */
+__ram_end__   = 0x40000000;
+
+/*This looks like if it is overwritten later on...*/
 __hyperstack_top__ = 0x100000 - 4; /* Hypervisor stack located at end of hypervisor address */
 
+/* Since 64MiB is reserved for the GPU at end and 32KiB for bootloader at start, we get 1024-64-1=959 */
 MEMORY 
 {
-    RAM : org = 0x8000C000, l = 127M
+    RAM : org = 0x8000, l = 959M
 }
 
 ENTRY(_start) 

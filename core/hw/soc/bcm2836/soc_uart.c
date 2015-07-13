@@ -49,17 +49,17 @@ void stdio_write_char(int c){
 //This function is called when waiting to be able to write.
 //Returns TRUE if you can, FALSE otherwise.
 extern int stdio_can_write(){
-	//Binary AND of the Flag Register and a "1" in bit 6 (counting from right to
+	//Binary AND of the Flag Register and a "1" in bit 5 (counting from right to
 	//left, starting at zero). If that bit isn't set, you can write to the UART.
-    return (uart->fr & (1 << 6)) == 0;            
+    return (uart->fr & (1 << 5)) == 0;            
 }
 
 //This function is called when waiting to be able to write.
 //Returns TRUE if you can, FALSE otherwise.
 extern int stdio_can_read(){
-	//Binary AND of the Flag Register and a "1" in bit 5 (counting from right to
+	//Binary AND of the Flag Register and a "1" in bit 4 (counting from right to
 	//left, starting at zero). If that bit isn't set, you can read from the UART.
-	return (uart->fr & (1 << 5)) == 0;
+	return (uart->fr & (1 << 4)) == 0;
 }
 
 //This function reads a char from the UART.

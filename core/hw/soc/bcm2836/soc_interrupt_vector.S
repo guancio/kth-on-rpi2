@@ -4,11 +4,6 @@
 //code that can be found in the entries of the IVT, instead of
 //looking for addresses to exception handlers. This is done elsewhere, though.
 
-/*
-#define _INTC_VIRT_IRQ_BASIC_PENDING 0xFA00B200
-#define _INTC_VIRT_IRQ_PENDING1 0xFA00B204
-#define _INTC_VIRT_IRQ_PENDING2 0xFA00B205
-*/
 #include "family_context_top.inc"
 #include "soc_defs.h"
 
