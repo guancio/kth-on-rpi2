@@ -140,10 +140,10 @@ Start by cloning the GitHub repository \texttt{raspberrypi/firmware} (if you hav
 First, we have to download U-Boot. Download it by executing the command
 
 \begin{verbatim}
-git clone git://git.denx.de/u-boot.git
+git clone https://github.com/swarren/u-boot.git
 \end{verbatim}
 
-which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{make all -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card.
+which will create U-Boot to a directory at your current location. After that is done, we get the required cross-compiler by \texttt{sudo apt-get install gcc-arm-linux-gnueabihf}. Also install U-Boot tools with \texttt{sudo apt-get install u-boot-tools}. Now open a terminal window in the folder you have U-Boot in, and execute the command \texttt{make rpi\_2\_defconfig}, followed by \texttt{CROSS\_COMPILE=arm-linux-gnueabihf- make -j8}. After the build is finished, copy all files starting with \texttt{u-boot} to your SD card.
 
 Next, you will need to create a script that U-Boot will run once it is started. Create a file called \texttt{boot.scr}, and enter the following:
 
@@ -171,7 +171,7 @@ It might also be worth noting that \texttt{usb start} scans bus 0 for storage an
 
 This bootscript presupposes that you have a monitor connected to the RPi2 via a HDMI cable. If you instead rely on serial connection to see what is happening (not recommended at this point), you should replace \texttt{console=tty0} with \texttt{console=ttyAMA0} (or simply use both). Bootargs usually also sets properties of the file system, but since we are not using it in our trivial examples, it is not needed here.
 
-Now that we have written the bootscript, we want to convert it to an image. Do so by executing the command \texttt{mkimage -A arm -O linux -T script -C none -n Boot Script -d boot.scr boot.scr.uimg}. The result will be stored in \texttt{boot.scr.uimg} - transfer this file to your SD card.
+Now that we have written the bootscript, we want to convert it to an image. Do so by executing the command \texttt{mkimage -A arm -O linux -T script -C none -n boot\_script -d boot.scr boot.scr.uimg}. The result will be stored in \texttt{boot.scr.uimg} - transfer this file to your SD card.
 
 Now, you can eject your SD card and place it in your RPi2.
 

@@ -1,9 +1,12 @@
 #include <stddef.h>
+#include <string.h>
+#include <stddef.h>
+#include <stdint.h>
 
 //Function prototypes and imports
 extern void write_to_address(unsigned int, unsigned int);
 extern unsigned int read_from_address(unsigned int);
-extern void delay(unsigned int);
+extern void delay();
 
 ////////////////////////////////////////////////////////////////////////////////
 ////                     DEFINES
@@ -91,13 +94,16 @@ extern void delay(unsigned int);
 //			UART FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
 
+
 //Returns the length of a C-style string.
 size_t strlen(const char* str){
 	size_t ret = 0;
-	while ( str[ret] != 0 )
+	while (str[ret] != 0){
 		ret++;
+	}
 	return ret;
 }
+
 
 void uart_write_char(unsigned char byte){
 	//Wait for UART to become ready to transmit - wait while bit 5 in
@@ -120,29 +126,73 @@ unsigned char uart_getc(){
 
 //Writes all the chars in buffer to the UART.
 void uart_write_chars(const unsigned char* buffer, size_t size){
-	for (size_t i = 0; i < size; i++){
+	size_t i;
+	for (i = 0; i < size; i++){
 		uart_write_char(buffer[i]);
 	}
 }
 
 //Simply a wrapper for uart_write_chars
 void uart_write_string(const char* str){
+	
 	uart_write_chars((const unsigned char*) str, strlen(str));
 }
 
+//Disables the UART.
+void uart_disable(){
+
+	//Disable UART
+	write_to_address(UART0_CR, 0);
+
+	/*
+	//Empty RX FIFO if necessary
+	if (read_from_address(UART0_CR) & (1 << 0)) {
+		//Empty RX FIFO
+		while (!(read_from_address(UART0_FR) & (1 << 4)))
+			read_from_address(UART0_DR);
+
+		//Empty TX FIFO
+		while (!(read_from_address(UART0_FR) & (1 << 7)))
+			delay();
+
+		//Delay while busy
+		while (!(read_from_address(UART0_FR) & (1 << 3)))
+			delay();
+		
+		//Disable UART
+		write_to_address(UART0_CR, 0);
+	}
+	*/
+}
+
+void uart_init(){
+
+	//Clear interrupts...
+	write_to_address(UART0_ICR, 0x7FF);
+	//Set integer part of Baud rate divisor to 1.
+	write_to_address(UART0_IBRD, 1); //NOTE: Number not in hexadecimal
+	//Set fractional part of Baud rate divisor to 40.
+	write_to_address(UART0_FBRD, 40); //NOTE: Number not in hexadecimal
+	//Enable FIFO and set word length to 8.
+	write_to_address(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+	//Set all supported UART-related interrupt masks.
+	write_to_address(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
+	//Enable both transmission and reception over the UART.
+	write_to_address(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
-//			MAIN
+//			MISC FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-int kernel_main (void){
+void disable_gppud(){
 	unsigned int register_a;
-	unsigned int register_b;
-
 	//Control signal: Disable pull-up/pull-down on GPIO pin determined by GPPUDCLK
 	write_to_address(GPPUD,0);
 	//Delay for at least 150 CPU cycles (set-up time of control signal).
 	for(register_a = 0; register_a < 150; register_a++){
-		delay(register_a);
+		delay();
 	}
 	//Writing a "1" to a bit in GPPUDCLK0 or GPPUDCLK1 allows us to select
 	//that bit (bits in GPPUDCLK1 are transposed by 32) for control.
@@ -153,30 +203,18 @@ int kernel_main (void){
 	write_to_address(GPPUDCLK1,(1<<15));
 	//Delay for at least 150 CPU cycles (holding time of control signal).
 	for(register_a = 0; register_a < 150; register_a++){
-		delay(register_a);
+		delay();
 	}
 	//Remove the clock and control signal
+	//write_to_address(GPPUD,0);
 	write_to_address(GPPUDCLK0,0);
+	//write_to_address(GPPUDCLK1,0);
 
-	//Initialization of UART
-	//Disable the UART (if it should be enabled already).
-	write_to_address(UART0_CR, 0);
-	//Clear interrupts...
-	write_to_address(UART0_ICR, 0x7FF);
-	//Set integer part of Baud rate divisor to 1.
-	write_to_address(UART0_IBRD, 1); //NOTE: Number not in hexadecimal
-	//Set fractional part of Baud rate divisor to 40.
-	write_to_address(UART0_FBRD, 40); //NOTE: Number not in hexadecimal
-	//Enable FIFO and set word length to 8.
-	write_to_address(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
-	//Set all supported UART-related interrupt masks.
-	write_to_address(UART0_IMSC, (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
-	                       (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10));
-	//Enable both transmission and reception over the UART.
-	write_to_address(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+}
 
-	//Initialization of JTAG
-	//Set GPIO4 to alternative function 5 by writing to register at GPFSEL0s
+void jtag_init(){
+	unsigned int register_a;
+	//Set GPIO4 to alternative function 5 by writing to register at GPFSEL0
 	register_a = read_from_address(GPFSEL0);
 	register_a &= ~(7<<12); //gpio4
 	register_a |= 2<<12; //gpio4 alt5 ARM_TDI
@@ -194,14 +232,39 @@ int kernel_main (void){
 	register_a |= 3<<21; //alt4 ARM_TMS
 	write_to_address(GPFSEL2, register_a);
 
-	//Initialization of timer
+}
+
+void timer_init(){
+
 	write_to_address(ARM_TIMER_CTL, 0x00F90000);
 	write_to_address(ARM_TIMER_CTL, 0x00F90200);
 
-	//Initialize LED
+}
+
+void led_init(){
+	unsigned int register_a;
 	register_a = read_from_address(LED_GPFSEL);
 	register_a |= (1 << 21);
 	write_to_address(LED_GPFSEL, register_a);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//			MAIN
+////////////////////////////////////////////////////////////////////////////////
+
+int kernel_main (void){
+	unsigned int register_a;
+	unsigned int register_b;
+	
+	disable_gppud();
+	//TODO: WIP: uart_disable
+	//TODO: Only use if you use U-Boot.
+	//uart_disable();
+	uart_init();
+	jtag_init();
+
+	timer_init();
+	led_init();
 
 	//Infinite loop with timed blinks
 	register_b = read_from_address(ARM_TIMER_CNT);

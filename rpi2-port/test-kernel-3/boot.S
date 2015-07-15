@@ -20,11 +20,9 @@
 //WARNING: Do NOT change this code, or the magic number might jump out of place.
 .global _start
 _start:
-    mov sp, #0x8000
+    mov sp, #0x1000000
     bl kernel_main
 hang: b hang
-
-.section ".text.functions"
 
 //Do a nonsense operation one cycle.
 //Needed for when we want to do nothing for x number of cycles.

@@ -49,9 +49,13 @@ bottom of the directory tree) unless you are compiling a standalone kernel.
 Make sure you have prepared the tftpboot folder in advance, or change the target
 directory at the bottom of CMakeLists.txt.
 
-The test kernels are all meant for use with U-Boot, unless they are suffixed 
-with "-standalone", which means that the .img file created when compiling should simply replace kernel.img or
-kernel7.img on a SD card with just the RPi2 firmware.
+The test kernels are all meant for use with U-Boot, and in order to use them with only the default Raspberry Pi 2 bootloader, you need to change two things. First, you need to
+find the two instances of "0x1000000" in linker.ld. Replace them with "0x8000".
+The, you need to comment out the function "uart_disable" where it is called in
+kernel_main, in the file kernel.c. The .img file created when compiling should
+simply replace kernel.img or kernel7.img on a SD card with just the RPi2 firmware,
+so you might want to delete those from your SD card and rename your image file
+"kernel.img".
 
 boot.scr is a U-Boot boot script which should first be made an image by
 executing the command
