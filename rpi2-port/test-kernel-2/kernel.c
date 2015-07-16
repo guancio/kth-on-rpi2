@@ -146,7 +146,7 @@ int kernel_main (void){
 
 	//Initialization of UART
 	//Disable the UART (if it should be enabled already).
-	//TODO: Does not work if we are not in U-Boot.
+	//TODO: Below line does not work if we are not in U-Boot.
 	//write_to_address(UART0_CR, (0 << 0));
 
 	//The rest of initialization
