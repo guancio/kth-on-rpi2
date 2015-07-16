@@ -73,9 +73,13 @@ CMakeCache.txt
 CMakeFiles
 
 #Miscellaneous
+rpi2-port/boot.scr.uimg
 rpi2-port/test-kernel-1/Makefile
 rpi2-port/test-kernel-1/test-kernel-1
+rpi2-port/test-kernel-1/test-kernel-1.bin
 rpi2-port/test-kernel-2/Makefile
 rpi2-port/test-kernel-2/test-kernel-2
+rpi2-port/test-kernel-2/test-kernel-2.bin
 rpi2-port/test-kernel-3/Makefile
 rpi2-port/test-kernel-3/test-kernel-3
+rpi2-port/test-kernel-3/test-kernel-3.bin
