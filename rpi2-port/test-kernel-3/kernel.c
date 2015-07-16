@@ -259,7 +259,7 @@ int kernel_main (void){
 	disable_gppud();
 	//TODO: WIP: uart_disable
 	//TODO: Only use if you use U-Boot.
-	//uart_disable();
+	uart_disable();
 	uart_init();
 	jtag_init();
 

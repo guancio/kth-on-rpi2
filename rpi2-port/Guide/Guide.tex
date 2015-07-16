@@ -25,7 +25,7 @@
 \begin{document}
 \maketitle
 \noindent
-This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run and debug the SICS Thin Hypervisor~\cite{do14sth} for the Raspberry Pi 2. Ubuntu 15.04 was used in the writing of this guide, but expect similar behaviour on similar systems. If you have any questions, please send an E-mail to the author.
+This is a comprehensive guide that will cover all steps of bare-metal programming necessary to run and debug the SICS Thin Hypervisor~\cite{do14sth} for the Raspberry Pi 2. Ubuntu 15.04 was used in the writing of this guide, but expect similar behaviour on similar systems. Please open this .pdf file in a viewer which can display hyperlinks, as we provide links to various documentation files. If you have any questions, please send an E-mail to the author.
 
 Furthermore, I would like to thank Brian Sidebotham~\cite{sidebotham14guide} and David Welch~\cite{welch14guide} for their excellent guides for bare-metal programming on the Raspberry Pi 1 and 2.
 \section{Introduction}
@@ -53,7 +53,7 @@ The UART communicates via two GPIO pins on the ordinary RPi2 pin block. However,
 \section{Testing the equipment}
 First, we must make sure that all our equipment is functional. To do this, we first download NOOBS from the homepage of the Raspberry Pi Foundation~\cite{noobs}. NOOBS is an operating systems installer, which we will use to comfortably set up Raspbian for testing purposes.
 
-Simply format your SD card in the FAT32 file system (using for example \texttt{gparted}) and transfer the decompressed contents of the NOOBS folder to it, and you are ready to boot your RPi2 for the first time. Put your SD card in the RPi2, connect the Ethernet cable, the USB keyboard and mouse, the monitor, and then finally plug in the micro-USB cable (connected to your PC or to a USB power adapter of good quality on the other end) to supply power and your RPi2 will boot into NOOBS.
+Simply format your SD card in the FAT32 file system (using for example \texttt{gparted}, which can be obtained by \texttt{sudo apt-get install gparted} if you do not have it already) and transfer the decompressed contents of the NOOBS folder to it, and you are ready to boot your RPi2 for the first time. Put your SD card in the RPi2, connect the Ethernet cable, the USB keyboard and mouse, the monitor, and then finally plug in the micro-USB cable (connected to your PC or to a USB power adapter of good quality on the other end) to supply power and your RPi2 will boot into NOOBS.
 
 Install Raspbian, and inside Raspbian install the \texttt{screen} utility by typing \texttt{sudo apt-get install screen} in the terminal. Also install \texttt{screen} on the PC you are programming on in the same way.
 
@@ -66,7 +66,7 @@ Now it is time to connect the RPi2 to your computer with serial-to-USB converter
   \item \textbf{5V power}: Red. WARNING! Do not plug this cable in if you are also supplying power via a micro-USB cable - that might fry the RPi2. This cable is an alternate way of providing power to the RPi2 without using a micro-USB cable.
 \end{itemize}
 
-It is important to note that the pin layout of the RPi2 is closely resembles that of other versions, the difference being that it has more pins (40 compared to 26 for the RPi1). The 26 first pins counting from the pin closest to the SD card have the same functions. There are two ways of numbering the GPIO pins - using their GPIO numbers by which they are referred to by the computer, or using how they are physically ordered on the board, which might be a source of some confusion.
+It is important to note that the pin layout of the RPi2 is closely resembles that of other versions, the difference being that it has more pins (40 compared to 26 for the RPi1). The 26 first pins counting from the pin closest to the SD card have the same functions. There are two ways of numbering the GPIO pins - using their GPIO numbers by which they are referred to by the computer, or using how they are physically ordered on the board, a terminological detail which might be a source of some confusion.
 \begin{figure}[hb]
 \begin{center}
    \includegraphics[scale=0.3]{connection.png}
@@ -206,7 +206,7 @@ The setup is now complete. Plug in an Ethernet cable and a HDMI cable connected 
 If at any point you should shut down your computer, you will need to start the server again by writing \texttt{sudo /etc/init.d/xinetd restart}, and take a second look if the IP addresses in your boot script can still be used; otherwise you will need to change the bootscript, create the boot script image again, and transfer it to the SD card.
 
 \section{Setting up JTAG}
-Communicating over JTAG with you PC can be very useful when debugging code on an external device. We will therefore look into the matter of using a JTAG adapter for this purpose. In this guide, we will be using a FT2232H Mini-Module~\cite{ft2232h}~\cite{ft2232hmm}, which is very cheap, fast, and allows us to communicate both over UART and JTAG at the same time using only one adapter.
+Communicating over JTAG with your PC can be very useful when debugging code on an external device. We will therefore look into the matter of using a JTAG adapter for this purpose. In this guide, we will be using a FT2232H Mini-Module~\cite{ft2232h}~\cite{ft2232hmm}, which is very cheap, fast, and allows us to communicate both over UART and JTAG at the same time using only one adapter.
 
 First, we need to be sure that the hardware is working. The FT2232H Mini-Module has two pin blocks, which are distinguished by their names ``CN2'' and ``CN3'' (channel 2 and channel 3, respectively) which can be found at the edge of the pin blocks on both sides of the board. The pins on the blocks are physically numbered starting from the pin marked by a square on one side of the board as pin 1, the pin which is on the same row of two as pin 1 being pin 2, and so on. So one of the two long rows of the pin blocks consists of odd numbers, and vice versa.
 
@@ -305,15 +305,44 @@ git clone https://github.com/guancio/kth-on-rpi2
 
 if you have not already done so.
 
-Now, you will need to write a kernel which enables the pins you have connected your JTAG adapter for JTAG communication. One such example, which can be used with U-Boot as described above, can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder, named \texttt{test-kernel-3}. Start your RPi2 as described in the U-Boot section above (or use the test kernel \texttt{test-kernel-3-standalone} instead if you do not want U-Boot), and plug the USB cable connected to your FT2232H Mini-Module into your computer. You must then wait for the pins to be enabled for JTAG use. You can tell this is the case when the green ``OK'' LED is blinking with two-second intervals. Then, execute the command
+Now, you will need to write a kernel which enables the pins you have connected your JTAG adapter for JTAG communication. One such example, which can be used with U-Boot as described above, can be found in the GitHub repository \texttt{guancio/kth-on-rpi2}, in the \texttt{rpi2-port} folder, named \texttt{test-kernel-3}. Start your RPi2 as described in the U-Boot section above\footnote{If you do not want to use U-Boot, change all occurences of \texttt{0x1000000} in \texttt{linker.ld} to \texttt{0x8000} and make sure that the function \texttt{uart\_disable} is commented out inside the function \texttt{kernel\_main} inside \texttt{kernel.c}.}, and plug the USB cable connected to your FT2232H Mini-Module into your computer. You must then wait for the pins to be enabled for JTAG use. You can tell this is the case when the green ``OK'' LED is blinking steadily with one-second intervals. Then, execute the command
 
 \begin{verbatim}
 openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
 \end{verbatim}
 
-Your OpenOCD should now detect the processor of your debug target. It will list the number of processors, and their respective breakpoints and so on, and then wait. At this point, you want to open a new terminal window and connect to OpenOCD, for example by executing the command \texttt{telnet localhost 4444} to communicate via Telnet. That will put you in communication with OpenOCD and you will be able to execute a number of commands in that environment. First, try the command \texttt{help} to see what you can do. For a simple test, you can execute the command \texttt{targets} followed by \texttt{halt} and then \texttt{targets} again to verify that you can use JTAG. Execute the command \texttt{exit} to exit the Telnet connection.
+\subsection{Connecting to the OpenOCD server}
+Your OpenOCD should now detect the processor of your debug target. It will list the number of processors, and their respective breakpoints and so on, and then wait (not giving you the prompt back). To stop the execution of the server, press Ctrl+C - but do not do that until you are completely finished debugging!
 
-Now, we also want to be able to communicate via UART at the same time. At some point before you connect to OpenOCD and halt the processors (if you have already done this, shut down OpenOCD and remove power from your RPi2, then connect to power and re-connect OpenOCD as described above), you can connect to one of the channels of the adapter. Use \texttt{dmesg | grep usb} and look for lines which say \texttt{FTDI USB Serial Device converter now attached to ttyUSBX}, where \texttt{X} is an integer. If you have connected OpenOCD, you will see that one of these have been disconnected - that is where the adapter communicates via JTAG with OpenOCD. Connect to the remaining one using \texttt{sudo screen /dev/ttyUSBY 115200}, where \texttt{Y} is the number of the remaining connection. Using any of the test kernels described in this section, you should see the lines ``Hello, kernel world!'' and ``Goodbye, kernel world!'' printed alternately in perpetuity.
+At this point, you want to open a new terminal window and connect to the OpenOCD server you have set up, for example by executing the command \texttt{telnet localhost 4444} to communicate via Telnet. That will put you in communication with OpenOCD and you will be able to execute a number of commands in that environment. First, try the command \texttt{help} to see what you can do. For a simple test, you can execute the command \texttt{targets} followed by \texttt{halt} and then \texttt{targets} again to verify that you can use JTAG (you should see that the processors have been halted). Execute the command \texttt{exit} to exit the Telnet connection. Remember that the pins on the Raspberry Pi 2 are not configured as JTAG pins from the start, so if you reset your board by unplugging and plugging in the power, you might want also to re-connect with OpenOCD.
+
+\subsection{Using both UART and JTAG}
+Now, we also want to be able to communicate via UART at the same time. At some point before you connect to OpenOCD and halt the processors (if you have already done this, shut down OpenOCD and remove power from your RPi2, then connect to power and re-connect OpenOCD as described above), you can connect to one of the channels of the adapter. Use \texttt{dmesg | grep usb} and look for lines which say \texttt{FTDI USB Serial Device converter now attached to ttyUSBX}, where \texttt{X} is an integer. If you have connected OpenOCD, you will see that one of these have been disconnected - that is where the adapter communicates via JTAG with OpenOCD. Connect to the remaining one using \texttt{sudo screen /dev/ttyUSBY 115200}, where \texttt{Y} is the number of the remaining connection (if you are unsure, this problem is quickly solved by trial-and-error). Using any of the test kernels described in this section, you should see the lines ``Hello, kernel world!'' and ``Goodbye, kernel world!'' printed alternately in perpetuity.
+
+\subsection{Using JTAG with the GDB debugger}
+You might want some more easily accessible and more useful tools when debugging. One which is very easy to use is the GDB functionality in Emacs. You probably already have Emacs on your computer, if not, execute the command \texttt{sudo apt-get install emacs24} (where you might want to replace 24 with a higher version number). You will also need a cross-debugger. Get one by executing \texttt{sudo apt-get install gdb-arm-none-eabi}.
+
+Open Emacs. Press the ``meta'' button (Escape or maybe left Alt on your keyboard) and then x. You will get a prompt where you can write \texttt{gdb}, and press Enter. Upon doing that, you will get another prompt where something along the lines of \texttt{gdb -i=mi} is already filled in for you. Change this to \texttt{arm-none-eabi-gdb -i=mi}. GDB will now start. But once again press ``meta'' (Escape) and then x, type \texttt{gdb-many-windows} and then Enter. This will give you more frames, which is universally considered a good thing.
+
+Now, you need to connect to the OpenOCD server you have set up before. At the \texttt{(gdb)} prompt in one of the Emacs frames, write \texttt{target extended-remote localhost:3333}. You are now connected remotely to the OpenOCD server. This can be confirmed by looking at the OpenOCD server output in the other terminal window.
+
+To be able to debug successfully, you will need to know which processor core the registers you are looking at belongs to. At the \texttt{(gdb)} prompt, write \texttt{monitor cortex\_a smp\_gdb}. Now, in the terminal window with the OpenOCD server running, you should see something along the lines of \texttt{gdb coreid  0 -> -1}, where in this case we are looking at processor core zero. Now, this might not be the processor which is actually executing our program. To be sure you are looking at the right processor, you must set a breakpoint at an address inside your main program the processor will reach - this is done live in the GDB session, but first you must make some preparations.
+
+First, it will be handy to load the symbol file (the ELF file you created your binary from). Do this by executing the command \texttt{symbol-file path/to/file} at the \texttt{(gdb)} prompt, where \texttt{path/to/} is replaced by the path to your file relative to the home directory, and \texttt{file} is replaced by the name of your file. For example, the ELF file for our test kernel 3 is called simply \texttt{test-kernel-3}. 
+
+Second, you will need to look at the disassembly of your binary. Execute the command
+
+\begin{verbatim}
+arm-none-eabi-objdump -D test-kernel-3 > /tmp/test-kernel-3.asm
+\end{verbatim}
+
+and then open the resulting file for example by \texttt{gedit /tmp/test-kernel-3.asm}, where you substitute \texttt{text-kernel-3.asm} for the name of your disassembled binary and \texttt{gedit} for your favourite text viewer. In the disassembled code, you can see the ARM assembly instructions of all the different functions of your program, and which physical memory addresses these correspond to.
+
+In order to set a breakpoint, you can either use the name of a function (in which case the breakpoint will be reached immediately inside that function call) or a physical address (in which case you use the physical address, the leftmost number in the disassembly). Examples of commands you can use at the GDB prompt to set breakpoints are \texttt{b *0x1000020} to suspend a processor core reaching the address \texttt{0x1000020}, or \texttt{b strlen} to suspend the processor which calls \texttt{strlen}. When a core reaches a breakpoint and suspends execution, you will be handling that core automatically with your GDB-in-Emacs! To verify this, either look at the registers in their separate Emacs frames or execute \texttt{info registers} at the \texttt{(gdb)} prompt. The program counter (the \texttt{pc} register) should be at the address you put your breakpoint. Then, you know the registers you are looking at belong to the right processor.
+
+One thing we might be particularly interested in is changing the value of a register. This can be done through the command \texttt{set \$r0 = 0x4711}, where you can swap \texttt{r0} for the name of the register you want to change and \texttt{0x4711} for another value. Then, execute the command \texttt{c} to continue. When you are finished, execute \texttt{quit}.
+
+To a limited degree, you can also use the Emacs UI to toggle breakpoints and other things. There are a gazillion useful GDB commands. If you want to learn more, you can type \texttt{help} at the \texttt{gdb} prompt. 
 
 \bibliography{Guide}{}
 \bibliographystyle{acm}

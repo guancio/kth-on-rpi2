@@ -248,7 +248,7 @@ void guests_init()
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
     }
-    // END initialization of the MATER PAGE TABLE
+    // END initialization of the MASTER PAGE TABLE
     // START initialization of the FIRST guest PT
 
     // now the master page table is ready
@@ -375,22 +375,23 @@ void start_()
 {
     cpu_init();
 
-    /*Setting up pagetable rules */
+    /* Set up pagetable rules. */
     memory_init();
 
-    /* Initialize hardware */
+    /* Initialize hardware. */
     soc_init();
     board_init();
     
-    /* Setting up exception handlers and starting timer*/
+    /* Set up exception handlers and starting timer. */
     setup_handlers();
     
-    /* dmmu init */
+    /* DMMU initialization. */
     dmmu_init();
         
     /* Initialize hypervisor guest modes and data structures
      * according to config file in guest*/
     guests_init();
+
     /*Test crypto*/
 
     printf("Hypervisor initialized1.5\n Entering Guest\n");

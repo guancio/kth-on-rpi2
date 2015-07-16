@@ -36,8 +36,9 @@ void stdio_write_char(int c){
 		//This ensures us that no funny stuff happens with the registers other
 		//than the first 8, which are supposed to hold a character in byte
 		//format. TODO
-		char* byte = (char*)&c;
-        uart[UART_DR_OFFSET] = byte;      
+		//char* byte = (char*)&c;
+
+        uart[UART_DR_OFFSET] = c;      
     }
 }
 

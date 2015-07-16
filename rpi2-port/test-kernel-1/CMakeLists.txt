@@ -15,6 +15,13 @@ add_executable(test-kernel-1
 add_custom_command(
 	TARGET test-kernel-1 POST_BUILD
 	COMMENT "Converting the ELF output file to a binary image..." 
-	COMMAND ${CMAKE_OBJCOPY} ./test-kernel-1${CMAKE_EXECUTABLE_SUFFIX} -O binary /tftpboot/zImage
+	COMMAND ${CMAKE_OBJCOPY} ./test-kernel-1${CMAKE_EXECUTABLE_SUFFIX} -O binary ./test-kernel-1.bin
+	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+	)
+
+add_custom_command(
+	TARGET test-kernel-1 POST_BUILD
+	COMMENT "Converting the binary image into a uImage..." 
+	COMMAND mkimage -A arm -O linux -T kernel -C none -a 0x1000000 -e 0x1000000 -n test-kernel-1 -d ./test-kernel-1.bin /tftpboot/uImage
 	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 	)

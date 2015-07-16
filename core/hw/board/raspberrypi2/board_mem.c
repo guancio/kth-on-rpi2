@@ -2,11 +2,11 @@
 #include <mmu.h>
 
 //The base RAM address - definitely board-dependent.
-//If we want to access RAM directly, we use the physical addresses which start
-//at 0x0.
-#define BASE_RAM_ADDRESS 0x0
+//This is the physical address at which the bootloader boots the kernel, I think.
+#define BASE_RAM_ADDRESS 0x1000000
 
-//The amount of RAM that the hypervisor gets. This should really be centrally defined and not board-dependent.
+//The amount of RAM that the hypervisor gets. This should really be centrally
+//defined and not board-dependent.
 //TODO: How much does the hypervisor need?
 //Current amount:	4 MiB
 #define AMOUNT_OF_HYPERVISOR_RAM 0x400000
@@ -28,10 +28,10 @@
 //Physical addresses of RPi2 RAM range from 0x00000000 to 0x3e000000, counting
 //with the 64 MiB reserved for the GPU.
 
-//These are the addresses of peripherals, and the address spaces of the different RAM areas.
+//These are the addresses of peripherals, and the address spaces of the
+//different RAM areas.
 memory_layout_entry memory_padr_layout[] =
 {
-	//TODO: Do we need to have addresses of all the peripherals here?
 	////////////////////////////////////////////////////////////////////////
 	//Readable and writeable address ranges
 	//UART

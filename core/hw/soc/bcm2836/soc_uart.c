@@ -102,9 +102,12 @@ void soc_uart_init(){
 	//point (U-Boot, et.c.) we might want to disable it first, and then do setup
 
 	//TODO: Wait for end of transmission/reception - should be here??? Verify this works correctly.
+	/*
 	while (uart->fr & (1 << 7) == 0 || uart->fr & (1 << 4) == 0){
 		//Do nothing...
 	}
+	*/
+
 	//Disable the UART
 	uart->cr = 0;
 	//Flush the transmit FIFO

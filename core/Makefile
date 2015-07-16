@@ -48,7 +48,7 @@ CFLAGS += $(FLAG_DEFS)
 ASFLAGS += $(FLAG_DEFS)
 
 
-# guest rules, names are hard coded by .lds and other makefiles!
+#Guest rules, names are hard-coded by .lds and other makefiles!
 GUEST_ELFS=$(shell $(GHELPER) e $(GUESTS))
 GUEST_BINS=$(shell $(GHELPER) b $(GUESTS))
 
@@ -63,8 +63,9 @@ all: build/$(EXE).img build/$(EXE).bin build/$(EXE).fw build/$(EXE).fw.img
 build/$(EXE).img: build/$(EXE).bin
 	$(MKIMAGE) -A arm -O linux -T kernel -C none -a $(HAL_PHYS_START) -e $(HAL_PHYS_START) -n build/$(EXE) -d build/$(EXE).bin build/$(EXE).img
 
+#TODO: Change target for this function back to "build/$(EXE).fw.img" from current one.
 build/$(EXE).fw.img: build/$(EXE).fw
-	$(MKIMAGE) -A arm -O linux -T kernel -C none -a $(HAL_PHYS_START) -e $(HAL_PHYS_START) -n build/$(EXE) -d build/$(EXE).fw build/$(EXE).fw.img
+	$(MKIMAGE) -A arm -O linux -T kernel -C none -a $(HAL_PHYS_START) -e $(HAL_PHYS_START) -n build/$(EXE) -d build/$(EXE).fw /tftpboot/uImage
 
 build/$(EXE).bin: build/$(EXE).elf
 	$(OBJCOPY) build/$(EXE).elf -O binary build/$(EXE).bin

@@ -52,25 +52,25 @@ adr_undef: 	.word impl_undef
 	.section .startup, "ax"
 
 impl_reset:
-    /* Start in supervisor mode, disable interrupts */
+    /* Start in supervisor mode, disable interrupts. */
     msr CPSR_c, #ARM_MODE_SUPERVISOR | ARM_INTERRUPT_MASK
     ldr sp, =(__hyper_stack_top__ + HAL_OFFSET)
 
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader) */
     bl  arm_move_guest_blob
 
-    /* clean BSS */
+    /* Clean BSS. */
 	bl arm_clear_bss
 
-	/* Setup pages and switch to virtual memory*/
+	/* Setup pages and switch to virtual memory. */
 	bl arm_setup_initial_pt
 
-    /* setup real stacks now, run core init and reclaim the initial stacks */
+    /* Setup real stacks now, run core init and reclaim the initial stacks. */
 	bl arm_setup_initial_stack
 
-    /* Init rest of hypervisor in C */
+    /* Init rest of hypervisor in C. */
     bl start_
     
-    /* Should not be reached */
+    /* Should not be reached! */
 _hang:
 	bl .
