@@ -12,7 +12,7 @@
 /*
  * SANITY CHECKS:
  *
- * the code in this page makes some assumptions, check they are true
+ * The code in this page makes some assumptions, check they are true
  */
  
 #if (__hyper_pt_start__ & (1024 * 16-1)) != 0
@@ -39,7 +39,7 @@
 arm_setup_initial_pt:
 
 	/*Start with simplest possible needed to get sth running
- 	  in virtual addres
+ 	  in virtual address
  	  */
 
 	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)

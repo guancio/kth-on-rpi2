@@ -3,6 +3,7 @@
 
 //The base RAM address - definitely board-dependent.
 //This is the physical address at which the bootloader boots the kernel, I think.
+//TODO: This is the physical address at which the bootloader boots the kernel, I think. Or is it the start of the RAM?
 #define BASE_RAM_ADDRESS 0x1000000
 
 //The amount of RAM that the hypervisor gets. This should really be centrally

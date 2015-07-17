@@ -74,6 +74,7 @@ debug_loop: //(Put breakpoint here)
 	/* Setup pages and switch to virtual memory. */
 	bl arm_setup_initial_pt
 
+	/* From here on, you are in virtual memory! */
     /* Setup real stacks now, run core init and reclaim the initial stacks. */
 	bl arm_setup_initial_stack
 
