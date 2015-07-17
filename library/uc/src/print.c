@@ -10,7 +10,7 @@
  void printf_putchar(int c) { putchar(c); } /* direct all calls to stdio */
 
 #else
- // these are provided by the hardware
+ //printf_putchar is provided by the UART drivers.
  extern void printf_putchar(int c);
 #endif
 

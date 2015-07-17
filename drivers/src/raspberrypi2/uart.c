@@ -16,8 +16,10 @@
 //This type of allocation stores the BASE_REG on memory location BASE_UART2.
 static BASE_REG uart = (BASE_REG) UART_VA_BASE;
 
-//This function returns 1 (true) if the UART is ready for writing, and 0 if the UART is not ready for writing.
-//You can write as long as the transmit FIFO is not full, so we check the 6th bit of UART_FR.
+//This function returns 1 (true) if the UART is ready for writing, and 0 if the 
+//UART is not ready for writing.
+//You can write as long as the transmit FIFO is not full, so we check if the 6th
+//bit of UART_FR is set.
 int stdio_can_write(){
     if(uart) {
 		//If bit 5 is set, that means that the transmit FIFO is full. That
@@ -27,6 +29,8 @@ int stdio_can_write(){
     return 0;
 }
 
+//This function writes one character on the UART. Parameter is an int, even
+//though we only write to 8 bits.
 void stdio_write_char(int c){
     if(uart) {
         while(!stdio_can_write()){
@@ -42,6 +46,7 @@ void stdio_write_char(int c){
     }
 }
 
+//This function reads one character from input.
 int stdio_read_char(){
 	if(uart) {
 		while (!stdio_can_read()){
@@ -52,7 +57,8 @@ int stdio_read_char(){
 	return 0;
 }
 
-
+//This function returns 0 if we cannot read a character (if base register is
+//undefined or if there are no characters in the receive FIFO), and 1 otherwise.
 int stdio_can_read(){
 	if(uart){
 		//If bit 4 is set, that means that the receive FIFO is empty. That
@@ -62,7 +68,7 @@ int stdio_can_read(){
 	return 0;
 }
 
-
+//This wrapper function writes one character on the UART via stdio_write_char.
 void printf_putchar(char c){
     stdio_write_char(c);
 }

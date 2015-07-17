@@ -54,9 +54,18 @@ adr_undef: 	.word impl_undef
 impl_reset:
     /* Start in supervisor mode, disable interrupts. */
     msr CPSR_c, #ARM_MODE_SUPERVISOR | ARM_INTERRUPT_MASK
+	/* Stack pointer starts at the physical address of the hyper stack top. */
     ldr sp, =(__hyper_stack_top__ + HAL_OFFSET)
 
-    /* Guest is now loaded by smartLoader peripheral (OVP bootloader) */
+	//TEST:
+	/* Enables pins for writing and configures them for JTAG functionality */
+	bl debug_gpio_init
+	ldr r0, =0x47 //Set r0 to value.
+debug_loop: //(Put breakpoint here)
+	cmp r0, #0x11 //Compare r0 to 11.
+	blne debug_loop //Loop if r0 is not equal to 11.
+
+    /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
     bl  arm_move_guest_blob
 
     /* Clean BSS. */

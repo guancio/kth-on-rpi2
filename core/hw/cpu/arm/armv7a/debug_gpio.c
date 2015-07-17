@@ -31,9 +31,9 @@ typedef struct {
 static function_select_registers *fsel = 0;
 
 //Enables writing to the GPIO pins we want to use.
-void soc_gpio_init(){
+void debug_gpio_init(){
 	unsigned int register_a;
-	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
+	gppud = (gppud_registers *)GPPUD_BASE;
 
 	//Control signal: Disable pull-up/pull-down on GPIO pin 
 	//determined by GPPUDCLK.
@@ -70,7 +70,7 @@ void soc_gpio_init(){
 	//This is only needed for SoCs which do not have JTAG pins by default.
 	//////////////////////////////////////////////////////////////////////
 
-	fsel = (function_select_registers *)IO_VA_ADDRESS(GPFSEL_BASE);
+	fsel = (function_select_registers *)GPFSEL_BASE;
 
 	//Set GPIO4 to alternative function 5 by writing to GPFSEL0.
 	register_a = fsel->gpfsel0; //Now holds the 32 bits of register GPFSEL0.
