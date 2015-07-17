@@ -60,10 +60,6 @@ impl_reset:
 	//TEST:
 	/* Enables pins for writing and configures them for JTAG functionality */
 	bl debug_gpio_init
-	ldr r0, =0x47 //Set r0 to value.
-debug_loop: //(Put breakpoint here)
-	cmp r0, #0x11 //Compare r0 to 11.
-	blne debug_loop //Loop if r0 is not equal to 11.
 
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
     bl  arm_move_guest_blob
@@ -77,6 +73,12 @@ debug_loop: //(Put breakpoint here)
 	/* From here on, you are in virtual memory! */
     /* Setup real stacks now, run core init and reclaim the initial stacks. */
 	bl arm_setup_initial_stack
+
+	//TEST
+	ldr r0, =0x47 //Set r0 to value.
+debug_loop: //(Put breakpoint here)
+	cmp r0, #0x11 //Compare r0 to 11.
+	blne debug_loop //Loop if r0 is not equal to 11.
 
     /* Init rest of hypervisor in C. */
     bl start_
