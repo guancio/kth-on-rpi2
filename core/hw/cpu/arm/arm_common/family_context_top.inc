@@ -1,6 +1,6 @@
 /*
- * ARM context top file.
- * this file should be included on top of your exception handler
+ * ARM context top file
+ * This file should be included on top of your exception handler.
  * It contains the low level context handling definitions and macros.
  */
 
@@ -12,7 +12,7 @@
 
 
     /*
-     * saves context, modifies R12 and LR
+     * Saves context, modifies R12 and LR.
      */
      .macro store_context
      
@@ -37,7 +37,7 @@
 
 
     /*
-     * saves context, modifies R12 but retains LR
+     * Saves context, modifies R12 but retains LR.
      */
      .macro store_context_keep_lr
      

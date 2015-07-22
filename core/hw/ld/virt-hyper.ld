@@ -1,4 +1,5 @@
 __page_size__ = 4096;
+/* _start = 0xF0001000; TODO: This should perhaps be defined explicitly here... */
 
 MEMORY 
 {

@@ -8,7 +8,6 @@ typedef unsigned int uint32_t;
 typedef unsigned int addr_t; /* XXX: this wont work on 64-bit systems */
 typedef addr_t size_t;
 
-
 #define BOOL int
 #define FALSE 0
 #define TRUE 1

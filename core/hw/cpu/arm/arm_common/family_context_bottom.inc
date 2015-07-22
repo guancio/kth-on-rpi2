@@ -1,7 +1,7 @@
 /*
- * ARM context bottom file.
- * this file should be included at bottom of your exception handler
- * It contains the context structures and support functions
+ * ARM context bottom file
+ * This file should be included at bottom of your exception handler.
+ * It contains the context structures and support functions.
  */
 
 

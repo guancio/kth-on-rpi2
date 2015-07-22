@@ -54,8 +54,21 @@ static return_value default_catcher(uint32_t r0, uint32_t r1, uint32_t r2)
     
     printf("\nDC %x_%x_%x\n", r0, r1, r2);
     if(t) {
-        for(i = 0; i < 16; i++)
+		//Print the processor core registers.
+
+		//13 general-purpose registers...
+        for(i = 0; i < 13; i++){
             printf("R%d=%x\t", i, t->reg[i]);
+		}
+
+		//... the stack pointer, ...
+        printf("SP=%x\n\n", t->sp);
+		//... the link register, ...
+        printf("LR=%x\n\n", t->lr);
+		//... the program counter, ...
+        printf("PC=%x\n\n", t->pc);
+
+		//... and the program status register.
         printf("PSR=%x\n\n", t->psr);
     }
     

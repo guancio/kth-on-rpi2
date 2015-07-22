@@ -34,7 +34,9 @@ typedef union dmmu_entry {
     };
 } dmmu_entry_t;
 
-
+//TODO: The compiler drops the "__PACKED". This is because the bit sum is equal
+//		to the bit sum of uint32_t (32). So maybe that attribute should be
+//		removed...
 typedef __PACKED struct l1_pt
 {
   uint32_t typ          : 2;

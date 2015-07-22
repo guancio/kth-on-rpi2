@@ -69,18 +69,20 @@ impl_reset:
 
 	/* Setup pages and switch to virtual memory. */
 	bl arm_setup_initial_pt
+	/* From here on (more precisely, from a point at the end of above function), 
+	 * you are in virtual memory! */
 
-	/* From here on, you are in virtual memory! */
     /* Setup real stacks now, run core init and reclaim the initial stacks. */
 	bl arm_setup_initial_stack
 
 	//TEST
-	ldr r0, =0x47 //Set r0 to value.
+	ldr r0, =0x47 //Set r0 to 0x47.
 debug_loop: //(Put breakpoint here)
-	cmp r0, #0x11 //Compare r0 to 11.
-	blne debug_loop //Loop if r0 is not equal to 11.
+	cmp r0, #0x11 //Compare r0 to 0x11.
+	blne debug_loop //Loop if r0 is not equal to 0x11.
 
     /* Init rest of hypervisor in C. */
+	/* start_ can be found in core/hypervisor/init.c */
     bl start_
     
     /* Should not be reached! */

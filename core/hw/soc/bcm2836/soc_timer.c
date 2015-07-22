@@ -1,5 +1,8 @@
 #include "hw.h"
 #include "soc_defs.h"
+extern void soc_interrupt_set_configuration(int number, int priority, 
+                                     BOOL polarity,
+                                     BOOL level_sensitive);
 
 //The timer on the BCM2836 chip is based on, but not identical to, the ARM SP804
 //timer. It is described on page 196 onwards of the BCM2835 documentation.
@@ -50,8 +53,7 @@ void timer_tick_start(cpu_callback handler){
     //Assign handler.
     tick_handler = handler;
     cpu_irq_set_handler(INTC_IRQ_NUM_TIMER, (cpu_callback)tick_handler_stub);
-    soc_interrupt_set_configuration(INTC_IRQ_NUM_TIMER,
-                                    6, TRUE, TRUE);
+    soc_interrupt_set_configuration(INTC_IRQ_NUM_TIMER, 6, TRUE, TRUE);
     
     ////enable timer
     ////timer->channels[1].ier = (1UL << 4);

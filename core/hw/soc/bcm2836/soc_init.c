@@ -1,5 +1,9 @@
 #include <hw.h>
 #include <soc_defs.h>
+extern void soc_gpio_init();
+extern void soc_interrupt_init();
+extern void soc_timer_init();
+extern void soc_uart_init();
 
 //Initializes everything you need on the SoC.
 //TODO: Disable non-essential function calls here - or disable the content of 

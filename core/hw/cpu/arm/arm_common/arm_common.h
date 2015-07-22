@@ -98,11 +98,11 @@ typedef enum {
 /* CPU context */
 typedef struct context_
 {
-    uint32_t reg[13];
-    uint32_t sp;
-    uint32_t lr;
-    uint32_t pc;
-    uint32_t psr;
+    uint32_t reg[13]; //The 13 general-purpose registers of the ARM processor core.
+    uint32_t sp; //The stack pointer.
+    uint32_t lr; //The link register.
+    uint32_t pc; //The program counter.
+    uint32_t psr; //The program status register.
 } context;
 
 #endif /* ! __ASSEMBLER__ */

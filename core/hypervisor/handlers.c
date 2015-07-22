@@ -1,5 +1,12 @@
 #include <hw.h>
 #include "hypercalls.h"
+//TODO: Note: Added the below to avoid warnings.
+extern void hypercall_dyn_switch_mm(addr_t table_base, uint32_t context_id);
+extern void hypercall_dyn_free_pgd(addr_t *pgd_va);
+extern void hypercall_dyn_new_pgd(addr_t *pgd_va);
+extern void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc);
+extern void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t phys_pte);
+extern int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2);
 
 extern virtual_machine *curr_vm;
 
@@ -25,7 +32,7 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
         
 	//	debug("\tUser process made system call:\t\t\t %x\n",  curr_vm->mode_states[HC_GM_TASK].ctx.reg[7] );
 		change_guest_mode(HC_GM_KERNEL);
-		/*The current way of saving context by the hypervisor is very inefficient,
+		/* TODO: The current way of saving context by the hypervisor is very inefficient,
 		 * can be improved alot with some hacking and shortcuts (for the FUTURE)*/
 		curr_vm->current_mode_state->ctx.sp -= (72 + 8) ; //FRAME_SIZE (18 registers to be saved) + 2 swi args
 		uint32_t *context, *sp, i;
@@ -36,8 +43,9 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 		*sp++ = curr_vm->mode_states[HC_GM_TASK].ctx.reg[4];
 		*sp++ = curr_vm->mode_states[HC_GM_TASK].ctx.reg[5];
 
+		/* Saves 16 ARM registers (all ARM registers in context except program
+		 * status register). */
 		i = 17; //r0-lr
-
 		while ( i > 0){
 			*sp++ = *context++;
 			i--;

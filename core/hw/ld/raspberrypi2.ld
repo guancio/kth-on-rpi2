@@ -1,7 +1,7 @@
 __page_size__ = 0x1000; /* 4KiB page size */
 
-/*TODO: Is this the address where we start inserting the program into RAM? Should be immediately after U-Boot if using U-Boot or at 0x0 if not using U-Boot.*/
-/* TODO: Unclear if this is the physical starting address of RAM or the load address. */
+/*This is the address where we start inserting the program into RAM? Should be immediately after U-Boot if using U-Boot or at 0x0 if not using U-Boot.*/
+/* This should be equal to the load address. */
 __ram_start__ = 0x1000000;
 
 /*TODO: Unused??? */

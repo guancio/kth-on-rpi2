@@ -36,7 +36,7 @@ typedef struct boot_info_ {
 }boot_info;
 
 
-/*Virtual machine datastructures*/
+/*Virtual machine data structures*/
 
 
 typedef struct hyper_mode_state_ {

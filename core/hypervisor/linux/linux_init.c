@@ -3,6 +3,8 @@
 #include "hyper.h"
 #include "mmu.h"
 #include "dmmu.h"
+//TODO: Note: Added below line to avoid warning.
+
 
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
@@ -64,7 +66,10 @@ void clear_linux_mappings()
 	}
 }
 
-dmmu_clear_linux_mappings()
+//TODO: Note: Added "void" to return type to avoid warning. Previously, the lack
+//of return type would imply default return type int, and this function has no
+//return value.
+void dmmu_clear_linux_mappings()
 {
 	addr_t guest_vstart = curr_vm->config->firmware->vstart;
 	addr_t guest_psize =  curr_vm->config->firmware->psize;
@@ -190,7 +195,7 @@ void linux_init_dmmu()
     for (offset = 0; //SECTION_SIZE;
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
-    	if(guest_pstart+offset >> 20 == 0x879)
+    	if((guest_pstart+offset) >> 20 == 0x879)
     		dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs_ro);
     	else
     		dmmu_map_L1_section(guest_pstart+offset, guest_pstart+offset, sect_attrs);

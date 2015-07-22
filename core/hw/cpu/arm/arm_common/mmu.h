@@ -9,11 +9,11 @@
 
 /* defines */
 #define PAGE_BITS 12
-#define PAGE_SIZE (1UL << PAGE_BITS)
-#define PAGE_MASK (PAGE_SIZE-1) /*0xFFF*/
+#define PAGE_SIZE (1UL << PAGE_BITS) //PAGE_BITS=12 gives PAGE_SIZE=0x1000.
+#define PAGE_MASK (PAGE_SIZE-1) /* 0xFFF */
 
 
-/* acces permissions */
+/* Access permissions */
 enum mmu_ap { MMU_AP_NONE = 0, MMU_AP_SUP_RW, MMU_AP_USER_RO, MMU_AP_USER_RW };
 enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 
@@ -53,7 +53,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MMU_L1_SECTION_ADDR(addr) ((addr) & ~(MMU_L1_SECTION_SIZE - 1))
 #define MMU_L1_SECTION_MASK (~(MMU_L1_SECTION_SIZE -1))
 
-/*Page table descriptor (Coarse in v5)*/
+/* Page table descriptor (Coarse in v5) */
 #define MMU_L1_PT_SHIFT 10
 #define MMU_L1_PT_SIZE (1UL << MMU_L1_PT_SHIFT)
 #define MMU_L1_PT_ADDR(addr) ((addr) & ~(MMU_L1_PT_SIZE -1))
@@ -66,7 +66,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define MMU_L2_SMALL_AP_MASK 3
 
 /* MMU coarse tables (small pages, 4K) */
-/*These are not correct, coarse address are 31-10 bits*/
+/* These are not correct, coarse address are 31-10 bits */
 #define MMU_COARSE_SIZE  4096
 #define MMU_COARSE_COUNT 256
 #define MMU_COARSE_ADR(adr)  ((adr) & ~( MMU_COARSE_SIZE -1))
@@ -90,7 +90,7 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 #define TTB_RGN_OC_WB	(3 << 3)
 #define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
-/* memspace flags */
+/* Memspace flags */
 #define MEMSPACE_FLAGS_DOMAIN_MASK 15
 #define MEMSPACE_FLAGS_DOMAIN_SHIFT 0
 

@@ -241,32 +241,34 @@ void create_L1_refs_update(addr_t l1_base_pa_add)
 	}
 }
 #define DEBUG_PG_CONTENT 1
-int dmmu_create_L1_pt(addr_t l1_base_pa_add)
-{
-	  uint32_t l1_idx, pt_idx;
-	  uint32_t l1_desc;
-	  uint32_t l1_desc_va_add;
-	  uint32_t l1_desc_pa_add;
-	  uint32_t l1_type;
-	  uint32_t ap;
-	  uint32_t ph_block;
-	  int i;
+int dmmu_create_L1_pt(addr_t l1_base_pa_add){
 
-	  /*Check that the guest does not override the physical addresses outside its range*/
-	  // TODO, where we take the guest assigned physical memory?
-	  if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
-		  return ERR_MMU_OUT_OF_RANGE_PA;
+	//TODO: Note: Commented out some unused variables.
+	uint32_t l1_idx;
+	//uint32_t pt_idx;
+	uint32_t l1_desc;
+	uint32_t l1_desc_va_add;
+	uint32_t l1_desc_pa_add;
+	uint32_t l1_type;
+	//uint32_t ap;
+	uint32_t ph_block;
+	//int i;
+
+	/*Check that the guest does not override the physical addresses outside its range*/
+	// TODO, where we take the guest assigned physical memory?
+	if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
+	  return ERR_MMU_OUT_OF_RANGE_PA;
 
 #ifdef CHECK_PAGETABLES_CACHEABILITY
-	  if (!guest_pt_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
-		  return ERR_MMU_OUT_OF_CACHEABLE_RANGE;
+	if (!guest_pt_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
+	  return ERR_MMU_OUT_OF_CACHEABLE_RANGE;
 #endif
 
-	  /* 16KB aligned ? */
-	  if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
-		  return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
+	/* 16KB aligned ? */
+	if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
+	  return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 
-	  ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
+	ph_block = PA_TO_PH_BLOCK(l1_base_pa_add);
 
     if(get_bft_entry_by_block_idx(ph_block)->type == PAGE_INFO_TYPE_L1PT &&
  		get_bft_entry_by_block_idx(ph_block+1)->type == PAGE_INFO_TYPE_L1PT &&
@@ -292,9 +294,9 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
 
     // copies  the reserved virtual addresses from the master page table
     // each virtual page non-unmapped in the master page table is considered reserved
-    for (l1_idx = 0; l1_idx < 4096; l1_idx++) {
+    for (l1_idx = 0; l1_idx < 4096; l1_idx++){
     	l1_desc = *(flpt_va + l1_idx);
-    	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
+    	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY){
         	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
         	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
         	*((uint32_t *) l1_desc_va_add) = l1_desc;
@@ -302,8 +304,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
     }
 
     uint32_t sanity_check = TRUE;
-    for(l1_idx = 0; l1_idx < 4096; l1_idx++)
-    {
+    for(l1_idx = 0; l1_idx < 4096; l1_idx++){
     	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
     	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
     	l1_desc = *((uint32_t *) l1_desc_va_add);
@@ -335,15 +336,18 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
  *  ------------------------------------------------------------------- */
 int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 {
-    uint32_t l1_idx, pt_idx, sec_idx;
-	uint32_t l1_desc;
-	uint32_t l1_desc_va_add;
-	uint32_t l1_desc_pa_add;
-	uint32_t l1_type;
-	uint32_t ap;
+	//TODO: Note: Commented out unused variables.
+    uint32_t l1_idx;
+	//uint32_t pt_idx; //(unused)
+	uint32_t sec_idx;
+	uint32_t l1_desc; //TODO: Re-defined further down... Remove here or there?
+	uint32_t l1_desc_va_add; //TODO: Re-defined further down... Remove here or there?
+	uint32_t l1_desc_pa_add; //TODO: Re-defined further down... Remove here or there?
+	uint32_t l1_type; //TODO: Re-defined further down... Remove here or there?
+	uint32_t ap; //TODO: Re-defined further down... Remove here or there?
 	uint32_t ph_block;
 	addr_t curr_l1_base_pa_add;
-	int i;
+	//int i; //(unused)
 
 	// checking to see
 
@@ -372,8 +376,7 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
 	}
 
     //unmap_L1_pt_ref_update
-	for(l1_idx = 0; l1_idx < 4096; l1_idx++)
-	{
+	for(l1_idx = 0; l1_idx < 4096; l1_idx++){
 		uint32_t l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
 		uint32_t l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
 		uint32_t l1_desc = *((uint32_t *) l1_desc_va_add);
@@ -500,12 +503,13 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
  *  -------------------------------------------------------------------*/
 int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
 {
+	//TODO: Note: COmmented out unused variables.
     uint32_t l1_base_add;
     uint32_t l1_idx;
     uint32_t l1_desc_pa_add;
     uint32_t l1_desc_va_add;
     uint32_t l1_desc;
-    uint32_t page_desc;
+    //uint32_t page_desc; //(unused)
 
     // HAL_VIRT_START is usually 0xf0000000, where the hypervisor code/data structures reside
     /*Check that the guest does not override the virtual addresses used by the hypervisor */
@@ -721,6 +725,8 @@ uint32_t dmmu_create_L2_pt(addr_t l2_base_pa_add)
     uint32_t l2_desc;
     uint32_t l2_type;
     uint32_t l2_idx;
+	//TODO: Note: The below variable is unused in this function...
+	//However, mmu_guest_pa_to_va will printf stuff if DEBUG_MMU_PA_TO_VA is set
     uint32_t l2_base_va_add = mmu_guest_pa_to_va(l2_base_pa_add, curr_vm->config);
 
     /*Check that the guest does not override the physical addresses outside its range*/
@@ -937,7 +943,7 @@ int dmmu_l2_unmap_entry(addr_t l2_base_pa_add, uint32_t l2_idx)
 //#define SW_DEBUG
 int dmmu_switch_mm(addr_t l1_base_pa_add)
 {
-	int i;
+	//int i; //TODO: Note: Commented out unused variable here.
 	uint32_t ph_block;
 
 	/*Check that the guest does not override the physical addresses outside its range*/

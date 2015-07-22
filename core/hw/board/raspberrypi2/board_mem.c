@@ -3,24 +3,21 @@
 
 //The base RAM address - definitely board-dependent.
 //This is the physical address at which the bootloader boots the kernel, I think.
-//TODO: This is the physical address at which the bootloader boots the kernel.
-//IF you set this to 0x0, it will overwrite parts of the bootloader.
-#define BASE_RAM_ADDRESS 0x0
+//TODO: IF you set this to 0x0, it will overwrite parts of the bootloader???
+#define BASE_RAM_ADDRESS 0x1000000
 
 //The amount of RAM that the hypervisor gets. This should really be centrally
 //defined and not board-dependent.
-//TODO: How much does the hypervisor need?
 //Current amount:	4 MiB
 #define AMOUNT_OF_HYPERVISOR_RAM 0x400000
 
 //The amount of trusted RAM.
-//TODO: What is this and should it be board-dependent?
 //Current amount:	1 MiB
 #define AMOUNT_OF_TRUSTED_RAM 0x100000
 
 //The amount of user RAM. Supposing several users, this should not be defined at
 //compile time. It is hard for me to see where you ideally would put this.
-//Possibly, with only one user, user could always get "the rest" of available
+//Possibly, with only one user, user could always use "the rest" of available
 //RAM since we know the total amount of RAM on the board.
 //TODO: instead calculate from the previous offset and total RAM.
 //Current amount:	5 MiB
@@ -57,20 +54,20 @@ memory_layout_entry memory_padr_layout[] =
 	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F2000B3),
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
-	//Read-only address ranges
+	//TODO: Read-only address ranges - changed temp. to RW ranges.
 	//L4-Wakeup (as in Beagleboard file)???
 	//System control module (as in Beagleboard file)???
 	//Clocks
 	//	Addresses of system timers are between 0x7E003000 and 0x7E003021
 	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F003021),
-	MLT_IO_RO_REG, MLF_READABLE},
+	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 	
 	//	Addresses of the ARM timer are between 0x7E00B000 and 0x7E00B423
 	//	(offset to first is 0x400)
 	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F00B400), ADDR_TO_PAGE(0x3F00B423),
-	MLT_IO_RO_REG, MLF_READABLE},
+	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 	////////////////////////////////////////////////////////////////////////
 
 	//These are the RAM address spaces...

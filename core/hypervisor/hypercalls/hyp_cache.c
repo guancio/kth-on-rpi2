@@ -1,5 +1,9 @@
 #include "hw.h"
 #include "hyper.h"
+//TODO: Added these to remove warnings...
+extern void CacheDataCleanBuff(unsigned int startAddr, unsigned int numBytes);
+extern void CacheDataCleanInvalidateAll(void);
+extern void CacheInstInvalidateBuff(unsigned int startAddr, unsigned int numBytes);
 
 /*Cache and TLB operations*/
 
