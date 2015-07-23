@@ -3,10 +3,12 @@
 
 //Virtual base address
 #define IO_BASE 				0xF0000000
-//Currently, the offset is calculated so that the virtual address space overlaps
-//with that of the OMAP35xx.
+//The offset was calculated so that the virtual address space overlaps
+//with that of the OMAP35xx. Note: This has been proven wrong, and gives exceptions in
+//soc_gpio_init.
 //48 + B2 = FA -> Virtual peripherals base address is 0xFA000000
-//             -> Offset is 0xBB000000
+//             -> Offset is 0xBB000000 (BB + 3F = FA)
+//TODO: Try 0xB2000000 instead... 
 #define IO_OFFSET				0xBB000000
 #define IO_VA_ADDRESS(x)		((x) + IO_OFFSET)
 

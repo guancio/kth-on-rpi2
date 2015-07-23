@@ -5,7 +5,8 @@
 #include <memlib.h>
 
 
-/* page table definition */
+/* Page table definition */
+/* Page bits is defined in core/hw/cpu/arm/arm_common/mmu.h. */
 #define ADDR_TO_PAGE(adr) ((adr) >> PAGE_BITS)
 #define PAGE_TO_ADDR(page) ((page) << PAGE_BITS)
 

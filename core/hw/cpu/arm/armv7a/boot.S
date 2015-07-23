@@ -61,6 +61,8 @@ impl_reset:
 	/* Enables pins for writing and configures them for JTAG functionality */
 	bl debug_gpio_init
 
+	//TODO: Currently we have no smartLoader or OVP, so I'm sure the below line
+	//is irrelevant.
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
     bl  arm_move_guest_blob
 

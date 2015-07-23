@@ -1,6 +1,7 @@
 #include "hw.h"
 #include "soc_defs.h"
 extern void delay();
+extern void debug_breakpoint(); //TODO: Remove this line after debugging.
 
 //Since the Raspberry Pi 2 Model B does not have any JTAG pins enabled by
 //default, we should/must enable them at this stage, or maybe even earlier if
@@ -32,6 +33,7 @@ static function_select_registers *fsel = 0;
 
 //Enables writing to the GPIO pins we want to use.
 void soc_gpio_init(){
+	debug_breakpoint(); //TODO: Remove after debugging...
 	unsigned int register_a;
 	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
 

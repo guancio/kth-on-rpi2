@@ -33,7 +33,7 @@ arm_move_guest_blob:
     add r0, r3
     ldr r3, =(HAL_PHYS_START+HAL_PHYS_SIZE)  
 
-    /* Save guest count and p start. */     
+    /* Save guest count and pstart. */     
     ldr r10, =guests_db + HAL_OFFSET
     str r2, [r10], #8
     str r3, [r10], #4       @@ pstart

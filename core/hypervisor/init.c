@@ -106,20 +106,17 @@ void memory_init()
     
     cpu_type type;
     cpu_model model;
-    
     cpu_get_type(&type, &model);
     
     /* Start with simple access control
-     * Only separation between hypervisor and user address space
+     * Only separation between hypervisor and user address space.
      *
-     * Here hypervisor already runs in virtual address since boot.S, now just setup guests
+     * Here, hypervisor already runs in virtual address since boot.S, now just setup guests.
      */
 
     // We clear the memory that contains the L2s that can be created in the 32KB of slpt_va
     memset(slpt_va, 0, 0x8000);
-
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
-
 	for(;;) {
 		if(!list) break;
         switch(list->type) {
@@ -127,7 +124,7 @@ void memory_init()
         case MLT_IO_RO_REG:
         case MLT_IO_HYP_REG:
             /*All IO get coarse pages*/
-        	pt_create_coarse (flpt_va,IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
+        	pt_create_coarse (flpt_va, IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
             break;
         case MLT_USER_RAM:
             /* do this later */
@@ -135,7 +132,7 @@ void memory_init()
         case MLT_HYPER_RAM:
         case MLT_TRUSTED_RAM:
             /* own memory */
-            j = (list->page_start) >> 8; /*Get L1 Page index */
+            j = (list->page_start) >> 8; /* Get L1 Page index */
             for(; j < ((list->page_count) >> 8); j++ ){
                 pt_create_section(flpt_va, (j << 20) - HAL_OFFSET , j << 20, list->type);
             }
@@ -146,7 +143,7 @@ void memory_init()
 		if(list->flags & MLF_LAST) break;
 		list++;
 	}
-    
+    debug_breakpoint(); //TODO: Remove after debugging.
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */
     pt_map(0xFFFF0000,(uint32_t)GET_PHYS(&_interrupt_vector_table),0x1000, MLT_USER_ROM);
     memory_commit();
@@ -381,6 +378,7 @@ void start_()
     memory_init();
 
     /* Initialize hardware. */
+	/* TODO: Currently, all clear up to this point. */
     soc_init();
     board_init();
     
