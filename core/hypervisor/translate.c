@@ -5,7 +5,7 @@
 
 
 #if defined(TARGET_CPU_ARMv5)
-#error "Not supproted for this CPU!"
+#error "Not supported for this CPU!"
 #endif
 
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write)

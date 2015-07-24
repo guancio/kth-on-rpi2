@@ -6,8 +6,6 @@ extern void soc_timer_init();
 extern void soc_uart_init();
 
 //Initializes everything you need on the SoC.
-//TODO: Disable non-essential function calls here - or disable the content of 
-//the functions.
 void soc_init(){
 	soc_gpio_init(); //This must be first - enables GPIO pins for writing.
 	//soc_clocks_init(); //TODO: What do we need this for?

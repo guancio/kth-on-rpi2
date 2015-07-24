@@ -26,7 +26,7 @@ typedef enum cpu_model_ {
 /* memory layout */
 typedef struct {
     uint32_t page_start;
-    uint32_t page_count;
+    uint32_t page_count; //TODO: This is actually the last page, not the page count...
     uint32_t type;
     uint32_t flags;
 } memory_layout_entry;

@@ -117,14 +117,19 @@ void memory_init()
     // We clear the memory that contains the L2s that can be created in the 32KB of slpt_va
     memset(slpt_va, 0, 0x8000);
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
+	unsigned int debug_count = 0;//TODO: remove after debugging.
 	for(;;) {
 		if(!list) break;
+		//TODO: Remove the below if-clause after debugging.
+		if (debug_count == 3){
+			debug_breakpoint(); //TODO: Remove after debugging...
+		}
         switch(list->type) {
         case MLT_IO_RW_REG:
         case MLT_IO_RO_REG:
         case MLT_IO_HYP_REG:
             /*All IO get coarse pages*/
-        	pt_create_coarse (flpt_va, IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)) , PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
+        	pt_create_coarse (flpt_va, IO_VA_ADDRESS(PAGE_TO_ADDR(list->page_start)), PAGE_TO_ADDR(list->page_start), (list->page_count - list->page_start) << PAGE_BITS, list->type);
             break;
         case MLT_USER_RAM:
             /* do this later */
@@ -134,18 +139,18 @@ void memory_init()
             /* own memory */
             j = (list->page_start) >> 8; /* Get L1 Page index */
             for(; j < ((list->page_count) >> 8); j++ ){
-                pt_create_section(flpt_va, (j << 20) - HAL_OFFSET , j << 20, list->type);
+                pt_create_section(flpt_va, (j << 20) - HAL_OFFSET, j << 20, list->type);
             }
             break;
         case MLT_NONE:
             break;
         }
 		if(list->flags & MLF_LAST) break;
+		debug_count++; //TODO: remove after debugging.
 		list++;
 	}
-    debug_breakpoint(); //TODO: Remove after debugging.
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */
-    pt_map(0xFFFF0000,(uint32_t)GET_PHYS(&_interrupt_vector_table),0x1000, MLT_USER_ROM);
+    pt_map(0xFFFF0000, (uint32_t)GET_PHYS(&_interrupt_vector_table),0x1000, MLT_USER_ROM);
     memory_commit();
     mem_cache_set_enable(TRUE);
     mem_mmu_set_domain(0x55555555); //Start with access to all domains
@@ -379,8 +384,10 @@ void start_()
 
     /* Initialize hardware. */
 	/* TODO: Currently, all clear up to this point. */
-    soc_init();
+    soc_init(); //Causes exceptions with addresses...
+	debug_breakpoint(); //TODO: Remove after debugging...
     board_init();
+	debug_breakpoint(); //TODO: Remove after debugging...	
     
     /* Set up exception handlers and starting timer. */
     setup_handlers();

@@ -108,9 +108,9 @@ BOOL pt_create_section( addr_t *l1, addr_t va, addr_t pa, uint32_t mem_type)
 }
 
 /*
- * functions below are used to build page table from data structure
+ * Functions below are used to build page table from data structure.
  */
-uint32_t pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32_t mem_type)
+uint32_t pt_create_coarse(addr_t *pt, addr_t va, addr_t pa, uint32_t size, uint32_t mem_type)
 {
     uint32_t *table1 = pt;
     uint32_t index = MMU_L1_INDEX(va);
@@ -118,14 +118,14 @@ uint32_t pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32
     uint32_t type_old = MMU_L1_TYPE( val);
 
     uint32_t domain, ap;
-    uint32_t flags = MMU_FLAG_B | MMU_FLAG_C; /*Standard Cache and Buffer on*/
+    uint32_t flags = MMU_FLAG_B | MMU_FLAG_C; /* Standard Cache and Buffer on. */
     switch(mem_type) {
     case MLT_TRUSTED_RAM:
     	domain = HC_DOM_TRUSTED;
         ap = MMU_AP_USER_RW;
         break;
     case MLT_IO_HYP_REG:
-    	flags = 1; /*No cache or buffer in IO an XN = 1*/
+    	flags = 1; /* No cache or buffer in IO an XN = 1. */
     	domain = HC_DOM_DEFAULT;
     	ap = MMU_AP_SUP_RW;
     	break;
@@ -150,19 +150,21 @@ uint32_t pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32
     uint32_t *table2, table2_pa;
 
     if(type_old == MMU_L1_TYPE_FAULT) {
-    		/* allocate a new sub-page */
+    		/* Allocate a new sub-page. */
         	table2_pa = pt_get_empty_l2();
         		if(!table2_pa)  return 0;
         	table1[index] = ((uint32_t)(table2_pa) | (domain << MMU_L1_DOMAIN_SHIFT) | MMU_L1_TYPE_COARSE);
-        }
-    else {
-    	/* There is already a mapping to the first level descriptor */
+    } else {
+    	/* There is already a mapping to the first level descriptor... */
     	table2_pa = MMU_L1_PT_ADDR(table1[index]);
     }
 
-    /*Coarse created, now hand out level 2 page tables for the coarse*/
+    /* Coarse created, now hand out level 2 page tables for the coarse. */
     uint32_t pte;
-    uint32_t count = (size >> 12);
+	//count is set to number of level 2 page table entries:
+    uint32_t count = (size >> 12); //Shaves off the three least significant hex numbers
+	//The index of each second-level page table is given by the bit octet starting
+	//at 12 bits, counting from the right to the left of the virtual address.
     uint32_t slpt_index = ((va & 0x000FF000) >> 12);
     table2 = (uint32_t *)GET_VIRT(table2_pa);
 

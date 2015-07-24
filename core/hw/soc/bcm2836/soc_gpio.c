@@ -18,8 +18,6 @@ typedef struct {
 	uint32_t gppudclk1; //GPIO pull-up/pull-down Clock register 1
 } volatile gppud_registers;
 
-static gppud_registers *gppud = 0;
-
 typedef struct {
     uint32_t gpfsel0;
     uint32_t gpfsel1;
@@ -29,12 +27,14 @@ typedef struct {
     uint32_t gpfsel5;
 } volatile function_select_registers;
 
+static gppud_registers *gppud = 0;
 static function_select_registers *fsel = 0;
 
 //Enables writing to the GPIO pins we want to use.
 void soc_gpio_init(){
 	debug_breakpoint(); //TODO: Remove after debugging...
 	unsigned int register_a;
+	//gppud_registers *gppud;
 	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
 
 	//Control signal: Disable pull-up/pull-down on GPIO pin 
@@ -71,7 +71,7 @@ void soc_gpio_init(){
 	//Now, initialize certain pins on the RPi2 to function as JTAG pins.
 	//This is only needed for SoCs which do not have JTAG pins by default.
 	//////////////////////////////////////////////////////////////////////
-
+	//function_select_registers *fsel;
 	fsel = (function_select_registers *)IO_VA_ADDRESS(GPFSEL_BASE);
 
 	//Set GPIO4 to alternative function 5 by writing to GPFSEL0.
@@ -95,5 +95,6 @@ void soc_gpio_init(){
 	//Now, physical pins number 7 (GPIO 4), 13 (GPIO 27), 15 (GPIO 22),
 	//18 (GPIO 24) and 22 (GPIO 25) should work as JTAG pins with their
 	//respective signals.
+	debug_breakpoint(); //TODO: Remove after debugging...
 }
 

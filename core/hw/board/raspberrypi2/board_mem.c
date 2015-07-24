@@ -1,8 +1,12 @@
 #include <types.h>
 #include <mmu.h>
 
-//The base RAM address - definitely board-dependent.
-//TODO: What does this do???
+//The base RAM address.
+//This is only used in this file, and decides where hypervisor RAM 
+//starts in physical RAM space.
+//TODO: Note: On the beagleboard configuration, this starts with an offset of 0x100000 from the physical starting address of RAM.
+//Since we load the hypervisor at 0x1000000, maybe this should be
+//0x1100000?
 #define BASE_RAM_ADDRESS 0x0
 
 //The amount of RAM that the hypervisor gets. This should really be centrally
@@ -44,34 +48,22 @@ memory_layout_entry memory_padr_layout[] =
 	//TODO: Read-only address ranges - changed temp. to RW ranges.
 	
 	//Clocks
-	//	Addresses of system timers are between 0x7E003000 and 0x7E003021
-	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F003021),
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 
 	//Interrupt controller
-	//	Bus addresses of the ARM interrupt register are 0x7E00B000 to
-	//	0x7E00B227 (RPi1) (offset to first is 0x200)
-	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F00B200), ADDR_TO_PAGE(0x3F00B227),
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
-	//	Addresses of the ARM timer are between 0x7E00B000 and 0x7E00B423
-	//	(offset to first is 0x400)
-	//	For Raspberry Pi 2, we just change "7E" to "3F".
+	//ARM timer
 	{ADDR_TO_PAGE(0x3F00B400), ADDR_TO_PAGE(0x3F00B423),
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 
-	//GPIO
-	//	Bus addresses of the GPIO registers are 0x7E200000 to
-	//	0x7E2000B3 (RPi1).
-	//	For Raspberry Pi 2, we just change "7E" to "3F".
+	//GPIO (general)
 	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F2000B3),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//UART
-	//	The UART addresses range between 0x7E201000 to 0x7E20108F (RPi1).
-	//	For Raspberry Pi 2, we just change "7E" to "3F".
 	{ADDR_TO_PAGE(0x3F201000), ADDR_TO_PAGE(0x3F20108F),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	
