@@ -7,7 +7,7 @@
 //TODO: Note: On the beagleboard configuration, this starts with an offset of 0x100000 from the physical starting address of RAM.
 //Since we load the hypervisor at 0x1000000, maybe this should be
 //0x1100000?
-#define BASE_RAM_ADDRESS 0x0
+#define BASE_RAM_ADDRESS HAL_PHYS_START+0x100000
 
 //The amount of RAM that the hypervisor gets. This should really be centrally
 //defined and not board-dependent.

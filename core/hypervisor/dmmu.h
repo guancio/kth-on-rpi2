@@ -166,7 +166,7 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 
 
 
-/* in tranelate.c */
+/* in translate.c */
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
 int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 

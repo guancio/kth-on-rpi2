@@ -191,6 +191,7 @@ void guests_init()
         printf("Guest_%d: PA=%x+%x VA=%x FWSIZE=%x\n",
             i,
             // initial physical address of the guest
+
             guests_db.guests[i].pstart,
             // size in bytes of the guest
             guests_db.guests[i].psize,
@@ -362,6 +363,7 @@ void guests_init()
     
     memory_commit();
     cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
+
 }
 
 
@@ -385,24 +387,20 @@ void start_()
     memory_init();
 
     /* Initialize hardware. */
-	
     soc_init();
-	
     board_init();
 
     /* Set up exception handlers and starting timer. */
     setup_handlers();
-	/* TODO: Currently, all clear up to this point, it appears... */
+
     /* DMMU initialization. */
     dmmu_init();
-    debug_breakpoint(); //TODO: Remove after debugging... 
+
     /* Initialize hypervisor guest modes and data structures
      * according to config file in guest*/
     guests_init();
-	debug_breakpoint(); //TODO: Remove after debugging...
-    /*Test crypto*/
 
-    printf("Hypervisor initialized1.5\n Entering Guest\n");
+    printf("Hypervisor initialized.\n Entering Guest...\n");
     start_guest();
-	debug_breakpoint(); //TODO: Remove after debugging...
+	//TODO: ALl clear until end!
 }

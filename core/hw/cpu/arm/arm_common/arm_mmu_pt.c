@@ -12,7 +12,7 @@
 
 #define GET_VIRT_ARRAY(phy)  ((uint32_t *) GET_VIRT(phy))
 
-/* for 1MB pages */
+/* for 1MiB pages */
 #define MEG_BITS 20
 #define MEG_SIZE (1UL << MEG_BITS)
 #define MEG_MASK (MEG_SIZE - 1)

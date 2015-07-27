@@ -883,9 +883,9 @@ void _main()
 	fwsize= 0xFA11;
 
 	va_base = vstart;
-
-	printf("START TEST\n");
-	printf("Received parameters: pstart= %x vstart=%x psize=%x fwsize=%x\n", pstart, vstart, psize, fwsize);
+	printf("You are now inside the 'dtest' guest, which can be configured to \n");
+	printf("START OF TEST\n");
+	printf("Received parameters: pstart=%x vstart=%x psize=%x fwsize=%x\n", pstart, vstart, psize, fwsize);
 
 
 
@@ -930,7 +930,7 @@ void _main()
 #endif
 #ifdef TEST_UNDEFINED
   // Standard execution if no test has been specified
-  printf("no test has been specified\n");
+  printf("No test has been specified. Do so by executing 'make TEST_NAME=TEST_UNDEFINED' when making the hypervisor, where you exchange 'TEST_UNDEFINED' for the name of the test you want to run. Names of tests can be found near the bottom of guests/dtest/src/main.c. Do not forget to execute 'make clean' in the guests/dtest directory in-between changing of tests.\n");
 #endif
   printf("TEST COMPLETED\n");
 }

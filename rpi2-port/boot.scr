@@ -1,5 +1,6 @@
 usb start
 setenv scriptaddr 0x0100000
+setenv loadaddr 0x01000000
 setenv serverip 130.229.149.236
 setenv ipaddr 130.237.224.169
 setenv bootargs "console=tty0"
