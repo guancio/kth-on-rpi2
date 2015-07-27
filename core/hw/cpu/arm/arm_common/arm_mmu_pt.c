@@ -152,7 +152,6 @@ uint32_t pt_create_coarse(addr_t *pt, addr_t va, addr_t pa, uint32_t size, uint3
     if(type_old == MMU_L1_TYPE_FAULT) {
     		/* Allocate a new sub-page. */
         	table2_pa = pt_get_empty_l2();
-			debug_breakpoint(); //TODO: Remove after debugging.
         		if(!table2_pa)  return 0;
         	table1[index] = ((uint32_t)(table2_pa) | (domain << MMU_L1_DOMAIN_SHIFT) | MMU_L1_TYPE_COARSE);
     } else {

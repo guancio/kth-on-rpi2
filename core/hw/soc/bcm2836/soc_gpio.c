@@ -32,7 +32,6 @@ static function_select_registers *fsel = 0;
 
 //Enables writing to the GPIO pins we want to use.
 void soc_gpio_init(){
-	debug_breakpoint(); //TODO: Remove after debugging...
 	unsigned int register_a;
 	//gppud_registers *gppud;
 	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
@@ -95,6 +94,5 @@ void soc_gpio_init(){
 	//Now, physical pins number 7 (GPIO 4), 13 (GPIO 27), 15 (GPIO 22),
 	//18 (GPIO 24) and 22 (GPIO 25) should work as JTAG pins with their
 	//respective signals.
-	debug_breakpoint(); //TODO: Remove after debugging...
 }
 

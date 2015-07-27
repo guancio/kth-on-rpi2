@@ -389,11 +389,10 @@ void start_()
     soc_init(); //Causes exceptions with addresses...
 	
     board_init();
-	/* TODO: Currently, all clear up to this point, it appears... */
 
     /* Set up exception handlers and starting timer. */
     setup_handlers();
-    debug_breakpoint(); //TODO: Remove after debugging...
+	/* TODO: Currently, all clear up to this point, it appears... */
     /* DMMU initialization. */
     dmmu_init();
     debug_breakpoint(); //TODO: Remove after debugging... 
