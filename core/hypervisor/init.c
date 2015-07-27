@@ -386,7 +386,7 @@ void start_()
 
     /* Initialize hardware. */
 	
-    soc_init(); //Causes exceptions with addresses...
+    soc_init();
 	
     board_init();
 

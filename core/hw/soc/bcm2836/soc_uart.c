@@ -9,6 +9,7 @@ typedef struct {
     uint32_t rsrecr; //???
 	uint32_t unused0[4];
 	uint32_t fr; //Flag register
+	uint32_t unused1;
     uint32_t ilpr; //Not in use
     uint32_t ibrd; //Integer Baud rate divisor
     uint32_t fbrd; //Fractional Baud rate divisor
@@ -20,7 +21,7 @@ typedef struct {
     uint32_t mis; //Masked Interrupt Status Register
     uint32_t icr; //Interrupt Clear Register
     uint32_t dmacr; //DMA Control Register
-    uint32_t unused1[13];
+    uint32_t unused2[13];
     uint32_t itcr; //Test Control Register
     uint32_t itip; //Integration test input register
     uint32_t itop; //Integration test output register
