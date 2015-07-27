@@ -117,13 +117,15 @@ void memory_init()
     // We clear the memory that contains the L2s that can be created in the 32KB of slpt_va
     memset(slpt_va, 0, 0x8000);
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
-	unsigned int debug_count = 0;//TODO: remove after debugging.
+	//unsigned int debug_count = 0;//TODO: remove after debugging.
 	for(;;) {
 		if(!list) break;
 		//TODO: Remove the below if-clause after debugging.
+		/*
 		if (debug_count == 3){
 			debug_breakpoint(); //TODO: Remove after debugging...
 		}
+		*/
         switch(list->type) {
         case MLT_IO_RW_REG:
         case MLT_IO_RO_REG:
@@ -146,7 +148,7 @@ void memory_init()
             break;
         }
 		if(list->flags & MLF_LAST) break;
-		debug_count++; //TODO: remove after debugging.
+		//debug_count++; //TODO: remove after debugging.
 		list++;
 	}
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */
@@ -261,7 +263,7 @@ void guests_init()
     // - a fixed virtual mapping to the guest PT
     // - some reserved mapping that for now we ignore, e.g. IO‌REGS
     // - a 1-1 mapping to the guest memory (as defined in the board_mem.c) writable and readable by the user
-    // - THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE ‌IN TO ‌ITS ‌WHOLE‌ MEMORY
+    // - THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE ‌INTO ‌ITS ‌WHOLE‌ MEMORY
 
     /* - Create a copy of the master page table for the guest in the physical address: pa_initial_l1 */
     uint32_t *guest_pt_va;
@@ -383,24 +385,25 @@ void start_()
     memory_init();
 
     /* Initialize hardware. */
-	/* TODO: Currently, all clear up to this point. */
+	
     soc_init(); //Causes exceptions with addresses...
-	debug_breakpoint(); //TODO: Remove after debugging...
+	
     board_init();
-	debug_breakpoint(); //TODO: Remove after debugging...	
-    
+	/* TODO: Currently, all clear up to this point, it appears... */
+
     /* Set up exception handlers and starting timer. */
     setup_handlers();
-    
+    debug_breakpoint(); //TODO: Remove after debugging...
     /* DMMU initialization. */
     dmmu_init();
-        
+    debug_breakpoint(); //TODO: Remove after debugging... 
     /* Initialize hypervisor guest modes and data structures
      * according to config file in guest*/
     guests_init();
-
+	debug_breakpoint(); //TODO: Remove after debugging...
     /*Test crypto*/
 
     printf("Hypervisor initialized1.5\n Entering Guest\n");
     start_guest();
+	debug_breakpoint(); //TODO: Remove after debugging...
 }

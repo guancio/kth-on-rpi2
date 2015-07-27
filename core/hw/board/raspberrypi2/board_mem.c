@@ -46,25 +46,29 @@ memory_layout_entry memory_padr_layout[] =
 	//	Examples could be various clock registers.
 
 	//TODO: Read-only address ranges - changed temp. to RW ranges.
+	//TODO: Note: there appears to be a hidden convention to only assign
+	//MiB-sized ranges (multiples of 0x1000). If you do not do this, the program
+	//will break.
 	
-	//Clocks
-	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F003021),
+	//Clocks (0x3F003000 to 0x3F003021)
+	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F004000),
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 
-	//Interrupt controller
-	{ADDR_TO_PAGE(0x3F00B200), ADDR_TO_PAGE(0x3F00B227),
+	//Interrupt controller (0x3F00B200 to 0x3F00B227)
+	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00C000), //TODO: Collides with ARM
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
-	//ARM timer
-	{ADDR_TO_PAGE(0x3F00B400), ADDR_TO_PAGE(0x3F00B423),
+	//ARM timer (0x3F00B400 to 0x3F00B423)
+	/*
+	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00C000), //TODO: Collides with IC
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
-
-	//GPIO (general)
-	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F2000B3),
+	*/
+	//GPIO (general) (0x3F200000 to 0x3F2000B3)
+	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F201000), //TODO: Ends at UART
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 
-	//UART
-	{ADDR_TO_PAGE(0x3F201000), ADDR_TO_PAGE(0x3F20108F),
+	//UART (0x3F201000 to 0x3F20108F)
+	{ADDR_TO_PAGE(0x3F201000), ADDR_TO_PAGE(0x3F202000),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	
 	////////////////////////////////////////////////////////////////////////
