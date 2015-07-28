@@ -117,15 +117,8 @@ void memory_init()
     // We clear the memory that contains the L2s that can be created in the 32KB of slpt_va
     memset(slpt_va, 0, 0x8000);
 	memory_layout_entry *list = (memory_layout_entry*)(&memory_padr_layout);
-	//unsigned int debug_count = 0;//TODO: remove after debugging.
 	for(;;) {
 		if(!list) break;
-		//TODO: Remove the below if-clause after debugging.
-		/*
-		if (debug_count == 3){
-			debug_breakpoint(); //TODO: Remove after debugging...
-		}
-		*/
         switch(list->type) {
         case MLT_IO_RW_REG:
         case MLT_IO_RO_REG:
@@ -148,7 +141,6 @@ void memory_init()
             break;
         }
 		if(list->flags & MLF_LAST) break;
-		//debug_count++; //TODO: remove after debugging.
 		list++;
 	}
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */

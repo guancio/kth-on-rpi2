@@ -16,9 +16,9 @@
 
 // To check if all the page tables are allocated form the region that is always chackable or not
 //#define DEBUG_DMMU_CACHEABILITY_CHECKERS
-#define CHECK_PAGETABLES_CACHEABILITY
-#define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart | 0x6800000
-#define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart | 0x6A00000
+//#define CHECK_PAGETABLES_CACHEABILITY //TODO: Commented out when testing. The below two addresses need to be changed for the RPi, or written in a general format unless we get only error code 27.
+#define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart + 0x6800000
+#define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart + 0x6A00000
 
 /* bft entry type */
 enum dmmu_entry_type { 

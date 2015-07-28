@@ -1,7 +1,6 @@
 #include "hw.h"
 #include "soc_defs.h"
 extern void delay();
-extern void debug_breakpoint(); //TODO: Remove this line after debugging.
 
 //Since the Raspberry Pi 2 Model B does not have any JTAG pins enabled by
 //default, we should/must enable them at this stage, or maybe even earlier if

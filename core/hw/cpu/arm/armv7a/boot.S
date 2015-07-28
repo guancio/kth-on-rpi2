@@ -78,10 +78,12 @@ impl_reset:
 	bl arm_setup_initial_stack
 
 	//TEST
+	/*
 	ldr r0, =0x47 //Set r0 to 0x47.
 debug_loop: //(Put breakpoint here)
 	cmp r0, #0x11 //Compare r0 to 0x11.
 	blne debug_loop //Loop if r0 is not equal to 0x11.
+	*/
 
     /* Init rest of hypervisor in C. */
 	/* start_ can be found in core/hypervisor/init.c */

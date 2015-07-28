@@ -6,5 +6,5 @@
     
 
 syscall_dmmu:
-    svc # 666
+    svc #666
     bx lr

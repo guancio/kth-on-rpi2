@@ -90,6 +90,7 @@ BOOL guest_pa_range_checker(pa, size) {
 BOOL guest_pt_range_checker(pa, size) {
 	uint32_t guest_pt_start_pa = PG_ADDR_LOWER_BOUND;
 	uint32_t guest_pt_end_pa = PG_ADDR_UPPER_BOUND;
+	printf("pstart %x pend %x xx %x \n", guest_pt_start_pa,guest_pt_end_pa, curr_vm->config->firmware->pstart );
 	if ((guest_pt_start_pa >= pa) || (guest_pt_end_pa <= pa + size)){
 		return FALSE;
 	}
@@ -494,7 +495,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
       }
       *((uint32_t *) l1_desc_va_add) = l1_desc;
     }
-
+printf("L1 desc here is %x \n", l1_desc);
   return 0;     	
 }
 

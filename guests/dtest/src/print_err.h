@@ -30,6 +30,9 @@
 #define ERR_MMU_FREE_ACTIVE_L1				(22)
 #define ERR_MMU_SUPERSECTION				(23)
 #define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
+#define ERR_MMU_L2_BASE_OUT_OF_RANGE        (25)
+#define ERR_MMU_NOT_CACHEABLE               (26)
+#define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 void expect(uint32_t test_id, char * msg, uint32_t value, uint32_t res) {

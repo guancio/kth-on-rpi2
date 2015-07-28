@@ -2,7 +2,6 @@
 #include <lib.h>
 #include <types.h>
 
-
 #include "dtest.h"
 
 void test_map_l1_section()
@@ -17,34 +16,35 @@ void test_map_l1_section()
 	pa = 0x0;
  	attrs = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(t_id, "Map of reserved virtual address", ERR_MMU_RESERVED_VA, res);
+	expect(t_id, "Map a reserved virtual address", ERR_MMU_RESERVED_VA, res);
 
 	// #1: mapping 0xc0200000 is ok, since it is the page containing the active page table
-	// This test should fail, because we are not allowed to map in a physical address outside the guest allowed range
+	// This test should fail, because we are not allowed to map to a physical address outside the guest allowed range
 	va = (va_base + 0x200000);
 	pa = 0x0;
  	attrs = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(++t_id, "Map a physical address outside the guest allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
+	expect(++t_id, "Map to a physical address outside the allowed range of the guest", ERR_MMU_OUT_OF_RANGE_PA, res);
 
-	// #2: mapping 0xc020000 is ok, since it is the page containing the active page table
+	// #2: mapping 0xc0200000 is ok, since it is the page containing the active page table
 	// This test should fail, because this is already mapped
-	va = (va_base + 0x000000);
+	va = (va_base + 0x000000); //TODO: Should be 0x200000????
 	pa = va2pa(va);
  	attrs = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Map an already mapped entry", ERR_MMU_SECTION_NOT_UNMAPPED, res);
 
 
-	// #3: mapping 0xc020000 is ok, since it is the page containing the active page table
+	// #3: mapping 0xc0200000 is ok, since it is the page containing the active page table
 	// This test should fail, because the access permission is not supported
 	va = (va_base + 0x200000);
 	pa = va2pa(va);
  	attrs = 0x0;
+	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Unsupported access permission", ERR_MMU_AP_UNSUPPORTED, res);
 
-	// #4: mapping 0xc020000 is ok, since it is the page containing the active page table
+	// #4: mapping 0xc0200000 is ok, since it is the page containing the active page table
 	// This test should succeed
 	va = (va_base + 0x200000);
 	pa = va2pa(va_base + 0x000000);
@@ -53,21 +53,21 @@ void test_map_l1_section()
 	//attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
  	attrs = 0xc2e;
  	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(++t_id, "Mapping a valid writable page", SUCCESS, res);
+	expect(++t_id, "Map a valid writable page", SUCCESS, res);
 
-	// #5: unmap 0xc030000
+	// #5: unmap 0xc0300000
 	// This test should succeed
 	va = (va_base + 0x300000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(++t_id, "Unmapping an existing mapped page", SUCCESS, res);
+	expect(++t_id, "Unmap an existing mapped page", SUCCESS, res);
 
-	// #6: mapping 0xc030000 with read-only access permission is ok, since it is the page containing the active page table
+	// #6: mapping 0xc0300000 with read-only access permission is ok, since it is the page containing the active page table
 	// This test should succeed
 	va = (va_base + 0x300000);
 	pa = va2pa(va_base + 0x000000);
  	attrs = 0xb2e;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(++t_id, "Mapping a valid read/only page", SUCCESS, res);
+	expect(++t_id, "Map a valid read/only page", SUCCESS, res);
 }
 
 void test_unmap_l1_entry()
@@ -80,13 +80,13 @@ void test_unmap_l1_entry()
 	// #0: I can not unmap 0, since it is reserved by the hypervisor to access the guest page tables
 	va = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(t_id, "Unamap of a reserved va", ERR_MMU_RESERVED_VA, res);
+	expect(t_id, "Unmap a reserved virtual address", ERR_MMU_RESERVED_VA, res);
 
 
 	// #1: I can not unmap 0xf0000000, since it is reserved by the hypervisor code
 	va = 0xf0000000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(++t_id, "Unamap of a reserved va", ERR_MMU_RESERVED_VA, res);
+	expect(++t_id, "Unmap a reserved virtual address", ERR_MMU_RESERVED_VA, res);
 
 
 
@@ -96,17 +96,17 @@ void test_unmap_l1_entry()
 	attrs = 0x12; // 0b1--10
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-
+	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	expect(++t_id, "Mapping a valid writable page", SUCCESS, res);
+	expect(++t_id, "Map a valid writable page", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(t_id, "Unmapping a valid writable page", SUCCESS, res);
+	expect(t_id, "Unmap a valid writable page", SUCCESS, res);
 
 	// #2: Unmapping 0xc0200000 has no effect, since this page is unmapped
 	va = (va_base + 0x200000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	expect(++t_id, "Unamaping an not mapped entry", ERR_MMU_ENTRY_UNMAPPED, res);
+	expect(++t_id, "Unmap a not mapped entry", ERR_MMU_ENTRY_UNMAPPED, res);
 
 }
 
@@ -187,7 +187,7 @@ void  test_l2_create()
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 	va = (va_base + 0x400000) ;
 	pa = va2pa(va);
-
+	//TODO: Somewhere her we get 512 "sanity checker false" warnings.
 	desc = (pstart | 0x31);
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)desc);
@@ -201,6 +201,7 @@ void  test_l2_create()
 	pa = va2pa(va);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(t_id, "Creating a section to write data", SUCCESS, res);
+	//TODO: Somewhere her we get 512 "sanity checker false" warnings.
 	desc = (pa & 0xffff0000) | 0x32;
 	for(j = 0; j < 1024; j++)
 		 l2[j] = ((uint32_t)desc); //self reference with ap = 3, it successfully failed
@@ -210,7 +211,7 @@ void  test_l2_create()
 	expect(++t_id,"Failing to create a L2, where L2 base is in writable section", ERR_MMU_SANITY_CHECK_FAILED, res);
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
-	  // #7: Guest can create a new L2 with an entry which point to another page table with a read-only  access permission
+	  // #7: Guest can create a new L2 with an entry which point to another page table with a read-only access permission
 	va = (va_base | (uint32_t)0x160000);
 	pa = va2pa(va);
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
@@ -223,6 +224,8 @@ void  test_l2_create()
 	expect(++t_id,"create a new L2 with an entry which point to another page table with a read-only  access permission", SUCCESS, res);
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
+	//TODO: At some point around here, we get about 500 "Sanity checker false" messages.
+
 	// #8: Guest can not create a new L2 with an entry which point to another page table with a writable access permission
 	va = (va_base | (uint32_t)0x160000);
 	pa = va2pa(va);
@@ -233,7 +236,7 @@ void  test_l2_create()
 	memcpy((void*)va, l2, sizeof l2);
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(++t_id,"create a new L2 with an entry which point to another page table with a writable  access permission", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"create a new L2 with an entry which points to another page table with a writable access permission", ERR_MMU_SANITY_CHECK_FAILED, res);
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
 
@@ -317,7 +320,7 @@ void test_l2_map_entry()
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	expect(t_id++,"Successful unmap of the section", SUCCESS, res);
 
-	res= ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
 	expect(t_id,"Successful creation of the new page", SUCCESS, res);
     // end of L2 page table creation
 
@@ -406,7 +409,7 @@ void test_l2_unmap_entry()
 	pa = va2pa(va);
 	desc = (pa & 0xffff0000) | 0x22; // self referencing with read-only access permission
 	// The first entry is not mapped
-	for(j = 1; j < 1024; j++)
+	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)desc);
 	memcpy((void*)va, l2, sizeof l2);
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
@@ -476,7 +479,7 @@ void test_l2_unmap_pt()
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res= ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
 	expect(t_id,"Successful creation of a new L2", SUCCESS, res);
-	for(idx = 0; idx < 1024; idx++) {
+	for (idx = 0; idx < 1024; idx++){
 		res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, attrs);
 		expect(t_id++,"Update the L2 entry", SUCCESS, res);
 	}
@@ -502,13 +505,13 @@ void test_l2_unmap_pt()
 	attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 	uint32_t va_section =  va_base + 2 * 0x100000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va_section, pga, attrs);
-	expect(t_id++,"Successfoul alias of the va address using a section", SUCCESS, res);
+	expect(t_id++,"Successful alias of the va address using a section", SUCCESS, res);
 
 	val = (*((uint32_t *)(va_section)));
 	expect(t_id++,"The small pages mapped by the new L2 points to the right physical address", 666, val);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va_section, 0, 0);
-	expect(t_id++,"Successfoul unmap of the section aliasing the va", SUCCESS, res);
+	expect(t_id++,"Successful unmap of the section aliasing the va", SUCCESS, res);
 	// finished
 
 
@@ -525,12 +528,12 @@ void test_l2_unmap_pt()
 	// #2: this test should fail because L2 base address can not be 0x0, since it is reserved by the hypervisor to access the guest page tables
 	pa = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	expect(t_id,"Freeing L2 should faile because the base address is out of the allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
+	expect(t_id,"Freeing L2 should fail because the base address is out of the allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
 
 	// #3: this test should fail because L2 base address does not point to a valid L2
 	pa = va2pa(va_base | (uint32_t)0x110000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
-	expect(t_id,"Freeing L2 should faile because the base address is not pointing to an L2", ERR_MMU_IS_NOT_L2_PT, res);
+	expect(t_id,"Freeing L2 should fail because the base address is not pointing to an L2", ERR_MMU_IS_NOT_L2_PT, res);
 }
 
 void test_l1_create()
@@ -543,12 +546,14 @@ void test_l1_create()
 	int j, t_id = 0;
 
 	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-	pa = 0x80000000;
+	//pa = 0x80000000; //<-- Beagleboard value TODO: Should be equal to HAL_PHYS_START for the board in question... How fix?
+	pa = 0x1000000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	expect(++t_id, "Failing to create a L1 in the hypervisor memory", ERR_MMU_OUT_OF_RANGE_PA, res);
 
 	// #1: this test should fail because L1 base is not aligned
 	pa = va2pa(va_base + 0x101000);
+	printf("Physical address: %x", pa);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	expect(++t_id, "Failing to create a L1 no 16KB aligned", ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED, res);
 
@@ -656,6 +661,7 @@ void test_l1_create()
 	expect(++t_id,"Failing to create a L1 where a writable section points to the L1 being allocated", ERR_MMU_SANITY_CHECK_FAILED, res);
 
 	//TODO: check that the L1 contains a writable section that points outside the guest memory
+
 }
 
 void test_l1_create_empty_l1() {
@@ -723,11 +729,10 @@ void test_l1_create_and_switch_l1() {
 	pa = va2pa(va);
 
 
-	// 4) create the new L1
-	// initial empty
+	// 4) create the new L1 (initially empty)
 	memset(l1, 0, 4096*4);
 
-	// Granting to the guest a writable part of the memory
+	// Grant to the guest a writable part of the memory
 	l1[3072] = (((uint32_t)va2pa(0xc0000000)) & 0xFFF00000) | (uint32_t)0xC2E;
 	l1[513] = (((uint32_t)va2pa(0xc0100000)) & 0xFFF00000) | (uint32_t)0x82C;
 	memcpy((void*)va, l1, sizeof l1);
@@ -749,22 +754,27 @@ void test_l1_create_and_switch_l1() {
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
     printf("reading the content of the modified page under new L1, content %x \n",*((uint32_t*)(va+1024)) );
-
+	attrs = 0x12; // 0b1--10
+    attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+    attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
     // trying to read the content of the suspended page table under the new page table
     va = (va_base + 0x200000);
     pa = va2pa(va);
     attrs = 0x12; // 0b1--10
 	attrs |= MMU_AP_USER_RO << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+	printf("Attribute value is: %x\n", attrs);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
-
+    printf("Suspended l1 content  desc %x \n",  *(((uint32_t *)va)));
+	/*
+	//TODO: This bottom section causes data aborts, followed by prefetch aborts...
 	uint32_t index = 0;
 	for(index = 0; index < 4096; index++)
 	{
-		if(*(((uint32_t *)0xc0200000) + index) != 0x0)
-			printf("Suspended l1 content index %x desc %x \n", index, *(((uint32_t *)0xc0200000) + index));
-	}
+		if(*(((uint32_t *)va)+ index) != 0x0)
+			printf("Suspended l1 content index %x desc %x \n", index, *(((uint32_t *)va) + index));
+	}*/
 }
 
 
@@ -774,7 +784,8 @@ void test_switch_mm()
 	int j, t_id = 0;
 
 	// #1: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-	pa = 0x80000000;
+	//pa = 0x80000000; <-- Beagleboard value //TODO: Should be equal to HAL_START_PHYS
+	pa = 0x1000000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_SWITCH_ACTIVE_L1, pa, 0, 0);
 	expect(++t_id,"Failing to switch to the given physical address which is out of guest allowed  memory range", ERR_MMU_OUT_OF_RANGE_PA, res);
 
@@ -797,7 +808,8 @@ void test_unmap_L1_pt()
 	int j, t_id = 0;
 
 	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
-	pa = 0x80000000;
+	//pa = 0x80000000; <-- Beagleboard value //TODO: Should be equal to HAL_START_PHYS
+	pa = 0x1000000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L1, pa, 0, 0);
 	expect(t_id, "Unsuccessful unmapping a physical address outside the guest allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
 
@@ -883,7 +895,7 @@ void _main()
 	fwsize= 0xFA11;
 
 	va_base = vstart;
-	printf("You are now inside the 'dtest' guest, which can be configured to \n");
+	printf("You are now inside the 'dtest' guest, which can be configured at compile time to run several tests of the hypervisor.\n");
 	printf("START OF TEST\n");
 	printf("Received parameters: pstart=%x vstart=%x psize=%x fwsize=%x\n", pstart, vstart, psize, fwsize);
 
@@ -930,7 +942,7 @@ void _main()
 #endif
 #ifdef TEST_UNDEFINED
   // Standard execution if no test has been specified
-  printf("No test has been specified. Do so by executing 'make TEST_NAME=TEST_UNDEFINED' when making the hypervisor, where you exchange 'TEST_UNDEFINED' for the name of the test you want to run. Names of tests can be found near the bottom of guests/dtest/src/main.c. Do not forget to execute 'make clean' in the guests/dtest directory in-between changing of tests.\n");
+  printf("No test has been specified. Do so by executing 'make TEST_NAME=TEST_UNDEFINED' when making the hypervisor, where you exchange 'TEST_UNDEFINED' for the name of the test you want to run. Valid names of tests can be found near the bottom of guests/dtest/src/main.c. Do not forget to execute 'make clean' in-between changing of tests.\n");
 #endif
   printf("TEST COMPLETED\n");
 }
@@ -938,5 +950,5 @@ void _main()
 /*Each guest must provide a handler rpc*/
 void handler_rpc(unsigned callNum, void *params)
 {
-    
+    //Empty...
 }
