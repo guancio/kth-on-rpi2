@@ -495,7 +495,6 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
       }
       *((uint32_t *) l1_desc_va_add) = l1_desc;
     }
-printf("L1 desc here is %x \n", l1_desc);
   return 0;     	
 }
 

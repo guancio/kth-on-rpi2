@@ -119,7 +119,7 @@ typedef __PACKED struct l2_small
 #define PAGE_INFO_TYPE_L2PT 2
 #define PAGE_INFO_TYPE_INVALID 3
 
-/* in tranelate.c */
+/* in translate.c */
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
 int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 addr_t mmu_guest_pa_to_va(addr_t padr, hc_config * config);

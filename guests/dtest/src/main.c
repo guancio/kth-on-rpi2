@@ -110,7 +110,7 @@ void test_unmap_l1_entry()
 
 }
 
-void  test_l2_create()
+void test_l2_create()
 {
 	  uint32_t pa, va, attrs, res, desc;
 	  int j, t_id = 0;
@@ -187,7 +187,7 @@ void  test_l2_create()
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 	va = (va_base + 0x400000) ;
 	pa = va2pa(va);
-	//TODO: Somewhere her we get 512 "sanity checker false" warnings.
+	//TODO: Somewhere here we get 512 "sanity checker false" warnings.
 	desc = (pstart | 0x31);
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)desc);
@@ -201,7 +201,7 @@ void  test_l2_create()
 	pa = va2pa(va);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(t_id, "Creating a section to write data", SUCCESS, res);
-	//TODO: Somewhere her we get 512 "sanity checker false" warnings.
+	//TODO: Somewhere here we get 512 "sanity checker false" warnings.
 	desc = (pa & 0xffff0000) | 0x32;
 	for(j = 0; j < 1024; j++)
 		 l2[j] = ((uint32_t)desc); //self reference with ap = 3, it successfully failed
@@ -754,9 +754,7 @@ void test_l1_create_and_switch_l1() {
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
     printf("reading the content of the modified page under new L1, content %x \n",*((uint32_t*)(va+1024)) );
-	attrs = 0x12; // 0b1--10
-    attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-    attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
+
     // trying to read the content of the suspended page table under the new page table
     va = (va_base + 0x200000);
     pa = va2pa(va);
