@@ -1,5 +1,7 @@
 #include <types.h>
 #include <mmu.h>
+//This is where we get the peripherals' addresses from.
+#include <soc_defs.h>
 
 //The base RAM address.
 //This is only used in this file, and decides where hypervisor RAM 
@@ -51,7 +53,7 @@ memory_layout_entry memory_padr_layout[] =
 	//will break.
 	
 	//Clocks (0x3F003000 to 0x3F003021)
-	{ADDR_TO_PAGE(0x3F003000), ADDR_TO_PAGE(0x3F004000),
+	{ADDR_TO_PAGE(CLOCK_BASE), ADDR_TO_PAGE(CLOCK_BASE + 0x1000),
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 
 	//Interrupt controller (0x3F00B200 to 0x3F00B227)
@@ -64,16 +66,16 @@ memory_layout_entry memory_padr_layout[] =
 	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
 	*/
 	//GPIO (general) (0x3F200000 to 0x3F2000B3)
-	{ADDR_TO_PAGE(0x3F200000), ADDR_TO_PAGE(0x3F201000), //TODO: Ends at UART
+	{ADDR_TO_PAGE(GPIO_BASE), ADDR_TO_PAGE(GPIO_BASE + 0x1000), //TODO: Ends at UART
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//UART (0x3F201000 to 0x3F20108F)
-	{ADDR_TO_PAGE(0x3F201000), ADDR_TO_PAGE(0x3F202000),
+	{ADDR_TO_PAGE(UART_BASE), ADDR_TO_PAGE(UART_BASE + 0x1000),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	
 	////////////////////////////////////////////////////////////////////////
 
-	//These are the RAM address spaces...
+	//These are the RAM address spaces.
 	//Hypervisor RAM
 	{ADDR_TO_PAGE(BASE_RAM_ADDRESS),
 	ADDR_TO_PAGE(BASE_RAM_ADDRESS + AMOUNT_OF_HYPERVISOR_RAM),
