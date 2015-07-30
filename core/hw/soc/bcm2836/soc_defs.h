@@ -3,29 +3,30 @@
 
 //Virtual base address
 #define IO_BASE 				0xF0000000
-//The offset was calculated so that the virtual address space overlaps
-//with that of the OMAP35xx. Note: This has been proven wrong, and gives exceptions in
-//soc_gpio_init.
-//48 + B2 = FA -> Virtual peripherals base address is 0xFA000000
+
+//Physical base address of peripherals
+#define PERI_BASE 0x3F000000
+
+//Virtual peripherals base address is 0xFA000000.
 //             -> Offset is 0xBB000000 (BB + 3F = FA)
-//TODO: Try 0xB2000000 instead... 
+
 #define IO_OFFSET				0xBB000000
 #define IO_VA_ADDRESS(x)		((x) + IO_OFFSET)
 
 /* GPIO */
-
+#define GPIO_BASE PERI_BASE + 0x200000
 //The base address of the function select registers
-#define GPFSEL_BASE 0x3F200000
+#define GPFSEL_BASE GPIO_BASE
 
 //The base address of the GPPUD registers.
-#define GPPUD_BASE 0x3F200094
+#define GPPUD_BASE GPIO_BASE + 0x94
 
 /* Interrupt Controller */
-#define INTC_BASE 0x3F00B200
+#define INTC_BASE PERI_BASE + 0xB200
 #define INTC_VIRT_BASE (IO_VA_ADDRESS(INTC_BASE))
 #define INTC_VIRT_IRQ_BASIC_PENDING INTC_VIRT_BASE
-#define INTC_VIRT_IRQ_PENDING_1 (IO_VA_ADDRESS(0x3F00B204))
-#define INTC_VIRT_IRQ_PENDING_2 (IO_VA_ADDRESS(0x3F00B208))
+#define INTC_VIRT_IRQ_PENDING_1 (IO_VA_ADDRESS(INTC_BASE + 0x4))
+#define INTC_VIRT_IRQ_PENDING_2 (IO_VA_ADDRESS(INTC_BASE + 0x8))
 
 //Number of interrupt sources: 64 plus 8
 #define INTC_SOURCE_COUNT 64+8
@@ -59,22 +60,22 @@
 /* Timer */
 
 //Base address of timer
-#define TIMER_BASE 0x3F00B400
-#define TIMER_TIC 0x3F00B40C
+#define TIMER_BASE PERI_BASE + 0xB400
+#define TIMER_TIC TIMER_BASE + 0xC
 
 #define TIMER_VIRT_BASE (IO_VA_ADDRESS(TIMER_BASE))
 #define TIMER_VIRT_TIC (IO_VA_ADDRESS(TIMER_TIC))
 
 /* UART */
 //The base address of the UART.
-#define UART_BASE 0x3F201000
-#define UART_ICR 0x3F201044
+#define UART_BASE GPIO_BASE + 0x1000
+#define UART_ICR UART_BASE + 0x44
 
 #define UART_VIRT_BASE (IO_VA_ADDRESS(UART_BASE))
 #define UART_VIRT_ICR (IO_VA_ADDRESS(UART_ICR))
 
 /* Clocks */ //TODO
-//#define CLOCK_PER 0x3F101070
+#define CLOCK_BASE PERI_BASE + 0x3000
 
 /* DMA */ //TODO
 
