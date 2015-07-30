@@ -8,6 +8,7 @@
 //the initial memory layout is something like
 // 0xc0i00000 mapped to base_pa+i with i in [0..5]
 // with the exception of i=2, where the initial L1 is created
+// moreover, the region i=2 and i=3 are considered to be always cacheable
 
 void test_map_l1_section()
 {
@@ -557,10 +558,10 @@ void test_l1_create()
 	// #0: this test should fail because guest is trying to create a new page table in a part of the memory that is reserved for hypervisor use
 	pa = 0x80000000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id, "Failing to create a L1 in the hypervisor memory", ERR_MMU_OUT_OF_RANGE_PA, res);
+	expect(t_id, "Failing to create a L1 in the hypervisor memory", ERR_MMU_OUT_OF_RANGE_PA, res);
 
 	// #1: this test should fail because L1 base is not aligned
-	pa = va2pa(va_base + 0x101000);
+	pa = va2pa(va_base + 0x205000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	expect(++t_id, "Failing to create a L1 no 16KB aligned", ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED, res);
 
@@ -570,12 +571,17 @@ void test_l1_create()
 	expect(++t_id,"Failing to create a L1 on an already L1 area", ERR_MMU_ALREADY_L1_PT, res);
 
 
-	// #3: Test that we can not create an L1 in a referenced page: e.g. the same page where we are working
 	memset(l1, 0, 4096*4);
 
-	pa = va2pa(l1);
+	// #3: Test that we can not create an L1 in a referenced page
+	pa = va2pa(va_base + 0x300000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
 	expect(++t_id,"Failing to create a L1 on referenced part of the memory", ERR_MMU_REFERENCED, res);
+
+	// #4: Test that we can not create an L1 in a region that is not always cacheable
+	pa = va2pa(va_base);
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	expect(++t_id,"Failing to create a L1 on non-cacheable memory", ERR_MMU_OUT_OF_CACHEABLE_RANGE, res);
 
 	// From here we always map a section, write the page table and then unmap the section.
 	// Finally we can call the API
@@ -586,7 +592,7 @@ void test_l1_create()
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-	va = (va_base + 0x400000);
+	va = (va_base + 0x300000);
 	pa = va2pa(va);
 
 
@@ -602,7 +608,7 @@ void test_l1_create()
 	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L1 using an L2 that has not been validated", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L1 using an L2 that has not been previously validated", ERR_MMU_IS_NOT_L2_PT, res);
 
 	// #5: this test should fail because guest is trying to use super section descriptor instead of a section descriptor
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
@@ -618,7 +624,7 @@ void test_l1_create()
 	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L1 containing a supersection", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L1 containing a supersection", ERR_MMU_SUPERSECTION, res);
 
 	// #6: this test should fail because guest is trying to use an unsupported access permission in a section descriptor
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
@@ -634,7 +640,7 @@ void test_l1_create()
 	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L1 containing an unsupported AP", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L1 containing an unsupported AP", ERR_MMU_AP_UNSUPPORTED, res);
 
 	// #7: this test should fail because guest is trying to map part of the memory as a writable section where I initial page table of guest resides
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
@@ -650,14 +656,15 @@ void test_l1_create()
 	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L1 where a writable section points to an L1", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L1 where a writable section points to an L1", ERR_MMU_PH_BLOCK_NOT_WRITABLE, res);
 
 	// #8: this test should fail because guest is trying to map part of the memory as a writable section where it is trying to create the new L1
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
 
 	memset(l1, 0, 4096*4);
-	l1[512] = (((uint32_t)pa) & 0xFFF00000) | (uint32_t)0xC02;
+	// Notice we make this cacheable
+	l1[512] = (((uint32_t)pa) & 0xFFF00000) | (uint32_t)0xC02 | (uint32_t) 0b1000;
 	memcpy((void*)va, l1, sizeof l1);
 
 	// unmap the section
@@ -665,8 +672,24 @@ void test_l1_create()
 	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L1 where a writable section points to the L1 being allocated", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L1 where a writable section points to the L1 being allocated", ERR_MMU_NEW_L1_NOW_WRITABLE, res);
 
+
+	// Test that we do not allow noncacheable sections to point to the always cacheable region
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(++t_id,"Successful map of the new page", SUCCESS, res);
+
+	memset(l1, 0, 4096*4);
+	// Notice we make this cacheable
+	l1[512] = (((uint32_t)pa) & 0xFFF00000) | (uint32_t)0x802;
+	memcpy((void*)va, l1, sizeof l1);
+
+	// unmap the section
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(++t_id,"Successful unmap the L1 entry", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L1_PT, pa, 0, 0);
+	expect(++t_id,"Failing to create a L1 where a non-cacheable section points to the always cacheable region", ERR_MMU_NOT_CACHEABLE, res);
 	//TODO: check that the L1 contains a writable section that points outside the guest memory
 }
 
