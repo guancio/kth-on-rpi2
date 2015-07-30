@@ -6,7 +6,7 @@
 #define SUCCESS                             (0)
 /* Error messages */
 #define ERR_MMU_RESERVED_VA                 (1)
-#define ERR_MMU_ENTRY_UNMAPPED 		        (2)
+#define ERR_MMU_ENTRY_UNMAPPED              (2)
 #define ERR_MMU_OUT_OF_RANGE_PA             (3)
 #define ERR_MMU_SECTION_NOT_UNMAPPED        (4)
 #define ERR_MMU_PH_BLOCK_NOT_WRITABLE       (5)
@@ -15,7 +15,7 @@
 #define ERR_MMU_ALREADY_L1_PT               (8)
 #define ERR_MMU_ALREADY_L2_PT               (8)
 #define ERR_MMU_SANITY_CHECK_FAILED         (9)
-#define ERR_MMU_PT_REGION				    (10)
+#define ERR_MMU_PT_REGION		    (10)
 #define ERR_MMU_NO_UPDATE                   (11)
 #define ERR_MMU_IS_NOT_L2_PT                (12)
 #define ERR_MMU_XN_BIT_IS_ON                (13)
