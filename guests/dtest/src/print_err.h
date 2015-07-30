@@ -14,7 +14,7 @@
 #define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
 #define ERR_MMU_ALREADY_L1_PT               (8)
 #define ERR_MMU_ALREADY_L2_PT               (8)
-#define ERR_MMU_PT_REGION		    (10)
+#define ERR_MMU_PT_REGION		            (10)
 #define ERR_MMU_NO_UPDATE                   (11)
 #define ERR_MMU_IS_NOT_L2_PT                (12)
 #define ERR_MMU_XN_BIT_IS_ON                (13)
@@ -25,22 +25,22 @@
 #define ERR_MMU_REFERENCE_L2                (18)
 #define ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED (19)
 #define ERR_MMU_IS_NOT_L1_PT                (20)
-#define ERR_MMU_REFERENCED			    (21)
+#define ERR_MMU_REFERENCED			        (21)
 #define ERR_MMU_FREE_ACTIVE_L1				(22)
 #define ERR_MMU_SUPERSECTION				(23)
 #define ERR_MMU_NEW_L1_NOW_WRITABLE			(24)
 #define ERR_MMU_L2_BASE_OUT_OF_RANGE        (25)
 #define ERR_MMU_NOT_CACHEABLE               (26)
 #define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
-#define ERR_MMU_NEW_L2_NOW_WRITABLE	    (28)
+#define ERR_MMU_NEW_L2_NOW_WRITABLE	        (28)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 void expect(uint32_t test_id, char * msg, uint32_t value, uint32_t res) {
 	if(value == res) {
-		printf("test ID: %d,  %s [SUCCESS] value: %d \n",test_id , msg, value);
+		printf("Test ID: %d,  %s [SUCCESS] value: %d \n",test_id , msg, value);
 		return;
 	}
-	printf("test ID: %d,  %s [FAIL] expected: %d result: %d\n",test_id , msg, value, res);
+	printf("Test ID: %d,  %s [FAIL] expected: %d result: %d\n",test_id , msg, value, res);
 }
 
 
