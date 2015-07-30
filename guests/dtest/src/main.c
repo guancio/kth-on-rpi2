@@ -742,7 +742,7 @@ void test_l1_create_and_switch_l1() {
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-	va = (va_base + 0x300000);
+	va = (va_base + 0x400000);
 	pa = va2pa(va);
 
 	// 2) write some data
@@ -754,7 +754,7 @@ void test_l1_create_and_switch_l1() {
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-	va = (va_base + 0x400000);
+	va = (va_base + 0x300000);
 	pa = va2pa(va);
 
 
@@ -779,7 +779,7 @@ void test_l1_create_and_switch_l1() {
 	expect(++t_id,"Successful switching to the new L1", SUCCESS, res);
 
 	// trying to read the content of the modified page under the new page table
-	va = (va_base + 0x300000);
+	va = (va_base + 0x400000);
 	pa = va2pa(va);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
