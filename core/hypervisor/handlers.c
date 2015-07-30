@@ -87,8 +87,13 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 	    /* TEMP: DMMU TEST */
   	        case 666:
 		        //res = dmmu_handler(param0, param1, param2, curr_vm->current_mode_state->ctx.reg[3]);
+				
   	        	res = dmmu_handler(param0, param1, param2);
 		        curr_vm->current_mode_state->ctx.reg[0] = res;
+				isb();
+				mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+				CacheDataCleanInvalidateAll();
+				dsb();
 				return;
 			case HYPERCALL_GUEST_INIT:
 				hypercall_guest_init(param0);

@@ -33,7 +33,7 @@ void test_map_l1_section()
 
 	// #2: mapping 0xc0200000 is ok, since it is the page containing the active page table
 	// This test should fail, because this is already mapped
-	va = (va_base + 0x000000); //TODO: Should be 0x200000????
+	va = (va_base + 0x000000);
 	pa = va2pa(va);
  	attrs = 0x0;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
@@ -507,13 +507,16 @@ void test_l2_unmap_pt()
 
 
 	// Creating an L2 to map
-	va = (va_base | (uint32_t)0x100000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
-	pga = va2pa(va_base |(uint32_t)0x300000);
+	pga = va2pa(va_base |(uint32_t)0x400000);
+	for(j = 0; j < 1024; j++)
+		(*(((uint32_t *)va)+j)) = ((uint32_t)0x0);
 
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	res=ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(t_id,"Successful unmap of the section containing the new l2", SUCCESS, res);	
 	res= ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(t_id,"Successful creation of a new L2", SUCCESS, res);
+	expect(t_id++,"Successful creation of a new L2", SUCCESS, res);
 	for (idx = 0; idx < 1024; idx++){
 		res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, attrs);
 		expect(t_id++,"Update the L2 entry", SUCCESS, res);
@@ -527,18 +530,19 @@ void test_l2_unmap_pt()
 
 	// now the va is mapped and is translated to
 	// va and va + 4kb*i are pointing to the same address
-	(*((uint32_t *)va)) = 666;
+	//(*((uint32_t *)va)) = 666;
+	(*((uint32_t *)(va + 2*4096))) = 666;
 	uint32_t val = (*((uint32_t *)(va + 4096)));
 	expect(t_id++,"The small pages mapped by the new L2 points all to the same physical address", 666, val);
 
 
-	// is true that va is pointing to va2pa(va_base | (uint32_t)0x300000)?
-	// We build an additional section mapping to the address va2pa(va_base | (uint32_t)0x300000)
+	// is true that va is pointing to va2pa(va_base | (uint32_t)0x400000)?
+	// We build an additional section mapping to the address va2pa(va_base | (uint32_t)0x400000)
 	// then we read/write
 	attrs = 0;
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs |= (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-	uint32_t va_section =  va_base + 2 * 0x100000;
+	uint32_t va_section =  va_base + 0x200000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va_section, pga, attrs);
 	expect(t_id++,"Successful alias of the va address using a section", SUCCESS, res);
 
@@ -821,9 +825,9 @@ void test_l1_create_and_switch_l1() {
 	printf("Attribute value is: %x\n", attrs);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id,"Successful map of the new page", SUCCESS, res);
-    printf("Suspended l1 content  desc %x \n",  *(((uint32_t *)va)));
-	/*
 	//TODO: This bottom section causes data aborts, followed by prefetch aborts...
+    //printf("Suspended l1 content  desc %x \n",  *(((uint32_t *)va)));
+	/*
 	uint32_t index = 0;
 	for(index = 0; index < 4096; index++)
 	{
