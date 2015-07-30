@@ -232,7 +232,6 @@ void guests_init()
           offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
           pmd = (uint32_t *)((uint32_t)flpt_va + offset);
           COP_WRITE(COP_SYSTEM,COP_DCACHE_INVALIDATE_MVA, pmd);
-       // printf("%x -> %x\n", va, pa); // DEBUG
     }
 
     memory_commit();
@@ -262,7 +261,7 @@ void guests_init()
     uint32_t *guest_pt_va;
     addr_t guest_pt_pa;
     guest_pt_pa = guest_pstart + vm_0.config->pa_initial_l1_offset;
-  	guest_pt_va = mmu_guest_pa_to_va(guest_pt_pa, vm_0.config);
+    guest_pt_va = mmu_guest_pa_to_va(guest_pt_pa, vm_0.config);
 
     printf("COPY %x %x\n", guest_pt_va, flpt_va);
     memcpy(guest_pt_va, flpt_va, 1024 * 16);
@@ -277,7 +276,13 @@ void guests_init()
     memory_commit();
 
    // Calling the create_L1_pt API to check the correctness of the L1 content and to change the page table type to 1
-    dmmu_create_L1_pt(guest_pt_pa);
+    uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
+    if (res != SUCCESS_MMU) {
+      printf("XXXX We failed to create the initial PT with error %d XXXX\n", res);
+      while (1) {
+      }
+    }
+
 #ifdef DEBUG_L1_PG_TYPE
     uint32_t index;
     for(index=0; index < 4; index++)
@@ -293,7 +298,6 @@ void guests_init()
     linux_init_dmmu();
 
 #else
-    printf("I reached this point");
     attrs = 0x12; // 0b1--10
     attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
     attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
@@ -302,7 +306,9 @@ void guests_init()
     for (offset = 0;
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
-    	dmmu_map_L1_section(guest_vstart+offset,guest_pstart+offset, attrs);
+	printf("-- creating initial mapping of %x to %x\n", guest_vstart+offset,guest_pstart+offset);
+    	res = dmmu_map_L1_section(guest_vstart+offset,guest_pstart+offset, attrs);
+	printf("-- result %d\n", res);
     }
 
 #endif
