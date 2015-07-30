@@ -150,22 +150,22 @@ void  test_l2_create()
 
 	 // #2: Guest can not use an address which is not 4KB aligned to create an L2
 	 // this test should fail because we are only allowed to create l2 in a 4KB aligned address
-	 pa = va2pa(va_base + 0x100100); //0x81100100, this address is not 4KB aligned
+	 pa = va2pa(va_base + 0x204100); //0x81100100, this address is not 4KB aligned
 	 res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
 	 expect(++t_id, "Using a physical address which is not 4KB aligned", ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED, res);
 
 	 // #3: Guest can not create a new L2 in a region which already contains an L2
-	 va = (va_base | (uint32_t)0x1b0000) ;
+	 va = (va_base | (uint32_t)0x3b0000) ;
 	 pa = va2pa(va);
 
-     for(j = 0; j < 1024; j++)
+	 for(j = 0; j < 1024; j++)
 	  	l2[j] = ((uint32_t)0x0);
 	 memcpy((void*)va, l2, sizeof l2);
 	 // unmap the section
  	 res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
  	 expect(t_id,"Successful unmap the L1 entry", SUCCESS, res);
 
-     res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	 res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
  	 expect(t_id,"Success in creating a L2 ", SUCCESS, res);
  	 res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0); // this should fail
 	 expect(t_id,"Failing to create a L2 where already there exist another L2", ERR_MMU_ALREADY_L2_PT, res);
@@ -173,6 +173,11 @@ void  test_l2_create()
 	 expect(t_id,"Successful freeing the given L2", SUCCESS, res);
 
 	// #4: Guest can not create a new L2 in a region which already contains a page table or a referenced data page
+	 // we first remap the unmapped page
+ 	attrs = 0xc2e;
+ 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(++t_id, "Remapping the writable page", SUCCESS, res);
+
 	//*******************************************************//
 	// Creating an L2 to map
 	va = (va_base | (uint32_t)0x320000) ;
@@ -182,23 +187,41 @@ void  test_l2_create()
 	  	l2[j] = ((uint32_t)0x0);
 	memcpy((void*)va, l2, sizeof l2);
 	// unmap the section
-	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
-	ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
+	expect(++t_id,"Unmapped the section which point to the area where we want to create an L2", SUCCESS, res);
+
+	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
+	expect(++t_id,"Creation of the new L2", SUCCESS, res);
+
 	//*******************************************************//
-	uint32_t pga = va2pa(va_base + 0x110000); // data page address
+	uint32_t pga = va2pa(va_base + 0x330000); // data page address (notice that must is in the cacheable region)
 	uint32_t idx = 0xc2;
-	ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, 0x32);
+	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, 0x32 | 0b1000);
+	expect(++t_id,"Creation of a mapping from the new L2 to a data block", SUCCESS, res);
+
 	// here pga is pointing to a referenced data page
     // Commenting the next line will cause this test to fail because the reference counter of pointed data page is not zero
     //ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pga, 0, 0); //referenced data page
-	expect(++t_id,"Failing to create a L2 where guest tries to use a referenced data page", ERR_MMU_REFERENCED, res);
+	expect(++t_id,"Failing to create a L2 on the block that is pointed (and writable) by the previous allocated L2", ERR_MMU_REFERENCED, res);
 
 	// #5: Guest can not create a new L2 with an unsupported descriptor type (0b11)
+	// First we must free the previously create L2 and remap the section
+	va = (va_base | (uint32_t)0x320000) ;
+	pa = va2pa(va);
+	res = ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
+	expect(++t_id,"We free the memory hosting the previously allocated L2Removed the L2", SUCCESS, res);
+
+ 	attrs = 0xc2e;
+ 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(++t_id, "Remapping the writable page", SUCCESS, res);
+
+	// now we can create an L2 with an unsupported AP
+
 	attrs = 0x12; // 0b1--10 // Section: non useful since already setted by the API
 	attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 	attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-	va = (va_base + 0x400000) ;
+	va = (va_base + 0x300000) ;
 	pa = va2pa(va);
 
 	desc = (pstart | 0x31);
@@ -207,27 +230,27 @@ void  test_l2_create()
 	memcpy((void*)va, l2, sizeof l2);
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L2 with an unsupported descriptor type (0b11)", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L2 with an unsupported descriptor type (0b11)", ERR_MMU_L2_UNSUPPORTED_DESC_TYPE, res);
 
 	 // #6: Guest can not create a new L2 with an entry which point to L2 page table itself with a writable  access permission
-	va = (va_base | (uint32_t)0x160000);
+	va = (va_base + 0x300000) ;
 	pa = va2pa(va);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(t_id, "Creating a section to write data", SUCCESS, res);
-	desc = (pa & 0xffff0000) | 0x32;
+	desc = (pa & 0xffff0000) | 0x32 | 0b1000;
 	for(j = 0; j < 1024; j++)
 		 l2[j] = ((uint32_t)desc); //self reference with ap = 3, it successfully failed
 	memcpy((void*)va, l2, sizeof l2);
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(++t_id,"Failing to create a L2, where L2 base is in writable section", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"Failing to create a L2, where L2 base is in writable section", ERR_MMU_NEW_L2_NOW_WRITABLE, res);
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
 	  // #7: Guest can create a new L2 with an entry which point to another page table with a read-only  access permission
-	va = (va_base | (uint32_t)0x160000);
+	va = (va_base + 0x300000) ;
 	pa = va2pa(va);
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	desc = (pa & 0xffff0000) | 0x22;
+	desc = (pa & 0xffff0000) | 0x22 | 0b1000;
 	for(j = 0; j < 1024; j++)
 		  l2[j] = ((uint32_t)desc); //self reference with ap = 2, it succeed
 	memcpy((void*)va, l2, sizeof l2);
@@ -237,16 +260,16 @@ void  test_l2_create()
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
 	// #8: Guest can not create a new L2 with an entry which point to another page table with a writable access permission
-	va = (va_base | (uint32_t)0x160000);
+	va = (va_base + 0x300000) ;
 	pa = va2pa(va);
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
-	desc = ((pstart & 0xff000000)| (1 << 23) | 0x32);
+	desc = ((pstart & 0xff000000)| (1 << 23) | 0x32 | 0b1000);
 	for(j = 0; j < 1024; j++)
 		  l2[j] = ((uint32_t)desc); //referencing to the current active L1 with ap = 3, it succeed
 	memcpy((void*)va, l2, sizeof l2);
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	res = ISSUE_DMMU_HYPERCALL(CMD_CREATE_L2_PT, pa, 0, 0);
-	expect(++t_id,"create a new L2 with an entry which point to another page table with a writable  access permission", ERR_MMU_SANITY_CHECK_FAILED, res);
+	expect(++t_id,"create a new L2 with an entry which point to another page table with a writable  access permission", ERR_MMU_PH_BLOCK_NOT_WRITABLE, res);
 	ISSUE_DMMU_HYPERCALL(CMD_FREE_L2, pa, 0, 0);
 
 

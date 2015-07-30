@@ -14,7 +14,6 @@
 #define ERR_MMU_BASE_ADDRESS_IS_NOT_ALIGNED (7)
 #define ERR_MMU_ALREADY_L1_PT               (8)
 #define ERR_MMU_ALREADY_L2_PT               (8)
-#define ERR_MMU_SANITY_CHECK_FAILED         (9)
 #define ERR_MMU_PT_REGION		    (10)
 #define ERR_MMU_NO_UPDATE                   (11)
 #define ERR_MMU_IS_NOT_L2_PT                (12)
@@ -33,7 +32,6 @@
 #define ERR_MMU_NOT_CACHEABLE               (26)
 #define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
 #define ERR_MMU_NEW_L2_NOW_WRITABLE	    (28)
-#define ERR_MMU_UNSUPPORTED_L2_DESCTYPE	    (29)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 void expect(uint32_t test_id, char * msg, uint32_t value, uint32_t res) {

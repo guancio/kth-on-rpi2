@@ -683,7 +683,7 @@ uint32_t l2Desc_validityChecker_dispatcher(uint32_t l2_type, uint32_t l2_desc, a
 		return SUCCESS_MMU;
 	if ((l2_type == 2) || (l2_type == 3))
 		return l2PT_checker(l2_base_pa_add, l2_desc);
-	return ERR_MMU_UNSUPPORTED_L2_DESCTYPE;
+	return ERR_MMU_L2_UNSUPPORTED_DESC_TYPE;
 }
 
 void create_L2_refs_update(addr_t l2_base_pa_add)

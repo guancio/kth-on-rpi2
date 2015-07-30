@@ -110,7 +110,6 @@ typedef __PACKED struct l2_small
 #define ERR_MMU_NOT_CACHEABLE               (26)
 #define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
 #define ERR_MMU_NEW_L2_NOW_WRITABLE			(28)
-#define ERR_MMU_UNSUPPORTED_L2_DESCTYPE				(29)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 
