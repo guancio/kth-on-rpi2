@@ -283,9 +283,9 @@ void test_l1_pt_map()
 	attrs = 0;
 	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT;
 	// Creating an L2 to map
-	va = (va_base | (uint32_t)0x170000);
+	va = (va_base + (uint32_t)0x300000);
 	pa = va2pa(va);
-	desc = (pa & 0xffff0000) | 0x22; // self referencing with read-only access permission
+	desc = (pa & 0xffff0000) | 0x22 | 0b1000; // self referencing with read-only access permission
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)desc);
 	memcpy((void*)va, l2, sizeof l2);
@@ -317,7 +317,7 @@ void test_l1_pt_map()
 	// #4: mapping 0xc0170000 is ok, since it is the page containing a valid L2
 	// This test should fail, because PXN is enabled
 	attrs = 0x24;
-	va = (va_base | (uint32_t)0x170000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
 	expect(++t_id,"Mapping an entry using a descriptor for which PXN has been enabled", ERR_MMU_XN_BIT_IS_ON, res);
@@ -325,7 +325,7 @@ void test_l1_pt_map()
 	// #5: mapping 0xc0170000 is ok, since it is the page containing a valid L2
 	// This test should fail, because guest can not map an L2 in a given entry two times in row
 	attrs = 0x20;
-	va = (va_base | (uint32_t)0x170000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
 	ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs);
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_PT, va, pa, attrs); // this call should fail because the entry has already been mapped
