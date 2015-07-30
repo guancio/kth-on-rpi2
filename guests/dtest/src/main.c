@@ -41,14 +41,22 @@ void test_map_l1_section()
 
 
 	// #3: mapping 0xc020000 is ok, since it is the page containing the active page table
-	// This test should fail, because the access permission is not supported
+	// This test should fail, because the attribute must be cacheable
 	va = (va_base + 0x200000);
 	pa = va2pa(va);
- 	attrs = 0x0;
+ 	attrs = 0b0;
+	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
+	expect(++t_id, "Unsupported access permission", ERR_MMU_NOT_CACHEABLE, res);
+
+	// #4: mapping 0xc020000 is ok, since it is the page containing the active page table
+	// This test should fail, because it can not be writable
+	va = (va_base + 0x200000);
+	pa = va2pa(va);
+ 	attrs = 0b1000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Unsupported access permission", ERR_MMU_AP_UNSUPPORTED, res);
 
-	// #4: mapping 0xc020000 is ok, since it is the page containing the active page table
+	// #5: mapping 0xc020000 is ok, since it is the page containing the active page table
 	// This test should succeed
 	va = (va_base + 0x200000);
 	pa = va2pa(va_base + 0x000000);
@@ -59,13 +67,13 @@ void test_map_l1_section()
  	res = ISSUE_DMMU_HYPERCALL(CMD_MAP_L1_SECTION, va, pa, attrs);
 	expect(++t_id, "Mapping a valid writable page", SUCCESS, res);
 
-	// #5: unmap 0xc030000
+	// #6: unmap 0xc030000
 	// This test should succeed
 	va = (va_base + 0x300000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L1_PT_ENTRY, va, 0, 0);
 	expect(++t_id, "Unmapping an existing mapped page", SUCCESS, res);
 
-	// #6: mapping 0xc030000 with read-only access permission is ok, since it is the page containing the active page table
+	// #7: mapping 0xc030000 with read-only access permission is ok, since it is the page containing the active page table
 	// This test should succeed
 	va = (va_base + 0x300000);
 	pa = va2pa(va_base + 0x000000);
