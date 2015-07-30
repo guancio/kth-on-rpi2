@@ -340,12 +340,12 @@ void test_l2_map_entry()
 	int j, t_id = 0;
 
 	attrs = 0;
-	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT;
+	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT | 0b1000;
 
 	// Creating an L2 to map
-	va = (va_base | (uint32_t)0x100000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
-	desc = (pa & 0xffff0000) | 0x22; // self referencing with read-only access permission
+	desc = (pa & 0xffff0000) | 0x22 | 0b1000; // self referencing with read-only access permission
 	for(j = 0; j < 1024; j++)
 		l2[j] = ((uint32_t)desc);
 	memcpy((void*)va, l2, sizeof l2);
@@ -370,9 +370,9 @@ void test_l2_map_entry()
 
 	// #2: All the parameters are correct and this test should succeed
 
-	va = (va_base | (uint32_t)0x100000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
-	pga = va2pa((va_base | (uint32_t)0x110000));
+	pga = va2pa((va_base | (uint32_t)0x310000));
 	idx = 0xc2;
 
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
@@ -389,14 +389,14 @@ void test_l2_map_entry()
 
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pa, attrs);
-	expect(++t_id,"Mapping a page table into one of the L2 entries with writable access permission", ERR_MMU_INCOMPATIBLE_AP, res);
+	expect(++t_id,"Mapping a page table into one of the L2 entries with writable access permission", ERR_MMU_NEW_L2_NOW_WRITABLE, res);
 
 	// #5: this test should fail, because guest can not map any thing to an entry of a data page
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pga, idx, pga, attrs);
 	expect(++t_id,"Mapping an entry of a data page!!!!", ERR_MMU_IS_NOT_L2_PT, res);
 
 	// #6: this test should fail, because guest is passing an unsupported  access permission
-	attrs = 0x02;
+	attrs = 0x02 | 0b1000;
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
 	expect(++t_id,"Unmapping the given entry of the valid L2", SUCCESS, res);
 
@@ -406,7 +406,7 @@ void test_l2_map_entry()
 	// #7: All the parameters are correct and this test should succeed
 	// in this test reference counter of the mapped page should not be increased
 	attrs = 0;
-	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT;
+	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT | 0b1000;
 
 	pga = va2pa((va_base | (uint32_t)0x310000));
 	idx = 0xab;
@@ -420,7 +420,7 @@ void test_l2_map_entry()
 	// in this test guest is mapping the L2 base address into one of L2 entry with read-only access permission
 	idx = 0xac;
 	attrs = 0;
-	attrs |= MMU_AP_USER_RO << MMU_PT_AP_SHIFT;
+	attrs |= MMU_AP_USER_RO << MMU_PT_AP_SHIFT | 0b1000;
 
 	ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pa, attrs);
