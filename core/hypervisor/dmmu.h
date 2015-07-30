@@ -16,7 +16,7 @@
 
 // To check if all the page tables are allocated form the region that is always chackable or not
 //#define DEBUG_DMMU_CACHEABILITY_CHECKERS
-//#define CHECK_PAGETABLES_CACHEABILITY //TODO: Commented out when testing. The below two addresses need to be changed for the RPi, or written in a general format unless we get only error code 27.
+#define CHECK_PAGETABLES_CACHEABILITY
 #define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart + 0x6800000
 #define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart + 0x6A00000
 
@@ -82,6 +82,7 @@ typedef __PACKED struct l2_small
 } l2_small_t;
 
 /* Error messages */
+#define SUCCESS_MMU                 (0)
 #define ERR_MMU_RESERVED_VA                 (1)
 #define ERR_MMU_ENTRY_UNMAPPED 		        (2)
 #define ERR_MMU_OUT_OF_RANGE_PA             (3)
@@ -110,6 +111,7 @@ typedef __PACKED struct l2_small
 #define ERR_MMU_L2_BASE_OUT_OF_RANGE        (25)
 #define ERR_MMU_NOT_CACHEABLE               (26)
 #define ERR_MMU_OUT_OF_CACHEABLE_RANGE      (27)
+#define ERR_MMU_NEW_L2_NOW_WRITABLE			(28)
 #define ERR_MMU_UNIMPLEMENTED               (-1)
 
 
@@ -152,7 +154,9 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 #define CREATE_L1_PT_DESC(x, y) (L1_PT_DESC_MASK & x) | (L1_PT_DESC_ATTR_MASK & y) | (0b01)
 #define CREATE_L2_DESC(x, y) (L2_BASE_MASK & x) | (L2_DESC_ATTR_MASK & y) | (0b10)
 #define GET_L1_AP(sec) ((((uint32_t) sec->ap_3b) << 2) | ((uint32_t) sec->ap_0_1bs))
-#define GET_L2_AP(attrs) ((attrs >> 7) & 0b100) | (((attrs >> 4) & 0b11))
+// old version taking a flat 32 bits
+//#define GET_L2_AP(attrs) ((attrs >> 7) & 0b100) | (((attrs >> 4) & 0b11))
+#define GET_L2_AP(pg_desc) ((((uint32_t) pg_desc->ap_3b) << 2) | ((uint32_t) pg_desc->ap_0_1bs))
 #define L1_DESC_PXN(x) ((x & 0x4) >> 2)
 #define L2_DESC_PA(l2_base_add, l2_idx) (l2_base_add | (l2_idx << 2) | 0)
 
