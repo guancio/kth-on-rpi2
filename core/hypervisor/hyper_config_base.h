@@ -58,6 +58,8 @@ typedef struct hc_config_ {
   const addr_t reserved_va_for_pt_access_start;
   const addr_t pa_initial_l1_offset;
   addr_t pa_initial_l2_offset;
+  addr_t always_cached_offset;
+  addr_t always_cached_size;
 } hc_config;
 
 #endif
