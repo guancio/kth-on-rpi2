@@ -37,13 +37,28 @@
  */
 
 arm_setup_initial_pt:
-
+	
 	/*Start with simplest possible needed to get sth running
  	  in virtual address
  	  */
 
 	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)
+	jmp arm_setup_initial_pt_at_adr
 
+arm_setup_initial_slave_pt:
+	
+	/*Start with simplest possible needed to get sth running
+ 	  in virtual address
+ 	  */
+
+	ldr r4, = (__hyper_pt_start_core_1__ + HAL_OFFSET)
+	jmp arm_setup_initial_pt_at_adr
+
+arm_reset_initial_pt:
+	mcr p15, 0, r4, c2, c0, 0	@ load page table pointer
+	bx lr
+	
+arm_setup_initial_pt_at_adr:
 	mov r0, r4
 	mov r1, #0
 	add r2, r0, #0x4000
