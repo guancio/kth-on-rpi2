@@ -458,9 +458,9 @@ void test_l2_unmap_entry()
 
 	attrs = 0;
 	attrs |= MMU_AP_USER_RW << MMU_PT_AP_SHIFT;
-	va = (va_base | (uint32_t)0x100000);
+	va = (va_base | (uint32_t)0x300000);
 	pa = va2pa(va);
-	desc = (pa & 0xffff0000) | 0x22;
+	desc = (pa & 0xffff0000) | 0x22 | 0b1000;
 	for(j = 0; j < 1024; j++){
 		l2[j] = ((uint32_t)desc);
 	}
@@ -476,16 +476,16 @@ void test_l2_unmap_entry()
 	expect(t_id,"Unmapping an entry of an invalid L2 for which the base address is outside the allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
 
 
-	//#1: The guest is trying to unmap entry of a data page
-	//This test should fail because the l2 base address is not pointing to a valid page table(L2)
-	pa = va2pa(va_base | (uint32_t)0x110000);
+	//#1: We are trying to unmap entry of a data page.
+	//This test should fail because the L2 base address is not pointing to a valid page table(L2)
+	pa = va2pa(va_base | (uint32_t)0x310000);
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
 	expect(++t_id,"Unmapping an entry of an invalid L2, page type associated with the physical address is not L2-page table", ERR_MMU_IS_NOT_L2_PT, res);
 
 	//#2: The entry guest is trying to unmap an entry that is not mapped
 	//This test should succeed
 	idx = 0x0;
-	pa = va2pa((va_base | (uint32_t)0x100000));
+	pa = va2pa((va_base | (uint32_t)0x300000));
 	res = ISSUE_DMMU_HYPERCALL(CMD_UNMAP_L2_ENTRY, pa, idx, 0);
 	expect(++t_id,"Unmapping an unmapped entry of an L2 page table", SUCCESS, res);
 
