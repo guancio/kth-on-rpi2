@@ -1,0 +1,91 @@
+\documentclass[a4paper,11pt,reqno]{amsart}
+
+\pagestyle{headings}
+\usepackage{graphicx}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[latin1]{inputenc}
+\usepackage{verbatim}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{pstricks}
+\usepackage{mathrsfs}
+\usepackage{textcomp}
+\usepackage{tikz}
+\usepackage{subfig}
+\usepackage{fancyvrb}
+
+\title{Debugging the STH on RPi2}
+\author{Didrik Lundberg\\
+\texttt{didrikl@kth.se}}
+\date{\today}
+\begin{document}
+\maketitle
+\noindent
+This is a comprehensive guide that will cover all steps of debugging the STH on the RPi2 platform. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. This guide has a small amount of overlap with the ``Bare-metal programming on the Raspberry Pi 2'' guide which deals with more basic points, so if you find yourself lost trying to follow the steps in this guide, go back to that guide to learns the basics first. Similarly, the guide ``How to add new platforms to the STH'' deals with building the hypervisor. If you have any questions, please send an E-mail to the author.
+
+\section{Introduction}
+Firstly, you will need a few tools for doing this. There are several ways to debug using JTAG with \texttt{gdb}. We will be using \texttt{gdb} in conjunction with \texttt{emacs}, and the FT2232H Mini-Module JTAG adapter.
+
+If you have not yet done so, install:
+
+\begin{itemize}
+\item OpenOCD (\texttt{git clone git://git.code.sf.net/p/openocd/code})
+\item Minicom (\texttt{sudo apt-get install minicom})
+\item ARM cross-compiler (\texttt{sudo apt-get install arm-none-eabi})
+\item ARM cross-debugger (\texttt{sudo apt-get install gdb-arm-none-eabi})
+\item Emacs (\texttt{sudo apt-get install emacs})
+\item Telnet (\texttt{sudo apt-get install telnet})
+\end{itemize}
+
+After cloning OpenOCD, navigate to the directory where OpenOCD was cloned, and type \texttt{./configure --enable-ftdi}, which should do the trick for the configuration stage. Then type \texttt{make} (make sure there are no errors!) and then \texttt{sudo make install}.
+
+\section{Set up debugging}
+There are two things we would like to note regarding the JTAG pins on the Raspberry Pi 2. One, there is no SRST pin. Two, no pins have JTAG output by default, meaning they must be configured to serve that purpose. These two facts discourage us from using ordinary reset techniques. I have also had problems with removing breakpoints. There are workarounds for this, though.
+
+First, you need initialize JTAG somewhere. Look at the file \texttt{debug_gpio.c} and specifically the function \texttt{debug_gpio_init}. This function can be called in \texttt{boot.S}, just after you set the stack pointer, by adding the line
+
+\begin{verbatim}
+bl debug_gpio_init
+\end{verbatim}
+
+At some point after this, add the assembly snippet
+
+\begin{verbatim}
+ldr r0, =0x47 //Set r0 to 0x47.
+debug_loop:
+	cmp r0, #0x11 //Compare r0 to 0x11.
+	blne debug_loop //Loop if r0 is not equal to 0x11.
+\end{verbatim}
+
+This will stick the hypervisor inside a perpetual loop. The point here is that when you reach this loop, you can be sure that JTAG is initialized and that you are at a particular place in the code. In practice, it will take a negligible amount of time for the hypervisor to reach this code if you put it inside \texttt{boot.S}.
+
+Always keep a Minicom window connected to the RPi2 over serial port. With Minicom installed, simply execute \texttt{sudo minicom -b 115200 -D /dev/ttyUSB1} to initialize this connection. Additionally, press Ctrl+a, then w and Ctrl+a, then u to enable line wrap and addition of carriage returns when needed. Remember to shut down Minicom in an orderly fashion - if you do not do this, you will start getting garbled signals over the UART. Shut down Minicom by pressing Ctrl+a, then x; but if you find yourself in a situation where you are getting garbled signals, you can just restart your PC.
+
+As soon as you plug in power to the Raspberry Pi 2, you should start seeing log info appear in the Minicom window. After you see the message
+
+\begin{verbatim}
+Starting kernel ...
+\end{verbatim}
+
+You know that the kernel is running. Then, in a new terminal window on your PC, execute the command
+
+\begin{verbatim}
+openocd -f interface/ftdi/minimodule.cfg -f target/raspberrypi2.cfg
+\end{verbatim}
+
+This will set up an OpenOCD server which is connected to the Raspberry Pi 2 over JTAG. Your OpenOCD should now detect the processor of your debug target. It will list the number of processors, their respective breakpoints and so on, and then wait (not giving you the prompt back). To stop the execution of the server, press Ctrl+C - but do not do so until you are completely finished debugging, and disconnect the programs which are connected to the server first.
+
+Now, we want to halt the execution of the hypervisor inside the aforementioned perpetual loop, so that we can get out of it and start debugging. First, connect with Telnet to the OpenOCD server by executing the command \texttt{telnet localhost 4444}. Then, at the Telnet prompt execute \texttt{targets} to look at which processors there are. Then, again at the Telnet prompt, execute \texttt{halt} (because you want the processors to halt), and then \texttt{targets bcmrpi2.cpu0} to set the first processor core as the debug target. Now you are ready to start debugging with gdb.
+
+Start Emacs, and once inside press Macro+x (the Macro button is typically the left Alt) and type \texttt{gdb}. The prompt will now say
+
+\begin{verbatim}
+Run gdb (like this):
+\end{verbatim}
+
+and you should execute the command \texttt{arm-none-eabi-gdb -i=mi}. You are now running the GDB cross-debugger in one of the Emacs buffers, but this is not enough. Again, press Macro+x and then execute the command \texttt{gdb-many-windows} at the resulting prompt. This will give you more useful buffers, so you can monitor registers, variables and breakpoints continuously.
+
+\end{document}

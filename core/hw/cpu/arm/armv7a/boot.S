@@ -1,6 +1,6 @@
 /* This is the entry point of the SICS Thin Hypervisor */
 /*
- * boot code from ARMv7a
+ * Boot code for ARMv7a
  *
  * NOTE: this file only contains the reset code, the
  * exception table and other exception handlers are under SoC
@@ -21,14 +21,14 @@
     
     .code 32
     .align 0
-     .section .vector,"ax"
+    .section .vector,"ax"
 
 #include "arm_common.h"
 
  /*
-  * system exception handlers.
+  * System exception handlers
   *
-  * we use the slow absolute jump since this code will be relocated to 0xFFFF0000
+  * We use the slow absolute jump since this code will be relocated to 0xFFFF0000
   */
 
 _interrupt_vector_table:
@@ -57,12 +57,12 @@ impl_reset:
 	/* Stack pointer starts at the physical address of the hyper stack top. */
     ldr sp, =(__hyper_stack_top__ + HAL_OFFSET)
 
-	//TEST:
-	/* Enables pins for writing and configures them for JTAG functionality */
+	//TODO: TEST:
+	/* Enables pins for writing and configures them for JTAG functionality.
+	 * This is best put at the start so that you can debug the entire program. */
 	bl debug_gpio_init
 
-	//TODO: Currently we have no smartLoader or OVP, so I'm sure the below line
-	//is irrelevant.
+	//TODO: Currently we have no smartLoader or OVP, so what does the below line mean?
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
     bl  arm_move_guest_blob
 
@@ -80,7 +80,7 @@ impl_reset:
 	//TEST
 	/*
 	ldr r0, =0x47 //Set r0 to 0x47.
-debug_loop: //(Put breakpoint here)
+debug_loop:
 	cmp r0, #0x11 //Compare r0 to 0x11.
 	blne debug_loop //Loop if r0 is not equal to 0x11.
 	*/
