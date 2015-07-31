@@ -7,6 +7,7 @@
 //TODO: Note: Added these to avoid warnings.
 extern void dmmu_init();
 extern uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs);
+extern void debug_inf(void); //TODO. Remove after debugging
 
 //#define DEBUG_PG_CONTENT
 //#define DEBUG_L1_PG_TYPE
@@ -377,6 +378,10 @@ void start_guest()
 
 }
 
+void debug_temp(){
+	debug_inf_loop();
+}
+
 void start_()
 {
     cpu_init();
@@ -399,6 +404,11 @@ void start_()
     guests_init();
 
     printf("Hypervisor initialized.\n Entering Guest...\n");
+	
+	//TODO: Try to wake some other core up here...
+	typedef void (*fn)(void);
+	*(volatile fn *)(0x4000009C) = debug_temp; //Try to move Core 1 to an infinite loop
+
+	//Move along, main core...
     start_guest();
-	//TODO: ALl clear until end!
 }
