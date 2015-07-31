@@ -88,4 +88,8 @@ Run gdb (like this):
 
 and you should execute the command \texttt{arm-none-eabi-gdb -i=mi}. You are now running the GDB cross-debugger in one of the Emacs buffers, but this is not enough. Again, press Macro+x and then execute the command \texttt{gdb-many-windows} at the resulting prompt. This will give you more useful buffers, so you can monitor registers, variables and breakpoints continuously.
 
+It can be useful to load the symbol file. This will allow you to track variables and follow your debugging in the C code of the hypervisor. Do so by executing the command \texttt{symbol-file path/to/hypervisor/core/build/sth_platform.elf} at the \texttt{(gdb)} prompt, where you replace \texttt{path/to/hypervisor} with the path to the hypervisor directory relative to the home directory, and \texttt{platform} with the name of your platform. Also, be sure to open the disassembled file (at \texttt{core/build/sth_platform.asm}, where you replace \texttt{platform} with the name of your platform) to keep track of what happens at or around the memory address you are currently debugging.
+
+Finally, connect to the OpenOCD server by executing the command \texttt{target extended-remote localhost:3333} at the \texttt{(gdb)} prompt. You should now be able to confirm that you are inside \texttt{debug\_loop}. 
+
 \end{document}
