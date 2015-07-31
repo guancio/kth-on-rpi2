@@ -19,3 +19,6 @@ test: all
 ##
 sim: all
 	make -C core sim
+
+deploy: all
+	cd core; make deploy

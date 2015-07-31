@@ -60,7 +60,7 @@ impl_reset:
 	//TODO: TEST:
 	/* Enables pins for writing and configures them for JTAG functionality.
 	 * This is best put at the start so that you can debug the entire program. */
-	bl debug_gpio_init
+	//bl debug_gpio_init
 
 	//TODO: Currently we have no smartLoader or OVP, so what does the below line mean?
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */

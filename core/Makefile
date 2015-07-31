@@ -65,7 +65,8 @@ build/$(EXE).img: build/$(EXE).bin
 
 #TODO: Change target for this function back to "build/$(EXE).fw.img" from current one.
 build/$(EXE).fw.img: build/$(EXE).fw
-	$(MKIMAGE) -A arm -O linux -T kernel -C none -a $(HAL_PHYS_START) -e $(HAL_PHYS_START) -n build/$(EXE) -d build/$(EXE).fw /tftpboot/uImage
+	$(MKIMAGE) -A arm -O linux -T kernel -C none -a $(HAL_PHYS_START) -e $(HAL_PHYS_START) -n build/$(EXE) -d build/$(EXE).fw build/$(EXE).fw.img
+
 
 build/$(EXE).bin: build/$(EXE).elf
 	$(OBJCOPY) build/$(EXE).elf -O binary build/$(EXE).bin
@@ -89,6 +90,8 @@ about:
 	
 ##
 
+deploy: build/$(EXE).fw.img
+	cp build/$(EXE).fw.img /tftpboot/uImage
 
 sim: build/$(EXE).elf  build/$(EXE).fw
 	$(SIMULATOR) build/$(EXE).fw:$(HAL_PHYS_START) build/$(EXE).elf # $(GUEST_ELFS)
