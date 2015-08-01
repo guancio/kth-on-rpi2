@@ -63,12 +63,17 @@ SECTIONS
     . = 0xf0100000 - 1024 * (64 + 32 + 8);
     __hyper_heap_end__ = .;
     
-    /* stack */
+    /* Primary stack (core 0) */
     __hyper_stack_bottom__ = .;
     . += 1024 * 8;
-    __hyper_stack_top__ = .;         
+    __hyper_stack_top__ = .;
 
-    /* guest */
+	/* Secondary stack (core 1) */
+	__hyper_stack_bottom_core_1__ = .;
+    . += 1024 * 8;
+    __hyper_stack_top_core_1__ = .;       
+
+    /* Guest */
     __hyper_guest_start__ = .;
     . += 1024 * 32;
     __hyper_guest_end__ = .;     
@@ -78,6 +83,11 @@ SECTIONS
     __hyper_pt_start__ = .;
     . += 1024 * 64;    
     __hyper_pt_end__ = .;
+
+	/* Secondary (slave) PT memory */ 
+    __hyper_pt_start_slave__ = .;
+    . += 1024 * 64;    
+    __hyper_pt_end_slave__ = .;
 
     __hyper_end__ = .;        
     

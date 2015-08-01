@@ -72,6 +72,10 @@ memory_layout_entry memory_padr_layout[] =
 	//UART (0x3F201000 to 0x3F20108F)
 	{ADDR_TO_PAGE(UART_BASE), ADDR_TO_PAGE(UART_BASE + 0x1000),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
+
+	//Quad-Core processor control (0x40000000 to 0x400000FF)
+	{ADDR_TO_PAGE(0x40000000), ADDR_TO_PAGE(0x40000000 + 0x1000),
+	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	
 	////////////////////////////////////////////////////////////////////////
 

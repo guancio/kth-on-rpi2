@@ -8,9 +8,9 @@
 
     .global impl_reset
     .global _interrupt_vector_table
+	.global _hang
 
 	.extern arm_move_guest_blob
-
     .extern start_
     .extern impl_undef
     .extern impl_swi
