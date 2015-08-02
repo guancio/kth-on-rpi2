@@ -73,6 +73,9 @@ memory_layout_entry memory_padr_layout[] = {
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//Quad-Core processor control (0x40000000 to 0x400000FF)
+	//Nota bene: All other peripherals are mapped from 3F to FA, this will be
+	//mapped to FB. Crude methods which simply assume peripherals to be in the 
+	//range FA will fail here. 
 	{ADDR_TO_PAGE(0x40000000), ADDR_TO_PAGE(0x40000000 + 0x1000),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	

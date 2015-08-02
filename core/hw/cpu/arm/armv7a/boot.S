@@ -59,12 +59,13 @@ impl_reset:
 
 	//TODO: TEST:
 	/* Enables pins for writing and configures them for JTAG functionality.
-	 * This is best put at the start so that you can debug the entire program. */
+	 * This is best put at the start so that you can debug the entire program.
+	 * Without this, JTAG is initialized when soc_init is called in init.c. */
 	//bl debug_gpio_init
 
 	//TODO: Currently we have no smartLoader or OVP, so what does the below line mean?
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
-    bl  arm_move_guest_blob
+    bl arm_move_guest_blob
 
     /* Clean BSS. */
 	bl arm_clear_bss
@@ -75,6 +76,9 @@ impl_reset:
 	 * you are in virtual memory! */
 
     /* Setup real stacks now, run core init and reclaim the initial stacks. */
+	/* TODO: Moving 0 into r0 will make the new arm_setup_initial_stack
+	 * understand we want to initialize a stack for */
+	mov r0, #0
 	bl arm_setup_initial_stack
 
 	//TEST

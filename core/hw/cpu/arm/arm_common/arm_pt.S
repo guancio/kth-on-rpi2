@@ -43,25 +43,20 @@
 
 
 /*
- * set the initial page table
+ * Set the initial page table.
  */
-
 arm_setup_initial_pt:
-	
 	/* Start with the simplest possible PT needed to get STH running
  	 * in virtual address space.
  	 */
-
 	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)
 	bl arm_setup_initial_pt_at_adr
 
 arm_setup_initial_slave_pt:
-	
 	/* Start with the simplest possible PT needed to get the second guest
 	 * running in virtual address space (we will switch to the master page table
 	 * later).
  	 */
-
 	ldr r4, = (__hyper_pt_start_slave__ + HAL_OFFSET)
 	bl arm_setup_initial_pt_at_adr
 

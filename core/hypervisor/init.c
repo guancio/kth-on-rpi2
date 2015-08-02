@@ -378,6 +378,7 @@ void start_guest()
 
 }
 
+//Contains a function call to an assembly function which is an infinite loop.
 void debug_temp(){
 	debug_inf_loop();
 }
@@ -407,7 +408,9 @@ void start_()
 	
 	//TODO: Try to wake some other core up here...
 	typedef void (*fn)(void);
-	*(volatile fn *)(0x4000009C) = debug_temp; //Try to move Core 1 to an infinite loop
+	//0x4000009C is be the mailbox of Core 1 -> VA is 0xFB00009C
+	*(volatile fn *)(0xFB00009C) = debug_temp; //Try to move Core 1 to an
+	//infinite loop. debug_temp is defined above.
 
 	//Move along, main core...
     start_guest();
