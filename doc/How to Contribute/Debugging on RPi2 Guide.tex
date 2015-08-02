@@ -27,6 +27,7 @@
 This is a comprehensive guide that will cover all steps of debugging the STH on the RPi2 platform. Ubuntu 15.04 was used in the writing of this guide, but things should be similar on similar systems. This guide has a small amount of overlap with the ``Bare-metal programming on the Raspberry Pi 2'' guide which deals with more basic points, so if you find yourself lost trying to follow the steps in this guide, go back to that guide to learns the basics first. Similarly, the guide ``How to add new platforms to the STH'' deals with building the hypervisor. If you have any questions, please send an E-mail to the author.
 
 \section{Introduction}
+\noindent
 Firstly, you will need a few tools for doing this. There are several ways to debug using JTAG with \texttt{gdb}. We will be using \texttt{gdb} in conjunction with \texttt{emacs}, and the FT2232H Mini-Module JTAG adapter.
 
 If you have not yet done so, install:
@@ -42,10 +43,11 @@ If you have not yet done so, install:
 
 After cloning OpenOCD, navigate to the directory where OpenOCD was cloned, and type \texttt{./configure --enable-ftdi}, which should do the trick for the configuration stage. Then type \texttt{make} (make sure there are no errors!) and then \texttt{sudo make install}.
 
-\section{Set up debugging}
+\section{Setting up debugging}
+\noindent
 There are two things we would like to note regarding the JTAG pins on the Raspberry Pi 2. One, there is no SRST pin. Two, no pins have JTAG output by default, meaning they must be configured to serve that purpose. These two facts discourage us from using ordinary reset techniques. I have also had problems with removing breakpoints. There are workarounds for this, though.
 
-First, you need initialize JTAG somewhere. Look at the file \texttt{debug_gpio.c} and specifically the function \texttt{debug_gpio_init}. This function can be called in \texttt{boot.S}, just after you set the stack pointer, by adding the line
+First, you need initialize JTAG somewhere. Look at the file \texttt{debug\_gpio.c} and specifically the function \texttt{debug\_gpio\_init}. This function can be called in \texttt{boot.S}, just after you set the stack pointer, by adding the line
 
 \begin{verbatim}
 bl debug_gpio_init
@@ -88,7 +90,13 @@ Run gdb (like this):
 
 and you should execute the command \texttt{arm-none-eabi-gdb -i=mi}. You are now running the GDB cross-debugger in one of the Emacs buffers, but this is not enough. Again, press Macro+x and then execute the command \texttt{gdb-many-windows} at the resulting prompt. This will give you more useful buffers, so you can monitor registers, variables and breakpoints continuously.
 
-It can be useful to load the symbol file. This will allow you to track variables and follow your debugging in the C code of the hypervisor. Do so by executing the command \texttt{symbol-file path/to/hypervisor/core/build/sth_platform.elf} at the \texttt{(gdb)} prompt, where you replace \texttt{path/to/hypervisor} with the path to the hypervisor directory relative to the home directory, and \texttt{platform} with the name of your platform. Also, be sure to open the disassembled file (at \texttt{core/build/sth_platform.asm}, where you replace \texttt{platform} with the name of your platform) to keep track of what happens at or around the memory address you are currently debugging.
+It can be useful to load the symbol file. This will allow you to track variables and follow your debugging in the C code of the hypervisor. Do so by executing the command
+
+\begin{verbatim}
+symbol-file path/to/hypervisor/core/build/sth\_platform.elf
+\end{verbatim}
+
+at the \texttt{(gdb)} prompt, where you replace \texttt{path/to/hypervisor} with the path to the hypervisor directory relative to the home directory, and \texttt{platform} with the name of your platform. Also, be sure to open the disassembled file (at \texttt{core/build/sth\_platform.asm}, where you replace \texttt{platform} with the name of your platform) to keep track of what happens at or around the memory address you are currently debugging.
 
 Finally, connect to the OpenOCD server by executing the command \texttt{target extended-remote localhost:3333} at the \texttt{(gdb)} prompt. You should now be able to confirm that you are inside \texttt{debug\_loop}. 
 
