@@ -35,7 +35,7 @@ void mem_mmu_tlb_invalidate_one(BOOL inst, BOOL data, uint32_t virtual_addr)
  * CACHES 
  */
 
-/* XXX: this can be simplified alot! /AV */
+/* XXX: this can be simplified a lot! /AV */
 static inline signed int log_2_n_round_up(uint32_t n)
 {
     signed int log2n = -1;
@@ -138,12 +138,12 @@ void mem_cache_set_enable(BOOL enable)
 void mem_cache_invalidate(BOOL inst_inv, BOOL data_inv, BOOL data_writeback)
 {
     uint32_t tmp = 1;
-    /* first, handle the data cache */
+    /* First, handle the data cache. */
     if(data_inv) {
         mem_icache_invalidate(data_writeback);
     }    
     
-    /* now, the instruction cache */    
+    /* Then, the instruction cache. */    
     if(inst_inv) {
         COP_WRITE(COP_SYSTEM, COP_ICACHE_INVALIDATE_ALL, tmp);
     }

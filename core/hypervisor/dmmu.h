@@ -5,7 +5,7 @@
 // Disabling aggressive flushing
 //#define AGGRESSIVE_FLUSHING_HANDLERS
 
-/* bft base and size definition */
+/* BFT base and size definition */
 #define DMMU_BFT_BASE_PY  (MB + HAL_PHYS_START)
 #define DMMU_BFT_BASE_VA  (DMMU_BFT_BASE_PY - HAL_OFFSET)
 
@@ -20,12 +20,12 @@
 #define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart + 0x6800000
 #define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart + 0x6A00000
 
-/* bft entry type */
+/* BFT entry type */
 enum dmmu_entry_type { 
     DMMU_TYPE_DATA, DMMU_TYPE_L1PT, DMMU_TYPE_L2PT, DMMU_TYPE_INVALID
 };
 
-/* a single bft table */
+/* A single BFT table */
 typedef union dmmu_entry {
     uint32_t all;
     __PACKED struct {
@@ -170,11 +170,11 @@ void mmu_bft_region_set(addr_t start, size_t size, uint32_t refc, uint32_t typ);
 
 
 
-/* in translate.c */
+/* In translate.c */
 int mmu_lookup_guest(addr_t vadr, addr_t *padr, int user_write);
 int mmu_lookup_hv(addr_t vadr, addr_t *padr, int hv_write);
 
-/*Function prototypes*/
+/* Function prototypes */
 int dmmu_switch_mm(addr_t l1_base_pa_add);
 
 int dmmu_create_L1_pt(addr_t l1_base_pa_add);

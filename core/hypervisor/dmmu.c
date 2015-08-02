@@ -71,7 +71,7 @@ void dmmu_init()
   uint32_t i;
   dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
     
-  /* clear all entries in the table */
+  /* Clear all entries in the table. */
   for(i = 0; i < DMMU_BFT_COUNT ; i++) {
     bft[i].all = 0;
   }
@@ -274,7 +274,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add)
     return ERR_MMU_OUT_OF_CACHEABLE_RANGE;
 #endif
 
-  /* 16KB aligned ? */
+  /* 16 KiB aligned ? */
   if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
     return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 
@@ -371,7 +371,7 @@ int dmmu_unmap_L1_pt(addr_t l1_base_pa_add)
   if (!guest_pa_range_checker(l1_base_pa_add, 4*PAGE_SIZE))
     return ERR_MMU_OUT_OF_RANGE_PA;
 
-  /* 16KB aligned ? */
+  /* 16 KiB aligned ? */
   if (l1_base_pa_add != (l1_base_pa_add & 0xFFFFC000))
     return ERR_MMU_L1_BASE_IS_NOT_16KB_ALIGNED;
 

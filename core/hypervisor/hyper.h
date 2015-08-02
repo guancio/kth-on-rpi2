@@ -14,7 +14,7 @@ typedef void(*pabort_handler_fn)(void);
 
 
 
-/*Data structures
+/* Data structures
  *
  * */
 
@@ -25,14 +25,14 @@ typedef struct guest_info_ {
 	uint32_t phys_offset;
 	addr_t   vmalloc_end;
 	uint32_t guest_size;
-}guest_info;
+} guest_info;
 
 typedef struct boot_info_ {
 	guest_info guest;
 	uint32_t cpu_id;
 	uint32_t cpu_mmf;
 	uint32_t cpu_cr;
-}boot_info;
+} boot_info;
 
 
 /* Virtual machine data structures */

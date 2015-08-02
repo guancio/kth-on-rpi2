@@ -54,7 +54,8 @@ adr_undef: 	.word impl_undef
 impl_reset:
     /* Start in supervisor mode, disable interrupts. */
     msr CPSR_c, #ARM_MODE_SUPERVISOR | ARM_INTERRUPT_MASK
-	/* Stack pointer starts at the physical address of the hyper stack top. */
+	/* Stack pointer starts at the physical address of the hyper stack top.
+	 * In this file, we always boot the primary core. */
     ldr sp, =(__hyper_stack_top__ + HAL_OFFSET)
 
 	//TODO: TEST:

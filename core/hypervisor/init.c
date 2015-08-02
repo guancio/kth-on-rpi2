@@ -100,7 +100,7 @@ void memory_commit()
 
 void memory_init()
 {
-	/*Setup heap pointer*/
+	/* Setup heap pointer. */
 	core_mem_init();
 
     uint32_t j; //TODO: Note: Removed unused variable va_offset here.
@@ -176,7 +176,7 @@ void guests_init()
 //    dump_mmu(flpt_va); // DEBUG
   
     
-    /* show guest information */
+    /* Show guest information */
     printf("We have %d guests in physical memory area %x %x\n", 
         guests_db.count, guests_db.pstart, guests_db.pend);
 
@@ -340,7 +340,7 @@ void guests_init()
 
     // Init the context with the physical addresses
     do{
-    	/*Init default values*/
+    	/* Init default values */
         for(i = 0; i < HC_NGUESTMODES;i++){
             curr_vm->mode_states[i].mode_config = (curr_vm->config->guest_modes[i]);
             curr_vm->mode_states[i].rpc_for = MODE_NONE;
@@ -369,39 +369,41 @@ void guests_init()
 
 void start_guest()
 {
-
-    /*Change guest mode to KERNEL before going into guest*/
+    /* Change guest mode to KERNEL before going into guest. */
     change_guest_mode(HC_GM_KERNEL);
 
-    /*Starting Guest*/
+    /* Start guest! */
     start();
-
 }
 
-//Contains a function call to an assembly function which is an infinite loop.
+//Contains a function call to an assembly label above an infinite loop.
 void debug_temp(){
 	debug_inf_loop();
 }
 
 void start_()
 {
+	/* Flush and enable the cache, among other things. Defined in
+	 * core/hw/cpu/family/model/cpu_init.c. */
     cpu_init();
 
-    /* Set up pagetable rules. */
+    /* Set up pagetable rules - defined further up in this file. */
     memory_init();
 
-    /* Initialize hardware. */
+    /* Initialize hardware - defined in core/hw/soc/platform and
+	 * core/hw/board/platform, respectively. */
     soc_init();
     board_init();
 
-    /* Set up exception handlers and starting timer. */
+    /* Set up exception handlers and starting timer - defined further up in this
+	 * file. */
     setup_handlers();
 
-    /* DMMU initialization. */
+    /* DMMU initialization - defined in dmmu.c. */
     dmmu_init();
 
     /* Initialize hypervisor guest modes and data structures
-     * according to config file in guest*/
+     * according to config file in guest - defined further up in this file. */
     guests_init();
 
     printf("Hypervisor initialized.\n Entering Guest...\n");

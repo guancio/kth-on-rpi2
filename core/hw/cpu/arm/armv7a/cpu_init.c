@@ -5,10 +5,10 @@
 
 extern uint32_t __hyper_pt_start__[]; // Symbols address is the value (linker script)
 
-/* forward refrence */
+/* Forward reference */
 static return_value default_catcher(uint32_t r0, uint32_t r1, uint32_t r2);
 
-/* callback functions */
+/* Callback functions */
 cpu_callback family_callback_inst_abort = default_catcher;
 cpu_callback family_callback_data_abort = default_catcher;
 
@@ -44,8 +44,8 @@ void cpu_break_to_debugger()
 
 
 /* 
- * default exception catcher so we dont crash into NULL 
- * due to very early exceptions
+ * Default exception catcher so we dont crash into NULL due to very early
+ * exceptions.
  */
 static return_value default_catcher(uint32_t r0, uint32_t r1, uint32_t r2)
 {
@@ -80,7 +80,7 @@ static return_value default_catcher(uint32_t r0, uint32_t r1, uint32_t r2)
 
 void cpu_init()
 {
-    /* Invalidate and enable cache*/
+    /* Invalidate and enable cache */
     //mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
     //mem_cache_set_enable(TRUE);
 	CacheDataCleanInvalidateAll();
@@ -92,9 +92,9 @@ void cpu_init()
     uint32_t pt		   = (uint32_t)GET_PHYS(__hyper_pt_start__);
     uint32_t ttb_flags = ( pt |  TTB_IRGN_WB | TTB_RGN_OC_WB);
     COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE1,ttb_flags);
-    /*The following is Linux specific configuration on armV7,
-     *These configuration are used to identify what kind of memory
-     *the address space is by looking at the page attributes */
+    /* The following is Linux specific configuration on armV7,
+     * These configuration are used to identify what kind of memory
+     * the address space is by looking at the page attributes */
 
 	/*
 	 * Memory region attributes with SCTLR.TRE=1
@@ -141,7 +141,7 @@ void cpu_init()
     COP_READ(COP_SYSTEM,COP_SYSTEM_CONTROL, mmu_config);
     mmu_config &= (~clear);
     mmu_config |= set;
-    /*Setting alignment fault with beagleboard crashes it*/
+    /* Setting alignment fault with beagleboard crashes it */
     //mmu_config |= CR_A; // Set Alignment fault checking
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_CONTROL, mmu_config);
     //mem_cache_set_enable(TRUE);
