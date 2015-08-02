@@ -35,19 +35,19 @@ typedef struct {
 } volatile interrupt_registers;
 
 extern uint32_t * _interrupt_vector_table;
-//TODO: Why 128?
 cpu_callback irq_function_table[128] __attribute__ ((aligned (32)));
 
 static interrupt_registers *ireg = 0;
 static cpu_callback interrupt_handler = 0;
 
+//The default interrupt handler.
 /* static */ return_value default_handler(uint32_t r0, uint32_t r1, uint32_t r2){
 	printf("DEFAULT INTERRUPT HANDLER %x:%x:%x\n", r0, r1, r2);
 	return RV_OK;
 }
 
+//This sets interrrupt handlers.
 static return_value interrupt_handler_stub(uint32_t irq, uint32_t r1, uint32_t r2 ){
-
     if(interrupt_handler){
     	interrupt_handler(irq, r1, r2);
 	}
@@ -143,21 +143,6 @@ void cpu_irq_acknowledge(int number){
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
                                      BOOL level_sensitive){
-	/*
-	uint32_t tmp;
-    
-	//Check for invalid IRQ number and return function call if one is found.
-    if(number < 0 || number >= IRQ_COUNT){
-		return;
-	}
-
-    tmp = priority & 7;
-    if(polarity) tmp |= (1UL << 6);
-    if(!level_sensitive) tmp |= (1UL << 5);
-    
-    aic->smr[number] = tmp;
-	*/
-
 	//Do nothing then return function call.
 	return;
 }
@@ -167,37 +152,8 @@ void cpu_irq_get_current(){
     /* TODO */
 }
 
-//Disables, then sets handlers for all IRQs and then enables only 
-//UART IRQ.
+//Disables, then sets handlers for all IRQs and then enables only UART IRQ.
 void soc_interrupt_init(){
-    /*Needs to be rewritten*/
-#if 0
-    int i;
-    memspace_t * ms_expv, *ms_aic;
-    
-    /* allocate the relocated exception page */
-    /* TODO: mark zero page ro, supervisor and remove it from available from */
-    ms_expv = env_memspace_create_physical(PROC_TYPE_HYPERVISOR, "__soc_expv",
-                                           GET_PHYS(_interrupt_vector_table), 
-                                           0, PAGE_SIZE, TRUE);
-    
-    /* configure the AIC */
-    ms_aic = env_map_from(PROC_TYPE_HYPERVISOR, PROC_TYPE_HYPERVISOR,
-                           "__soc_aic", AIC_BASE, sizeof(aic_registers) , TRUE);
-    aic = (aic_registers *)ms_aic->vadr;
-    
-    /* disable and clear interrupts */
-    aic->idcr = -1; /* disable all */
-    aic->iccr = -1; /* clear all */
-    
-    /* disable each individual interrupt and set the default handler */
-    for(i = 0; i < cpu_irq_get_count(); i++) {
-        cpu_irq_set_enable(i, FALSE);
-        cpu_irq_set_handler(i, (cpu_callback)default_handler);
-    }
-#endif
-
-
     int i; //Loop index
     interrupt_handler = (cpu_callback)irq_handler;
     ireg = (interrupt_registers *)IO_VA_ADDRESS(INTC_BASE);

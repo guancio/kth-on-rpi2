@@ -1,7 +1,6 @@
 #include <types.h>
 #include <mmu.h>
-//This is where we get the peripherals' addresses from.
-#include <soc_defs.h>
+#include <soc_defs.h> //This is where we get the peripherals' addresses from.
 
 //The base RAM address.
 //This is only used in this file, and decides where hypervisor RAM 
@@ -20,22 +19,21 @@
 //Current amount:	1 MiB
 #define AMOUNT_OF_TRUSTED_RAM 0x100000
 
-//The amount of user RAM. Supposing several users, this should not be defined at
-//compile time. It is hard for me to see where you ideally would put this.
+//The amount of user RAM.
 //Possibly, with only one user, user could always use "the rest" of available
 //RAM since we know the total amount of RAM on the board.
-//TODO: instead calculate from the previous offset and total RAM.
+//TODO: Instead calculate from the previous offset and total RAM, giving guest(s)
+//the remaining RAM?
 //Current amount:	5 MiB
 #define AMOUNT_OF_USER_RAM 0x500000
 
 //Here, we reserve RAM space for stuff.
 //Physical addresses of RPi2 RAM range from 0x00000000 to 0x3e000000, counting
-//with the 64 MiB reserved for the GPU.
+//with the 64 MiB by default reserved for the GPU.
 
 //These are the addresses of peripherals, and the address spaces of the
 //different RAM areas.
-memory_layout_entry memory_padr_layout[] =
-{
+memory_layout_entry memory_padr_layout[] = {
 	//Explanation of the various flags:
 	//MLT_IO_HYP_REG
 	//	This is a memory range only the hypervisor should access. Example:
@@ -47,17 +45,18 @@ memory_layout_entry memory_padr_layout[] =
 	//	This is a memory range a guest should only be able to read from.
 	//	Examples could be various clock registers.
 
-	//TODO: Read-only address ranges - changed temp. to RW ranges.
-	//TODO: Note: there appears to be a hidden convention to only assign
-	//MiB-sized ranges (multiples of 0x1000). If you do not do this, the program
-	//will break.
+	//Note: There is a convention to only assign 4 KiB-sized ranges (multiples
+	//of 0x1000). If you smaller ranges, the program will break.
+	//TODO: Make default behaviour in memory_init to either warn if range is too
+	//small, or assign a 4 KiB-sized range with the same starting address.
+	//Note: These are all physical addresses, which are then converted to pages.
 	
 	//Clocks (0x3F003000 to 0x3F003021)
 	{ADDR_TO_PAGE(CLOCK_BASE), ADDR_TO_PAGE(CLOCK_BASE + 0x1000),
-	MLT_IO_RW_REG,  MLF_READABLE | MLF_WRITEABLE},
+	MLT_IO_RO_REG,  MLF_READABLE | MLF_WRITEABLE},
 
 	//Interrupt controller (0x3F00B200 to 0x3F00B227)
-	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00C000), //TODO: Collides with ARM
+	{ADDR_TO_PAGE(0x3F00B000), ADDR_TO_PAGE(0x3F00C000), //TODO: Collides with ARM timer
 	MLT_IO_HYP_REG, MLF_READABLE | MLF_WRITEABLE},
 
 	//ARM timer (0x3F00B400 to 0x3F00B423)
@@ -77,9 +76,9 @@ memory_layout_entry memory_padr_layout[] =
 	{ADDR_TO_PAGE(0x40000000), ADDR_TO_PAGE(0x40000000 + 0x1000),
 	MLT_IO_RW_REG, MLF_READABLE | MLF_WRITEABLE},
 	
-	////////////////////////////////////////////////////////////////////////
-
+	////////////////////////////////////////////////////////////////////////////
 	//These are the RAM address spaces.
+
 	//Hypervisor RAM
 	{ADDR_TO_PAGE(BASE_RAM_ADDRESS),
 	ADDR_TO_PAGE(BASE_RAM_ADDRESS + AMOUNT_OF_HYPERVISOR_RAM),
@@ -96,6 +95,6 @@ memory_layout_entry memory_padr_layout[] =
 	{ADDR_TO_PAGE(BASE_RAM_ADDRESS + AMOUNT_OF_HYPERVISOR_RAM + AMOUNT_OF_TRUSTED_RAM),
 	ADDR_TO_PAGE(BASE_RAM_ADDRESS + AMOUNT_OF_HYPERVISOR_RAM + AMOUNT_OF_TRUSTED_RAM + AMOUNT_OF_USER_RAM),
 	MLT_USER_RAM,
-	MLF_READABLE | MLF_WRITEABLE | MLF_LAST},//TODO: Is it really entirely cricket with a comma after the last entry?
+	MLF_READABLE | MLF_WRITEABLE | MLF_LAST},
 };
 

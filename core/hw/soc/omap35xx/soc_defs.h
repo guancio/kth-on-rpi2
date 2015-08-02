@@ -6,7 +6,7 @@
 #define IO_OFFSET				0xB2000000
 #define IO_VA_ADDRESS(x)		((x) + IO_OFFSET)
 
-/* standard TI OMAP3 interrupt controller data */
+/* Standard TI OMAP3 interrupt controller data */
 #define INTC_BASE 0x48200000
 #define INTC_VIRT_BASE (IO_VA_ADDRESS(INTC_BASE))
 //#define INTC_VIRT_BASE INTC_BASE + IO_OFFSET

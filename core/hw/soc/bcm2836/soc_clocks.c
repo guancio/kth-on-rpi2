@@ -44,7 +44,4 @@ void soc_clocks_init()
     env_memspace_free(PROC_TYPE_HYPERVISOR, ms_power, TRUE);    
 #endif
 #endif
-
-//TODO: Possible replacement:
-//	Clock enable on the CONTROL1 register?
 }

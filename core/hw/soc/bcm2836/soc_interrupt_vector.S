@@ -29,7 +29,7 @@ impl_irq:
     store_context
 
 	//////////////////
-	//NEW CODE (TODO):
+	//NEW CODE (TODO: Verify correctness):
 	//////////////////
 
 	//2. Decide if the interrupt is timer-related, UART-related, or neither.
@@ -238,11 +238,11 @@ impl_swi:
 	//operating in...
     sub r11, lr, #4    
 	//Note: r11 is ARM frame pointer.
-    ldr r3, [r11] //TODO: Changed from r2 to r3...
+    ldr r3, [r11]
 	//bic is the "bit clear" operation, i.e. op1 "AND NOT" op2.
 	//This would copy the first byte octet in r2 back to r2 and
 	//replace the rest of r2 with zeroes. 
-    bic r3, r3, #0xFF000000 //TODO: Changed from r2 to r3...
+    bic r3, r3, #0xFF000000
 
 
 	//3. Restore context.

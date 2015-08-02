@@ -1,10 +1,8 @@
 #include <hw.h>
 #include "board.h"
 
-//There is not much action going on in this file.
-//Looking at similar files, not much there either.
-//Probably a dummy function which must be here in case we need to do something
-//upon initialization of the board.
+//Probably a dummy function which must be here, in case the hypervisor needs to
+//do something upon initialization of the board.
 
 extern uint32_t *flpt_va;
 

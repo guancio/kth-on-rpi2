@@ -18,8 +18,7 @@ typedef void(*pabort_handler_fn)(void);
  *
  * */
 
-/*Boot information from guest that hypervisor needs*/
-
+/* Boot information from guest that hypervisor needs */
 typedef struct guest_info_ {
 	uint32_t nr_syscalls;
 	uint32_t page_offset;
@@ -36,9 +35,7 @@ typedef struct boot_info_ {
 }boot_info;
 
 
-/*Virtual machine data structures*/
-
-
+/* Virtual machine data structures */
 typedef struct hyper_mode_state_ {
 	context ctx;
 	const struct hc_guest_mode_ *mode_config;

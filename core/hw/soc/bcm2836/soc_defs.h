@@ -9,7 +9,6 @@
 
 //Virtual peripherals base address is 0xFA000000.
 //             -> Offset is 0xBB000000 (BB + 3F = FA)
-
 #define IO_OFFSET				0xBB000000
 #define IO_VA_ADDRESS(x)		((x) + IO_OFFSET)
 
@@ -17,7 +16,6 @@
 #define GPIO_BASE PERI_BASE + 0x200000
 //The base address of the function select registers
 #define GPFSEL_BASE GPIO_BASE
-
 //The base address of the GPPUD registers.
 #define GPPUD_BASE GPIO_BASE + 0x94
 
@@ -27,13 +25,12 @@
 #define INTC_VIRT_IRQ_BASIC_PENDING INTC_VIRT_BASE
 #define INTC_VIRT_IRQ_PENDING_1 (IO_VA_ADDRESS(INTC_BASE + 0x4))
 #define INTC_VIRT_IRQ_PENDING_2 (IO_VA_ADDRESS(INTC_BASE + 0x8))
-
 //Number of interrupt sources: 64 plus 8
 #define INTC_SOURCE_COUNT 64+8
 
 /* SOC interrupt sources */
-
-//TODO: Added 64 to all "basic" IRQs to distinguish them from others.
+//TODO: Added 64 to all basic IRQs (using the terminology of the BCM2835
+//documentation) to distinguish them from others.
 #define INTC_IRQ_NUM_TIMER 0+64
 #define INTC_IRQ_NUM_MAILBOX 1+64
 #define INTC_IRQ_NUM_DOORBELL0 2+64
@@ -58,11 +55,9 @@
 #define INTC_IRQ_NUM_UART 57
 
 /* Timer */
-
 //Base address of timer
 #define TIMER_BASE PERI_BASE + 0xB400
 #define TIMER_TIC TIMER_BASE + 0xC
-
 #define TIMER_VIRT_BASE (IO_VA_ADDRESS(TIMER_BASE))
 #define TIMER_VIRT_TIC (IO_VA_ADDRESS(TIMER_TIC))
 

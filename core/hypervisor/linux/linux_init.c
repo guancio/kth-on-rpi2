@@ -289,5 +289,3 @@ void linux_init()
 	init_linux_sigcode();
 }
 
-
-

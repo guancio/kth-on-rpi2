@@ -60,12 +60,7 @@ void timer_tick_start(cpu_callback handler){
 	//Enable timer.
 	timer->tc = (1 << 5)|(1 << 7);
 	//Enable IRQ.
-    cpu_irq_set_enable(INTC_IRQ_NUM_TIMER, TRUE);        
-    
-	//TODO: What do the below lines do and are they essential?
-    ////timer->channels[1].ccr = 0x1;
-    ////the simplified OVP implementation nneds this to start
-    ////timer->channels[1].rc = 312; /* ~5 ms */
+    cpu_irq_set_enable(INTC_IRQ_NUM_TIMER, TRUE);
 }
 
 //Stops the timer.
@@ -79,14 +74,6 @@ void timer_tick_stop(){
 
 //Initializes the timer.
 void soc_timer_init(){
-	/*Needs to be rewritten*/
-	#if 0
-	//*ms is probably not hard-coded...
-    memspace_t *ms = env_map_from(PROC_TYPE_HYPERVISOR, PROC_TYPE_HYPERVISOR,
-                     "__soc_timer", TIMER_BASE, sizeof(timer_registers) , TRUE);
-    
-    timer = ms->vadr;
-	#endif
 	uint32_t register_a;
 	timer = (timer_registers *)IO_VA_ADDRESS(TIMER_BASE);
     //Disable timer clock and interrupts.

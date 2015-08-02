@@ -28,7 +28,7 @@ typedef struct {
 	uint32_t tdr; //Test data register
 } volatile uart_registers;
 
-static uart_registers *uart = 0; //TODO: Why assign zero?
+static uart_registers *uart = 0;
 
 //This function print a char over the UART.
 //We pass an int even though the char is in the first 8 bits.
@@ -78,26 +78,12 @@ extern int stdio_read_char(){
 	return uart->dr;   
 }
 
-/**********************************************************************/
-
 //Disables, then initializes the UART.
 void soc_uart_init(){
 	//"uart" is now a struct located at UART_BASE.
 	//The struct entries are located starting at UART_BASE and upwards every
 	//four bytes.
 	uart = (uart_registers *)IO_VA_ADDRESS(UART_BASE);
-
-	#if 0
-	//*ms is probably not hard-coded...
-	//What the heck is this and why would we need it???
-    memspace_t *ms_uart;
-    
-    
-    ms_uart = env_map_from(PROC_TYPE_HYPERVISOR, PROC_TYPE_HYPERVISOR,
-                           "__soc_usart", USART0_BASE, sizeof(usart_registers) , TRUE);
-        
-    usart0 = (usart_registers *) ms_uart->vadr;
-	#endif
 
 	//TODO: Since we are not 100% the UART has not been initialized at this
 	//point (U-Boot, et.c.) we might want to disable it first, and then do setup

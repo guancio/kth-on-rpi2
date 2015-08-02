@@ -9,14 +9,15 @@ extern void delay();
 //The other parts of this file concern enabling writing on the GPIO pins we want
 //to use.
 
-//A struct with all the registers would be 
-
+//General GPIO control registers.
 typedef struct {
     uint32_t gppud; //GPIO pull-up/pull-down register
 	uint32_t gppudclk0; //GPIO pull-up/pull-down Clock register 0
 	uint32_t gppudclk1; //GPIO pull-up/pull-down Clock register 1
 } volatile gppud_registers;
 
+//All the function select registers, which we can use to set functions of the
+//GPIO pins.
 typedef struct {
     uint32_t gpfsel0;
     uint32_t gpfsel1;
@@ -32,7 +33,6 @@ static function_select_registers *fsel = 0;
 //Enables writing to the GPIO pins we want to use.
 void soc_gpio_init(){
 	unsigned int register_a;
-	//gppud_registers *gppud;
 	gppud = (gppud_registers *)IO_VA_ADDRESS(GPPUD_BASE);
 
 	//Control signal: Disable pull-up/pull-down on GPIO pin 
