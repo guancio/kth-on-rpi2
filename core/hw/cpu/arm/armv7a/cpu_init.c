@@ -86,11 +86,11 @@ void cpu_init()
 	CacheDataCleanInvalidateAll();
 	CacheInstInvalidateAll();
     CacheEnable(CACHE_ALL);
-#if 1
     //Setup page table pointer 1
-    /* PTWs cacheable, inner WB not shareable, outer WB not shareable */
+    /* PTWs cacheable, inner WB not shareable, outer WB not shareable. It is in
+	 * fact here we switch to the master page table.  */
     uint32_t pt		   = (uint32_t)GET_PHYS(__hyper_pt_start__);
-    uint32_t ttb_flags = ( pt |  TTB_IRGN_WB | TTB_RGN_OC_WB);
+    uint32_t ttb_flags = (pt |  TTB_IRGN_WB | TTB_RGN_OC_WB);
     COP_WRITE(COP_SYSTEM,COP_SYSTEM_TRANSLATION_TABLE1,ttb_flags);
     /* The following is Linux specific configuration on armV7,
      * These configuration are used to identify what kind of memory
@@ -124,8 +124,8 @@ void cpu_init()
 	 *   NS1 = PRRR[19] = 1		- normal shareable property
 	 *   NOS = PRRR[24+n] = 1	- not outer shareable */
 
-    uint32_t prrr = 0xFF0a81A8;	// Primary region remap regiser
-    uint32_t nmrr = 0x40E040e0; // Normal memory remap register
+    uint32_t prrr = 0xFF0a81A8;	//Primary region remap regiser
+    uint32_t nmrr = 0x40E040e0; //Normal memory remap register
     COP_WRITE(COP_SYSTEM,COP_MEMORY_REMAP_PRRR,prrr);
     COP_WRITE(COP_SYSTEM,COP_MEMORY_REMAP_NMRR,nmrr);
 
@@ -138,15 +138,14 @@ void cpu_init()
     uint32_t clear 	= 0x0120c302;
     uint32_t set	= 0x10c03c7d;
     uint32_t mmu_config;
-    COP_READ(COP_SYSTEM,COP_SYSTEM_CONTROL, mmu_config);
+    COP_READ(COP_SYSTEM, COP_SYSTEM_CONTROL, mmu_config);
     mmu_config &= (~clear);
     mmu_config |= set;
-    /* Setting alignment fault with beagleboard crashes it */
+    /* Setting alignment fault with Beagleboard crashes it */
     //mmu_config |= CR_A; // Set Alignment fault checking
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_CONTROL, mmu_config);
     //mem_cache_set_enable(TRUE);
     CacheEnable(CACHE_ALL);
-#endif
 }
 
 

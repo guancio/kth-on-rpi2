@@ -43,30 +43,42 @@
 
 
 /*
- * Set the initial page table.
+ * Set up the initial page table.
  */
-arm_setup_initial_pt:
-	/* Start with the simplest possible PT needed to get STH running
- 	 * in virtual address space.
- 	 */
-	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)
-	bl arm_setup_initial_pt_at_adr
 
-arm_setup_initial_slave_pt:
+arm_setup_initial_pt_slave:
 	/* Start with the simplest possible PT needed to get the second guest
 	 * running in virtual address space (we will switch to the master page table
 	 * later).
  	 */
-	ldr r4, = (__hyper_pt_start_slave__ + HAL_OFFSET)
-	bl arm_setup_initial_pt_at_adr
+
+	mov r0, =(__hyper_pt_start_slave__ + HAL_OFFSET)
+	mov r1, #0
+	add r2, r0, #0x4000
+
+	/* First, clean the memory used to make all pages invalid. */
+	/* TODO: No need to do this again?
+1:	str r1, [r0], #4
+	str r1, [r0], #4
+	str r1, [r0], #4
+	str r1, [r0], #4
+	teq r0, r2
+	bne 1b */
+
+
 
 arm_reset_initial_pt:
 	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)
 	mcr p15, 0, r4, c2, c0, 0	@ load page table pointer
 	bx lr
+
+arm_setup_initial_pt:
+	/* Start with the simplest possible PT needed to get STH running
+ 	 * in virtual address space.
+ 	 */
+
 	
-arm_setup_initial_pt_at_adr:
-	mov r0, r4
+	mov r0, =(__hyper_pt_start__ + HAL_OFFSET)
 	mov r1, #0
 	add r2, r0, #0x4000
 
@@ -108,7 +120,8 @@ arm_setup_initial_pt_at_adr:
     nop     @ for PC jump above
     nop     @ for PC jump above
 
-	/* Now running in virt space, we can remove 1:1 mapping now */
+	/* Now running in virt space, we can remove 1:1 mapping now - or NOT.
+	 * TODO: Current version should not remove the temporary mapping.*/
 	mov r0, #0
 	ldr r3, =(HAL_PHYS_START >> 20)
 	str r0, [r4, r3, lsl #2]

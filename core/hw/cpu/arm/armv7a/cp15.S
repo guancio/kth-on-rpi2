@@ -153,7 +153,7 @@ cfinished:
 CP15DCacheCleanFlush:
     push    {r4-r11}
     dmb
-    mrc     p15, #1, r0, c0, c0, #1  @@ Read CLID register
+    mrc     p15, #1, r0, c0, c0, #1  @@ Read Cache Level ID register
     and    r3, r0, #0x7000000       @@ Get Level of Coherency
     mov     r3, r3, lsr #23
     beq     finished

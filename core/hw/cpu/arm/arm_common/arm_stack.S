@@ -15,9 +15,10 @@ arm_setup_initial_stack:
 	 * the processor core we are initializing a stack for (typically 0, 1, 2 or
 	 * 3). */
 	cmp r0, #0x0
-	bne case_core_one
+	//bne case_core_one //TODO: Commented out before building final multicore version
 	ldr r0, = __hyper_stack_top__
 	b setup_stack
+/* //TODO: Commented out before building final multicore version...
 case_core_one:
 	cmp r0, #0x1
 	bne case_core_two
@@ -34,6 +35,7 @@ case_core_three:
 	ldr r0, = __hyper_stack_top_core_3__
 	b setup_stack
 invalid_core:
+	*/
 	/* TODO: Here, we can put a call to a general error handler to display a
 	 * message about initialization from an invalid core number. */
 

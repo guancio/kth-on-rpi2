@@ -89,25 +89,25 @@ SECTIONS
     . += 1024 * 64;    
     __hyper_pt_end__ = .;
 
-	/* Secondary stack (for core 1) */
+	/* Secondary stack (for core 1) 
 	__hyper_stack_bottom_core_1__ = .;
     . += 1024 * 8;
-    __hyper_stack_top_core_1__ = .;
+    __hyper_stack_top_core_1__ = .; */
 
-	/* Tertiary stack (for core 2) */
+	/* Tertiary stack (for core 2) 
 	__hyper_stack_bottom_core_2__ = .;
     . += 1024 * 8;
-    __hyper_stack_top_core_2__ = .;
+    __hyper_stack_top_core_2__ = .; 
 
-	/* Quaternary stack (for core 3) */
+	/* Quaternary stack (for core 3) 
 	__hyper_stack_bottom_core_3__ = .;
     . += 1024 * 8;
-    __hyper_stack_top_core_3__ = .;    
+    __hyper_stack_top_core_3__ = .; */ 
 
-	/* Secondary (slave) PT memory (only needed to run guests on different cores) */ 
+	/* Secondary (slave) PT memory (only needed to run guests on different cores)  
     __hyper_pt_start_slave__ = .;
     . += 1024 * 64;    
-    __hyper_pt_end_slave__ = .;
+    __hyper_pt_end_slave__ = .; */
 
     __hyper_end__ = .;    
     

@@ -383,7 +383,7 @@ void test_l2_map_entry()
 	//access to the guest page tables.
 	pa = 0x0;
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pa, idx, pga, attrs);
-	expect(++t_id,"Mapping an entry of an invalid L2, in physical address outside the allowed range", ERR_MMU_OUT_OF_RANGE_PA, res); //TODO: What does this mean?
+	expect(++t_id,"Mapping an entry of an invalid L2, in physical address outside the allowed range", ERR_MMU_OUT_OF_RANGE_PA, res);
 
 	//#1: L2 base address is OK, but guest can not map a page outside the
 	//allowed range into its L2 page table entries.
@@ -412,7 +412,7 @@ void test_l2_map_entry()
 	expect(++t_id,"Mapping a page table onto one of the L2 entries with write access permission", ERR_MMU_NEW_L2_NOW_WRITABLE, res);
 
 	//#5: This test should fail, because we can not map anything to an entry of
-	//a data page. //TODO: Fails with wrong failure...
+	//a data page.
 	res = ISSUE_DMMU_HYPERCALL_(CMD_MAP_L2_ENTRY, pga, idx, pga, attrs);
 	expect(++t_id,"Mapping an entry of a data page", ERR_MMU_IS_NOT_L2_PT, res);
 
