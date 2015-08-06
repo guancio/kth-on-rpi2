@@ -18,11 +18,10 @@ extern virtual_machine vms[4];
 //getting the ID of the processor from the stack pointer (good because it is
 //platform-independent). 
 virtual_machine* get_curr_vm(){
-	//TODO: See how this turns out in assembly.
 	//TODO: This will be used a lot, so it should be maximally efficient.
 	//1. Get value of stack pointer.
 	register uint32_t stack_pointer __asm("sp"); //The actual register?
-	uint32_t temp_stack_pointer = stack_pointer; //TODO: Do this on one line?
+	uint32_t temp_stack_pointer = stack_pointer;
 
 	//2. Subtract __hyper_stack_bottom__ from the stack pointer (all stacks are
 	//adjacent, so we get the placement of the address relative to the start of

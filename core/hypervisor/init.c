@@ -312,7 +312,7 @@ void guests_init()
     	 offset + SECTION_SIZE <= guest_psize;
     	 offset += SECTION_SIZE) {
 	printf("-- creating initial mapping of %x to %x\n", guest_vstart+offset,guest_pstart+offset);
-    	res = dmmu_map_L1_section(guest_vstart+offset,guest_pstart+offset, attrs);
+    	res = dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, attrs);
 	printf("-- result %d\n", res);
     }
 
