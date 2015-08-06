@@ -12,6 +12,8 @@ extern int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2);
 extern virtual_machine *curr_vm;
 extern int __hyper_stack_bottom__;
 
+extern virtual_machine vms[4];
+
 //This function returns a pointer to the VM currently running on this core,
 //getting the ID of the processor from the stack pointer (good because it is
 //platform-independent). 
@@ -30,19 +32,14 @@ virtual_machine* get_curr_vm(){
 	//3. XOR with masks of the different stacks until you get 0.
 	//The size of one stack is 8*1024 bytes -> 10 0000 0000 0000 in binary.
 	//So, we want to clear the first 13 bits.
-	//TODO: Note that 0x1FFF is hard-coded from the stack size. We can get
-	//the mask (0x1FFF in this case) by subtracting 1 from the stack size, if
-	//the stack size is a power of two. In general (when stack size is not power
-	//of two), doing this is a harder problem.
-	temp_stack_pointer = temp_stack_pointer ^ 0x1FFF;
+	//TODO: Note that 13 is hard-coded from the stack size. In the slightly
+	//more general case of the stack size being a power of two, 
+	temp_stack_pointer = temp_stack_pointer >> 13;
 	//TODO: Where do we decide how many VMs we have? Until then:
-	while((temp_stack_pointer ^ (curr_vm->id << 12)) != 0){
-		curr_vm = curr_vm->next;
-	}
 
 	//4. Return curr_vm, which is a pointer to the current machine on this
 	//particular core.
-	return &curr_vm; //TODO: Entirely cricket?
+	return &vms[temp_stack_pointer ^ curr_vm->id]; //TODO: Entirely cricket?
 }
 
 #define USE_DMMU

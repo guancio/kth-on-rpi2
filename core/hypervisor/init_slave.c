@@ -20,6 +20,7 @@ virtual_machine vm_0;
 virtual_machine vm_1;
 virtual_machine vm_2;
 virtual_machine vm_3;
+virtual_machine vms[4];
 virtual_machine *curr_vm;
 
 //Add what you need here in terms of external functions and imports to be able
