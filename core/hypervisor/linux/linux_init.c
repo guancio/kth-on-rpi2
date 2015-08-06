@@ -25,10 +25,12 @@ const unsigned long syscall_restart_code[2] = {
 };
 void clear_linux_mappings()
 {
-	uint32_t PAGE_OFFSET   = curr_vm->guest_info.page_offset;
-	uint32_t VMALLOC_END   = curr_vm->guest_info.vmalloc_end;
-	uint32_t guest_size    = curr_vm->guest_info.guest_size;
-	uint32_t MODULES_VADDR = (curr_vm->guest_info.page_offset - 16*1024*1024);
+	virtual_machine* _curr_vm = get_curr_vm();
+
+	uint32_t PAGE_OFFSET   = _curr_vm->guest_info.page_offset;
+	uint32_t VMALLOC_END   = _curr_vm->guest_info.vmalloc_end;
+	uint32_t guest_size    = _curr_vm->guest_info.guest_size;
+	uint32_t MODULES_VADDR = (_curr_vm->guest_info.page_offset - 16*1024*1024);
 	uint32_t address;
 
 	uint32_t offset = 0;
@@ -71,11 +73,13 @@ void clear_linux_mappings()
 //return value.
 void dmmu_clear_linux_mappings()
 {
-	addr_t guest_vstart = curr_vm->config->firmware->vstart;
-	addr_t guest_psize =  curr_vm->config->firmware->psize;
+	virtual_machine* _curr_vm = get_curr_vm();
+
+	addr_t guest_vstart = _curr_vm->config->firmware->vstart;
+	addr_t guest_psize =  _curr_vm->config->firmware->psize;
 	uint32_t address;
 
-	uint32_t VMALLOC_END   = curr_vm->guest_info.vmalloc_end;
+	uint32_t VMALLOC_END   = _curr_vm->guest_info.vmalloc_end;
 
 	/*
 	 * Clear out all the mappings below the kernel image. Maps
@@ -139,8 +143,10 @@ uint32_t linux_l2_index_p = 0;
 
 addr_t linux_pt_get_empty_l2()
 {
-  uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
-  uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
+
+	virtual_machine* _curr_vm = get_curr_vm();
+  uint32_t pa_l2_pt = _curr_vm->config->firmware->pstart + _curr_vm->config->pa_initial_l2_offset;
+  uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, _curr_vm->config);
   if((linux_l2_index_p * 0x400) > SECTION_SIZE){ // Set max size of L2 pages
     printf("No more space for more L2s\n");
     while(1); //hang
@@ -165,9 +171,10 @@ void linux_init_dmmu()
 	uint32_t error;
 	uint32_t sect_attrs, sect_attrs_ro, small_attrs, small_attrs_ro, page_attrs,table2_idx, i;
 	addr_t table2_pa;
-    addr_t guest_vstart = curr_vm->config->firmware->vstart;
-    addr_t guest_pstart = curr_vm->config->firmware->pstart;
-    addr_t guest_psize =  curr_vm->config->firmware->psize;
+	virtual_machine* _curr_vm = get_curr_vm();
+    addr_t guest_vstart = _curr_vm->config->firmware->vstart;
+    addr_t guest_pstart = _curr_vm->config->firmware->pstart;
+    addr_t guest_psize =  _curr_vm->config->firmware->psize;
     /*Linux specific mapping*/
     /*Section page with user RW in kernel domain with Cache and Buffer*/
     sect_attrs = MMU_L1_TYPE_SECTION;
@@ -208,10 +215,10 @@ void linux_init_dmmu()
     	dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, sect_attrs);
     }
 
-    addr_t reserved_l2_pts_pa = curr_vm->config->pa_initial_l2_offset + guest_pstart;
+    addr_t reserved_l2_pts_pa = _curr_vm->config->pa_initial_l2_offset + guest_pstart;
 
     /*Set whole 1MB reserved address region in Linux as L2_pt*/
-    addr_t reserved_l2_pts_va = mmu_guest_pa_to_va(reserved_l2_pts_pa, curr_vm->config);
+    addr_t reserved_l2_pts_va = mmu_guest_pa_to_va(reserved_l2_pts_pa, _curr_vm->config);
 
     /*Memory setting the reserved L2 pages to 0
      *There is a lot of garbage occupying the L2 page address in real HW
@@ -247,7 +254,7 @@ void linux_init_dmmu()
         uint32_t end = table2_idx + 0x100;
         uint32_t page_pa;
         for(i = table2_idx, page_pa = offset; i < end ; i++, page_pa+=0x1000){
-        	if(!(curr_vm->config->pa_initial_l2_offset <= page_pa && page_pa <= ( curr_vm->config->pa_initial_l2_offset|0x0000F000)))
+        	if(!(_curr_vm->config->pa_initial_l2_offset <= page_pa && page_pa <= (_curr_vm->config->pa_initial_l2_offset|0x0000F000)))
         		dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs);
         	else
         	    dmmu_l2_map_entry(table2_pa, i, page_pa + guest_pstart,  small_attrs_ro);

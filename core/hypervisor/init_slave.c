@@ -1,5 +1,3 @@
-//Goes inside core/hypervisor
-
 #include <hw.h>
 #include "hyper.h"
 #include "guest_blob.h"
@@ -10,14 +8,14 @@
 extern int __hyper_pt_start__;
 extern uint32_t l2_index_p;
 
-/*Pointers to start of first and second level page tables.
- *Defined in linker script.  */
-uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
-uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16 KiB Page offset
-
 extern memory_layout_entry * memory_padr_layout;
+extern hc_config minimal_config;
+
+extern uint32_t *flpt_va;
+extern uint32_t *slpt_va; //16 KiB Page offset
 
 //We will need one virtual machine for each core.
+//TODO: Why not use an array?
 virtual_machine vm_0;
 virtual_machine vm_1;
 virtual_machine vm_2;
@@ -89,7 +87,7 @@ void guests_init_multicore(){
     addr_t guest_pstart = curr_vm->config->firmware->pstart;
     addr_t guest_psize =  curr_vm->config->firmware->psize;
 
-    /* KTH CHANGES 
+    /* KTH CHANGES
      * The hypervisor must always be able to read from/write to the guest page
 	 * tables. For now, the guest page tables can be written into the guest
 	 * memory anywhere. In the future we probably need more master page tables,
@@ -111,15 +109,15 @@ void guests_init_multicore(){
 		//on both sides on the below row. Is this a bug or pedagogic code in some way?
         va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /* +1 MiB at end for L1PT */
         va_offset += SECTION_SIZE){
-          uint32_t offset, pmd;
-          uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
-          uint32_t pa = guest_pstart + va_offset;
-          pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
+		uint32_t offset, pmd;
+		uint32_t va = vm_0.config->reserved_va_for_pt_access_start + va_offset;
+		uint32_t pa = guest_pstart + va_offset;
+		pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
 
-          /* Invalidate the newly created entries. */
-          offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
-          pmd = (uint32_t *)((uint32_t)flpt_va + offset);
-          COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, pmd);
+		/* Invalidate the newly created entries. */
+		offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
+		pmd = (uint32_t *)((uint32_t)flpt_va + offset);
+		COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, pmd);
     }
 
     memory_commit();
@@ -132,8 +130,8 @@ void guests_init_multicore(){
 	//to start from different numbers depending on the index of the guest.
     dmmu_entry_t * bft = (dmmu_entry_t *) DMMU_BFT_BASE_VA;
     for (i=0; i*4096<0x8000; i++) {
-        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
-        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
+		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
+		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
     }
 
 	/* At this point we are finished initializing the master page table, and can

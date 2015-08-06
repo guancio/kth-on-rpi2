@@ -17,8 +17,8 @@
 // To check if all the page tables are allocated form the region that is always chackable or not
 //#define DEBUG_DMMU_CACHEABILITY_CHECKERS
 #define CHECK_PAGETABLES_CACHEABILITY
-#define PG_ADDR_LOWER_BOUND  curr_vm->config->firmware->pstart + 0x6800000
-#define PG_ADDR_UPPER_BOUND  curr_vm->config->firmware->pstart + 0x6A00000
+#define PG_ADDR_LOWER_BOUND  _curr_vm->config->firmware->pstart + 0x6800000
+#define PG_ADDR_UPPER_BOUND  _curr_vm->config->firmware->pstart + 0x6A00000
 
 /* BFT entry type */
 enum dmmu_entry_type { 

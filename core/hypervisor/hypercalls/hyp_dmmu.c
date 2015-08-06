@@ -3,16 +3,16 @@
 #include "dmmu.h"
 #include "mmu.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine* get_curr_vm();
 
 #if 0
 #define DEBUG_MMU
 #endif
 
 /*Get physical address from Linux virtual address*/
-#define LINUX_PA(va) ((va) - (addr_t)(curr_vm->config->firmware->vstart) + (addr_t)(curr_vm->config->firmware->pstart))
+#define LINUX_PA(va) ((va) - (addr_t)(_curr_vm->config->firmware->vstart) + (addr_t)(_curr_vm->config->firmware->pstart))
 /*Get virtual address from Linux physical address*/
-#define LINUX_VA(pa) ((pa) - (addr_t)(curr_vm->config->firmware->pstart) + (addr_t)(curr_vm->config->firmware->vstart))
+#define LINUX_VA(pa) ((pa) - (addr_t)(_curr_vm->config->firmware->pstart) + (addr_t)(_curr_vm->config->firmware->vstart))
 
 addr_t linux_pt_get_empty_l2();
 
@@ -34,14 +34,14 @@ void hypercall_dyn_switch_mm(addr_t table_base, uint32_t context_id)
 
 
 /* Free Page table, Make it RW again */
-void hypercall_dyn_free_pgd(addr_t *pgd_va)
-{
+void hypercall_dyn_free_pgd(addr_t *pgd_va){
+	virtual_machine* _curr_vm = get_curr_vm();
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall FREE PGD\n\t\t pgd:%x ", pgd_va);
 #endif
 	uint32_t i, clean_va;
 
-	uint32_t page_offset = curr_vm->guest_info.page_offset;
+	uint32_t page_offset = _curr_vm->guest_info.page_offset;
 
 	/*First get the physical address of the lvl 2 page by
 		 * looking at the index of the pgd location. Then set
@@ -49,7 +49,7 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
 
 	addr_t *master_pgd_va;
 	/*Get master page table*/
-	master_pgd_va = (addr_t *)(curr_vm->config->pa_initial_l1_offset + page_offset);
+	master_pgd_va = (addr_t *)(_curr_vm->config->pa_initial_l1_offset + page_offset);
 	addr_t *l1_pt_entry_for_desc = (addr_t *)&master_pgd_va[(addr_t)pgd_va >> MMU_L1_SECTION_SHIFT];
 	uint32_t l1_desc_entry = *l1_pt_entry_for_desc;
 
@@ -61,7 +61,7 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
 
 	uint32_t l2_entry_idx = (((uint32_t)pgd_va << 12) >> 24) + table2_idx;
 
-	uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa & L2_BASE_MASK, (curr_vm->config)));
+	uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa & L2_BASE_MASK, (_curr_vm->config)));
 	uint32_t page_pa = MMU_L2_SMALL_ADDR(l2_page_entry[l2_entry_idx]);
 
     uint32_t attrs = MMU_L2_TYPE_SMALL;
@@ -98,8 +98,8 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
 
 /*New pages for processes, copys kernel space from master pages table
  *and cleans the cache, set these pages read only for user */
-void hypercall_dyn_new_pgd(addr_t *pgd_va)
-{
+void hypercall_dyn_new_pgd(addr_t *pgd_va){
+	virtual_machine* _curr_vm = get_curr_vm();
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall new PGD\n\t\t pgd:%x ", pgd_va);
 #endif
@@ -109,11 +109,11 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 	uint32_t i, end, table2_idx ;
 
 	addr_t *master_pgd_va;
-	addr_t phys_start = curr_vm->config->firmware->pstart;
-	addr_t page_offset = curr_vm->guest_info.page_offset;
+	addr_t phys_start = _curr_vm->config->firmware->pstart;
+	addr_t page_offset = _curr_vm->guest_info.page_offset;
 	addr_t linux_va;
 	/*Get master page table*/
-	master_pgd_va = (addr_t *)(curr_vm->config->pa_initial_l1_offset + page_offset);
+	master_pgd_va = (addr_t *)(_curr_vm->config->pa_initial_l1_offset + page_offset);
 	addr_t *l1_pt_entry_for_desc = (addr_t *)&master_pgd_va[(addr_t)pgd_va >> MMU_L1_SECTION_SHIFT];
 	uint32_t l1_desc_entry = *l1_pt_entry_for_desc;
 
@@ -177,7 +177,7 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 
     	uint32_t l2_entry_idx = (((uint32_t)pgd_va << 12) >> 24) + table2_idx;
 
-		uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa & L2_BASE_MASK, (curr_vm->config)));
+		uint32_t *l2_page_entry = (addr_t *)(mmu_guest_pa_to_va(table2_pa & L2_BASE_MASK, (_curr_vm->config)));
 		uint32_t page_pa = MMU_L2_SMALL_ADDR(l2_page_entry[l2_entry_idx]);
 
 		addr_t clean_va;
@@ -221,8 +221,7 @@ void hypercall_dyn_new_pgd(addr_t *pgd_va)
 
 /*In ARM linux pmd refers to pgd, ARM L1 Page table
  *Linux maps 2 pmds at a time  */
-void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
-{
+void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc){
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, desc);
 #endif
@@ -231,8 +230,9 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	addr_t curr_pgd_pa, *pgd_va, attrs;
 	uint32_t l1_pt_idx_for_desc, l1_desc_entry, phys_start;
 
-	phys_start = curr_vm->config->firmware->pstart;
-	addr_t page_offset = curr_vm->guest_info.page_offset;
+	virtual_machine* _curr_vm = get_curr_vm();
+	phys_start = _curr_vm->config->firmware->pstart;
+	addr_t page_offset = _curr_vm->guest_info.page_offset;
 	uint32_t page_offset_idx = (page_offset >> MMU_L1_SECTION_SHIFT) * 4;
 
 	/*Page attributes*/
@@ -245,7 +245,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 
 	/*Get current page table*/
 	COP_READ(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)curr_pgd_pa);
-	addr_t master_pgd_va = (curr_vm->config->pa_initial_l1_offset + page_offset);
+	addr_t master_pgd_va = (_curr_vm->config->pa_initial_l1_offset + page_offset);
 
 	/*Switch to the page table that we want to modify if we are not in it*/
 	if((LINUX_PA((addr_t)pmd & L1_BASE_MASK)) != (curr_pgd_pa)){
@@ -345,7 +345,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 	addr_t desc_va_idx = MMU_L1_SECTION_IDX((addr_t)desc_va);
 
 	addr_t l2pt_pa = MMU_L1_PT_ADDR(pgd_va[desc_va_idx]);
-	addr_t *l2pt_va = (addr_t *)(mmu_guest_pa_to_va(l2pt_pa, (curr_vm->config)));
+	addr_t *l2pt_va = (addr_t *)(mmu_guest_pa_to_va(l2pt_pa, (_curr_vm->config)));
 
 	uint32_t l2_idx = ((uint32_t)l1_entry << 12) >> 24;
 	uint32_t l2entry_desc = l2pt_va[l2_idx];
@@ -441,14 +441,15 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 
 /*va is the virtual address of the page table entry for linux pages
  *the physical pages are located 0x800 below */
-void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t phys_pte)
-{
+void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t phys_pte){
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PTE\n\t\t va:%x linux_pte:%x phys_pte:%x ", l2pt_linux_entry_va, phys_pte, linux_pte);
 #endif
-	addr_t phys_start = curr_vm->config->firmware->pstart;
-	uint32_t page_offset = curr_vm->guest_info.page_offset;
-	uint32_t guest_size = curr_vm->config->firmware->psize;
+
+	virtual_machine* _curr_vm = get_curr_vm();
+	addr_t phys_start = _curr_vm->config->firmware->pstart;
+	uint32_t page_offset = _curr_vm->guest_info.page_offset;
+	uint32_t guest_size = _curr_vm->config->firmware->psize;
 	uint32_t *l2pt_hw_entry_va = (addr_t *)((addr_t ) l2pt_linux_entry_va - 0x800);
 	addr_t l2pt_hw_entry_pa = ((addr_t)l2pt_hw_entry_va - page_offset + phys_start );
 

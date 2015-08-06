@@ -1,7 +1,7 @@
 #include "hw.h"
 #include "hyper.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine* get_curr_vm();
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
 
@@ -11,17 +11,19 @@ void change_guest_mode (uint32_t mode)
 	if(mode >= HC_NGUESTMODES)
 		hyper_panic("Trying to switch to unknown guest mode", 1);
 	uint32_t domac;
-	curr_vm->current_mode_state = &curr_vm->mode_states[mode];
-	cpu_context_current_set(&(curr_vm->current_mode_state->ctx));
-	curr_vm->current_guest_mode = mode;
-	domac = curr_vm->current_mode_state->mode_config->domain_ac;
+	virtual_machine* _curr_vm = get_curr_vm();
+	_curr_vm->current_mode_state = &_curr_vm->mode_states[mode];
+	cpu_context_current_set(&(_curr_vm->current_mode_state->ctx));
+	_curr_vm->current_guest_mode = mode;
+	domac = _curr_vm->current_mode_state->mode_config->domain_ac;
 	COP_WRITE(COP_SYSTEM, COP_SYSTEM_DOMAIN, domac);
 }
 /*
 void hypercall_register_handler(uint32_t handler)
 {
+	virtual_machine* _curr_vm = get_curr_vm();
 	printf("Registering guest tick handler: %x \n", handler);
-	curr_vm->guest_tick_handler = handler;
+	_curr_vm->guest_tick_handler = handler;
 }
 */
 
@@ -47,13 +49,14 @@ void hypercall_guest_init(boot_info *info)
 	info->cpu_mmf= mmf;
 	info->cpu_cr = cr;
 
-	curr_vm->guest_info.nr_syscalls = (uint32_t)info->guest.nr_syscalls;
-	curr_vm->guest_info.page_offset = info->guest.page_offset;
-	curr_vm->guest_info.phys_offset = info->guest.phys_offset;
-	curr_vm->guest_info.vmalloc_end = info->guest.vmalloc_end;
-	curr_vm->guest_info.guest_size = info->guest.guest_size;
+	virtual_machine* _curr_vm = get_curr_vm();
+	_curr_vm->guest_info.nr_syscalls = (uint32_t)info->guest.nr_syscalls;
+	_curr_vm->guest_info.page_offset = info->guest.page_offset;
+	_curr_vm->guest_info.phys_offset = info->guest.phys_offset;
+	_curr_vm->guest_info.vmalloc_end = info->guest.vmalloc_end;
+	_curr_vm->guest_info.guest_size = info->guest.guest_size;
 
-	curr_vm->exception_vector = (uint32_t *)info->guest.page_offset;
+	_curr_vm->exception_vector = (uint32_t *)info->guest.page_offset;
 
 #ifdef LINUX
 	//clear_linux_mappings();
@@ -70,7 +73,8 @@ void hypercall_restore_regs(uint32_t *regs)
 
 	uint32_t *context;
 	uint32_t i = 16;
-	context = &curr_vm->current_mode_state->ctx.reg[0];
+	virtual_machine* _curr_vm = get_curr_vm();
+	context = &_curr_vm->current_mode_state->ctx.reg[0];
 
 	while(i > 0){
 		*context++ = *regs++;
@@ -92,7 +96,8 @@ void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 	if(syscall)
 		offset = 8;
 
-	sp = (uint32_t *)curr_vm->mode_states[HC_GM_KERNEL].ctx.sp;
+	virtual_machine* _curr_vm = get_curr_vm();
+	sp = (uint32_t *)_curr_vm->mode_states[HC_GM_KERNEL].ctx.sp;
 
 	uint32_t size = sizeof(uint32_t)*17; //17 registers to be restored from pointer
 	if(((uint32_t)sp < 0xC0000000) || ((uint32_t)sp  > (uint32_t)(HAL_VIRT_START - size)))
@@ -113,7 +118,7 @@ void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 	if(kernel_space){
 
 		//debug("Switching to KERNEL mode!\n");
-		context = &curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[0];
+		context = &_curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[0];
 		i = 13;
 
 		/*Restore register r0-r12, reuse sp and lr
@@ -127,11 +132,11 @@ void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 
 		/*Code originaly run in SVC mode, however only make sure it
 		 * can run in virtual kernel mode*/
-		curr_vm->mode_states[HC_GM_KERNEL].ctx.psr = 0xFFFFFFF0 & mode; //force user mode //TODO CHECK NOT VALID AFTER FIRST TIME?CHECK CURRENT MODE INSTEAD
-		curr_vm->mode_states[HC_GM_KERNEL].ctx.pc = stack_pc;
+		_curr_vm->mode_states[HC_GM_KERNEL].ctx.psr = 0xFFFFFFF0 & mode; //force user mode //TODO CHECK NOT VALID AFTER FIRST TIME?CHECK CURRENT MODE INSTEAD
+		_curr_vm->mode_states[HC_GM_KERNEL].ctx.pc = stack_pc;
 
 		/*Adjust kernel stack pointer*/
-		curr_vm->mode_states[HC_GM_KERNEL].ctx.sp += (18*4); // Frame size
+		_curr_vm->mode_states[HC_GM_KERNEL].ctx.sp += (18*4); // Frame size
 		change_guest_mode(HC_GM_KERNEL);
 
 	}
@@ -139,13 +144,13 @@ void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 	else if (!(kernel_space)){
 		//debug("Switching to USER mode!\n");
 		if(syscall){ //this mean skip r0
-			curr_vm->mode_states[HC_GM_TASK].ctx.reg[0] = return_value;
-			context = &curr_vm->mode_states[HC_GM_TASK].ctx.reg[1];
+			_curr_vm->mode_states[HC_GM_TASK].ctx.reg[0] = return_value;
+			context = &_curr_vm->mode_states[HC_GM_TASK].ctx.reg[1];
 			i = 15; //saves r1-pc
 			sp += 3; //adjust sp to skip arg 4, 5 and r0
 		}
 		else{
-			context = (uint32_t *)&curr_vm->mode_states[HC_GM_TASK].ctx;
+			context = (uint32_t *)&_curr_vm->mode_states[HC_GM_TASK].ctx;
 			i = 16; //saves r0-pc
 		}
 
@@ -156,10 +161,10 @@ void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 			i--;
 		}
 
-		curr_vm->mode_states[HC_GM_TASK].ctx.psr = 0xFFFFFFF0 & mode; // Make sure of user mode
+		_curr_vm->mode_states[HC_GM_TASK].ctx.psr = 0xFFFFFFF0 & mode; // Make sure of user mode
 
 		/*Adjust kernel stack pointer*/
-		curr_vm->mode_states[HC_GM_KERNEL].ctx.sp += (18*4 + offset); // Frame size + offset (2 swi args)
+		_curr_vm->mode_states[HC_GM_KERNEL].ctx.sp += (18*4 + offset); // Frame size + offset (2 swi args)
 		change_guest_mode(HC_GM_TASK);
 	}
 	else
@@ -174,9 +179,9 @@ void terminate(int number){
 	while(1); //get stuck here
 }
 
-void hypercall_num_error (uint32_t hypercall_num)
-{
-	uint32_t addr = (curr_vm->current_mode_state->ctx.pc -4);
+void hypercall_num_error (uint32_t hypercall_num){
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t addr = (_curr_vm->current_mode_state->ctx.pc -4);
 	printf ("Unknown hypercall %d originated at 0x%x, aborting",
 	   hypercall_num, addr);
 	terminate(1);

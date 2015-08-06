@@ -3,7 +3,7 @@
 #include "hyper.h"
 #include "hyp_cache.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine* get_curr_vm();
 
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
@@ -94,8 +94,9 @@ uint32_t hypercall_map_l1_section(addr_t va, addr_t sec_base_add, uint32_t attrs
          return ERR_HYP_RESERVED_VA;
       /*Check that the guest does not override the physical addresses outside its range*/
 
-      uint32_t guest_start_pa = curr_vm->guest_info.phys_offset;
-      uint32_t guest_size = curr_vm->guest_info.guest_size;
+	virtual_machine* _curr_vm = get_curr_vm();
+      uint32_t guest_start_pa = _curr_vm->guest_info.phys_offset;
+      uint32_t guest_size = _curr_vm->guest_info.guest_size;
       printf("gadds %x %x\n", guest_start_pa, guest_size);
       if(!(sec_base_add >= (guest_start_pa) && sec_base_add < (guest_start_pa + guest_size )))
           return ERR_HYP_OUT_OF_RANGE_PA;             
@@ -161,9 +162,9 @@ void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall create section\n\t\t va:%x pa:%x page_attr:%x  ", va, pa, page_attr);
 #endif
-
-	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
-	uint32_t guest_size = curr_vm->guest_info.guest_size;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PHYS_OFFSET = _curr_vm->guest_info.phys_offset;
+	uint32_t guest_size = _curr_vm->guest_info.guest_size;
 
 	/*Set domain in Section page for user */
 	page_attr &= ~MMU_L1_DOMAIN_MASK;
@@ -194,7 +195,7 @@ void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
 
 }
 
-#define LINUX_VA(x) ((((x - curr_vm->guest_info.phys_offset) << 4) >> 24) + 0xc00)
+#define LINUX_VA(x) ((((x - _curr_vm->guest_info.phys_offset) << 4) >> 24) + 0xc00)
 
 /*Switch page table
  * TODO Add list of allowed page tables*/
@@ -207,7 +208,8 @@ void hypercall_switch_mm(addr_t table_base, uint32_t context_id)
 	uint32_t *l2_pt, lvl2_idx;
 	uint32_t pgd_va;
 	uint32_t pgd_size = 0x4000;
-	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PAGE_OFFSET = _curr_vm->guest_info.page_offset;
 
 	/*First translate the physical address to linux virtual*/
 	pgd_va = LINUX_VA(table_base);
@@ -247,7 +249,8 @@ void hypercall_free_pgd(addr_t *pgd)
 #endif
 //	printf("\n\tLinux kernel Free PGD: %x\n", pgd);
 	uint32_t pgd_size = 0x4000;
-	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PAGE_OFFSET = _curr_vm->guest_info.page_offset;
 
 	/*Check page address*/
 	if( (uint32_t)pgd < PAGE_OFFSET || (uint32_t)pgd > (uint32_t)(HAL_VIRT_START - pgd_size) )
@@ -273,8 +276,8 @@ void hypercall_free_pgd(addr_t *pgd)
 
     for(i=lvl2_idx; i < lvl2_idx + 4; i++){
 		 l2_pt[i] |= (1 << 4 | 1 << 5); /*RW */
-		 clean_va = (MMU_L2_SMALL_ADDR(l2_pt[i])) + curr_vm->guest_info.page_offset
-				 	 	 	 	 	 	 	 -curr_vm->guest_info.phys_offset;
+		 clean_va = (MMU_L2_SMALL_ADDR(l2_pt[i])) + _curr_vm->guest_info.page_offset
+				 	 	 	 	 	 	 	 -_curr_vm->guest_info.phys_offset;
 
 		 COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, &l2_pt[i]);
 		 dsb();
@@ -297,8 +300,9 @@ void hypercall_new_pgd(addr_t *pgd)
 #endif
 	uint32_t slpt_pa, lvl2_idx, i;
 	uint32_t *l2_pt, clean;
-	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
-	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PAGE_OFFSET = _curr_vm->guest_info.page_offset;
+	uint32_t PHYS_OFFSET = _curr_vm->guest_info.phys_offset;
 	uint32_t pgd_size = 0x4000;
 
 	/*Check page address*/
@@ -374,9 +378,10 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, val);
 #endif
 	uint32_t offset, *l1_pt, slpt_pa, sect_idx;
-	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
-	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
-	uint32_t guest_size = curr_vm->guest_info.guest_size;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PAGE_OFFSET = _curr_vm->guest_info.page_offset;
+	uint32_t PHYS_OFFSET = _curr_vm->guest_info.phys_offset;
+	uint32_t guest_size = _curr_vm->guest_info.guest_size;
 
 	/*Security Checks*/
 	uint32_t pa = MMU_L1_SECTION_ADDR(val);
@@ -487,9 +492,10 @@ void hypercall_set_pte(addr_t *va, uint32_t linux_pte, uint32_t phys_pte)
 	printf("\n\t\t\tHypercall set PTE\n\t\t va:%x linux_pte:%x phys_pte:%x ", va, phys_pte, linux_pte);
 #endif
 	uint32_t *phys_va = (uint32_t *)((uint32_t)va - 0x800);
-	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
-	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
-	uint32_t guest_size = curr_vm->guest_info.guest_size;
+	virtual_machine* _curr_vm = get_curr_vm();
+	uint32_t PAGE_OFFSET = _curr_vm->guest_info.page_offset;
+	uint32_t PHYS_OFFSET = _curr_vm->guest_info.phys_offset;
+	uint32_t guest_size = _curr_vm->guest_info.guest_size;
 
 	/*Security Checks*/
 	uint32_t pa = MMU_L2_SMALL_ADDR(phys_pte);

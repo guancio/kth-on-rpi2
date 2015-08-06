@@ -1,9 +1,8 @@
 /*
  * ARM pagetable functions including the initial setup 
  */
-
     .global arm_setup_initial_pt
-	.global arm_setup_initial_slave_pt
+	.global arm_setup_initial_pt_slave
 	.global arm_reset_initial_pt
 
     .code 32
@@ -52,7 +51,11 @@ arm_setup_initial_pt_slave:
 	 * later).
  	 */
 
-	mov r0, =(__hyper_pt_start_slave__ + HAL_OFFSET)
+	/*mov r0, = #(__hyper_pt_start_slave__ + HAL_OFFSET)*/
+	ldr r0, =__hyper_pt_start_slave__
+	ldr r1, =HAL_OFFSET
+	add r0, r0, r1
+
 	mov r1, #0
 	add r2, r0, #0x4000
 
@@ -68,7 +71,10 @@ arm_setup_initial_pt_slave:
 
 
 arm_reset_initial_pt:
-	ldr r4, = (__hyper_pt_start__ + HAL_OFFSET)
+	ldr r4, =__hyper_pt_start__
+	ldr r1, =HAL_OFFSET
+	add r4, r4, r1
+	
 	mcr p15, 0, r4, c2, c0, 0	@ load page table pointer
 	bx lr
 
@@ -78,7 +84,11 @@ arm_setup_initial_pt:
  	 */
 
 	
-	mov r0, =(__hyper_pt_start__ + HAL_OFFSET)
+	/* mov r0, = #(__hyper_pt_start__ + HAL_OFFSET) */
+	ldr r0, =__hyper_pt_start__
+	ldr r1, =HAL_OFFSET
+	add r0, r0, r1
+
 	mov r1, #0
 	add r2, r0, #0x4000
 

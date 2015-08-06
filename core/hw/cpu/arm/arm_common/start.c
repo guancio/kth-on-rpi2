@@ -2,16 +2,17 @@
 #include "guest_blob.h"
 #include <cache.h>
 
-extern virtual_machine *curr_vm;
+extern virtual_machine* get_curr_vm();
 
 void start(){
-    uint32_t r3 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[3];
-    uint32_t r4 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[4];    
-    uint32_t r5 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[5];    
-    uint32_t r6 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[6];    
-    addr_t start = curr_vm->config->firmware->vstart + curr_vm->config->guest_entry_offset;
+	virtual_machine* _curr_vm = get_curr_vm();
+    uint32_t r3 = _curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[3];
+    uint32_t r4 = _curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[4];    
+    uint32_t r5 = _curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[5];    
+    uint32_t r6 = _curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[6];    
+    addr_t start = _curr_vm->config->firmware->vstart + _curr_vm->config->guest_entry_offset;
 #ifdef LINUX
-    start = curr_vm->config->firmware->pstart + curr_vm->config->guest_entry_offset;
+    start = _curr_vm->config->firmware->pstart + _curr_vm->config->guest_entry_offset;
 #endif
     
     printf("Branching to address: %x\n", start);
