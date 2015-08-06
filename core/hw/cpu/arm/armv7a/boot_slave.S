@@ -29,10 +29,12 @@ impl_core_1_reset:
 	/* From here on (more precisely, from a point at the end of above function), 
 	 * you are in virtual memory! */
 
-	/* Switch to master page table */
-	bl arm_reset_initial_pt
+	/* Switch to master page table
+	 * TODO: No need, this is done in cpu_init().
+	bl arm_reset_initial_pt */
 
-    /* Setup real stacks now, run core init and reclaim the initial stacks. */
+    /* Setup real stacks now, run core init and reclaim the initial stacks.
+	 * TODO: Which parts of this needs to be rewritten? */
 	mov r0, #0x1
 	bl arm_setup_initial_stack
 
@@ -55,10 +57,12 @@ impl_core_2_reset:
 	/* From here on (more precisely, from a point at the end of above function), 
 	 * you are in virtual memory! */
 
-	/* Switch to master page table */
-	bl arm_reset_initial_pt
+	/* Switch to master page table
+	 * TODO: No need, this is done in cpu_init().
+	bl arm_reset_initial_pt */
 
-    /* Setup real stacks now, run core init and reclaim the initial stacks. */
+    /* Setup real stacks now, run core init and reclaim the initial stacks.
+	 * TODO: Which parts of this needs to be rewritten? */
 	mov r0, #0x2
 	bl arm_setup_initial_stack
 
@@ -81,10 +85,12 @@ impl_core_3_reset:
 	/* From here on (more precisely, from a point at the end of above function), 
 	 * you are in virtual memory! */
 
-	/* Switch to master page table */
-	bl arm_reset_initial_pt
+	/* Switch to master page table
+	 * TODO: No need, this is done in cpu_init().
+	bl arm_reset_initial_pt */
 
-    /* Setup real stacks now, run core init and reclaim the initial stacks. */
+    /* Setup real stacks now, run core init and reclaim the initial stacks.
+	 * TODO: Which parts of this needs to be rewritten? */
 	mov r0, #0x3
 	bl arm_setup_initial_stack
 
