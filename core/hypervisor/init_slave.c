@@ -20,7 +20,7 @@ virtual_machine vm_0;
 virtual_machine vm_1;
 virtual_machine vm_2;
 virtual_machine vm_3;
-virtual_machine vms[4];
+virtual_machine* vms[4];
 virtual_machine *curr_vm;
 
 //Add what you need here in terms of external functions and imports to be able
@@ -41,10 +41,16 @@ void guests_init_multicore(){
 	vm_3.id = 3;
 
 	//The virtual machines are stored in some sort of linked list.
+	//TODO: As long as we have an hard-coded array this linked list seems
+	//pointless...
     vm_0.next = &vm_1;
 	vm_1.next = &vm_2;
 	vm_2.next = &vm_3;
 	vm_3.next = &vm_0;
+	vms[0] = &vm_0;
+	vms[1] = &vm_1;
+	vms[2] = &vm_2;
+	vms[3] = &vm_3;
 
     //printf("HV pagetable before guests initialization:\n"); //DEBUG
 	//dump_mmu(flpt_va); //DEBUG
