@@ -7,10 +7,7 @@ extern void hypercall_dyn_new_pgd(addr_t *pgd_va);
 extern void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc);
 extern void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint32_t phys_pte);
 extern int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2);
-
-//TODO: Fix this...
 extern int __hyper_stack_bottom__;
-
 extern virtual_machine* vms[4];
 
 //This function returns a pointer to the VM currently running on this core,
@@ -33,11 +30,10 @@ virtual_machine* get_curr_vm(){
 	//TODO: Note that 13 is hard-coded from the stack size. In the slightly
 	//more general case of the stack size being a power of two, 
 	temp_stack_pointer = temp_stack_pointer >> 13;
-	//TODO: Where do we decide how many VMs we have? Until then:
 
 	//4. Return curr_vm, which is a pointer to the current machine on this
 	//particular core.
-	return vms[temp_stack_pointer]; //TODO: Entirely cricket?
+	return vms[temp_stack_pointer];
 }
 
 #define USE_DMMU

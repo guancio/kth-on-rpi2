@@ -35,16 +35,14 @@ void guests_init_multicore(){
     uint32_t i, guest = 0;
 
 	//Set the ID of the virtual machines.
-	//TODO: Hard-coded for 4...
+	//TODO: Hard-coded for 4 cores/VMs...
     vm_0.id = 0;
 	vm_1.id = 1;
 	vm_2.id = 2;
 	vm_3.id = 3;
 
 	//The virtual machines are stored in some sort of linked list.
-	//TODO: As long as we have an hard-coded array this linked list seems
-	//pointless...
-	//TODO: Hard-coded for 4...
+	//TODO: Hard-coded for 4 cores/VMs...
     vm_0.next = &vm_1;
 	vm_1.next = &vm_2;
 	vm_2.next = &vm_3;
@@ -75,9 +73,6 @@ void guests_init_multicore(){
             guests_db.guests[i].fwsize);            
     }
 
-    /* We start with vm_0 as the current virtual machine. */
-    curr_vm = &vm_0;
-
 	//The configuration of the guest contains location of the always cacheable
 	//region inside the guest, among other things. This can be found inside the
 	//sub-directory guest_config.
@@ -95,13 +90,9 @@ void guests_init_multicore(){
 	vm_2.config->firmware = get_guest(1 + guest++);
 	vm_3.config->firmware = get_guest(1 + guest++);
 
-	//TODO: Why do we store these values in temporary variables???
-	//TODO: Note: later on, we can't use the same vstart and pstart for the other guests.
-	//		This would be the ideal starting point for a loop, setting pstart and vstart to
-	//		different values.
-	uint32_t guest_number;
-	//TODO: 4 is hard-coded for 4 guests.
-	for (guest_number = 0; guest_number < 4; guest_number++){
+    /* We start with vm_0 as the current virtual machine. */
+    curr_vm = &vm_0;
+	do {
 
 		addr_t guest_psize =  curr_vm->config->firmware->psize;
 		addr_t guest_vstart = curr_vm->config->firmware->vstart;
@@ -120,9 +111,6 @@ void guests_init_multicore(){
 		 * addresses are mapped by the virtual addresses 0x00000000 to 0x004FFFFF.
 		 * TODO: This memory sub-space must be accessible only to the hypervisor. */
 
-		//TODO: Note: We want to do this for every guest. For each loop, we want
-		//va_offset to start from a number which is guest_psize higher than the
-		//previous.
 		uint32_t va_offset;
 		for (va_offset = 0;
 			//TODO: Mathematically speaking, there is no reason to add section_size
@@ -132,8 +120,7 @@ void guests_init_multicore(){
 			va_offset + SECTION_SIZE <= guest_psize;
 		    va_offset += SECTION_SIZE){
 			uint32_t offset, pmd;
-			//TODO: Take a look at the line below...
-			uint32_t va = vms[guest_number].config->reserved_va_for_pt_access_start + va_offset;
+			uint32_t va = curr_vm->config->reserved_va_for_pt_access_start + va_offset;
 			uint32_t pa = guest_pstart + va_offset;
 			pt_create_section(flpt_va, va, pa, MLT_HYPER_RAM);
 
@@ -143,36 +130,38 @@ void guests_init_multicore(){
 			COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, pmd);
 		}
 
-		//Invalidates cache (TODO: Automatically of current core?).
+		//Invalidate cache.
 		memory_commit();
 
-		//printf("HV pagetable after guests initialization:\n"); //DEBUG
-		//dump_mmu(flpt_va); //DEBUG
+		curr_vm = curr_vm->next;
+	} while (curr_vm.id != 0);
 
-		//We pin the L2s that can be created in the 32 KiB area of slpt_va.
-		//TODO: Presumably we need to do this once for each guest. We might want i
-		//to start from different numbers depending on the index of the guest.
-		dmmu_entry_t * bft = (dmmu_entry_t *)DMMU_BFT_BASE_VA;
-		for (i=0; i*4096<0x8000; i++) {
-			bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
-			bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
-		}
+	//printf("HV pagetable after guests initialization:\n"); //DEBUG
+	//dump_mmu(flpt_va); //DEBUG
 
-		/* At this point we are finished initializing the master page table, and can
-		 * start initializing the first guest page table. 
+	//We pin the L2s that can be created in the 32 KiB area of slpt_va.
+	//TODO: This should only be done once.
+	dmmu_entry_t * bft = (dmmu_entry_t *)DMMU_BFT_BASE_VA;
+	for (i=0; i*4096<0x8000; i++) {
+		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
+		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 1;
+	}
 
-		 * The master page table now contains
-		 * 1) The virtual mapping to the hypervisor code and data.
-		 * 2) A fixed virtual mapping to the guest PT.
-		 * 3) Some reserved mapping that we ignore for now, e.g. IO‌REGS.
-		 * 4) A 1-1 mapping to the guest memory (as defined in board_mem.c) writable
-		 * 	  and readable by the user.
-		 * TODO: THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE 
-		 * INTO ITS ‌WHOLE‌ MEMORY */
+	/* At this point we are finished initializing the master page table, and can
+	 * start initializing the first guest page table. 
 
-		//Create a copy of the master page table for the guest in the physical
-		//address pa_initial_l1.
-		//TODO: This needs to be done once for each guest, with different addresses.
+	 * The master page table now contains
+	 * 1) The virtual mapping to the hypervisor code and data.
+	 * 2) A fixed virtual mapping to the guest PT.
+	 * 3) Some reserved mapping that we ignore for now, e.g. IO‌REGS.
+	 * 4) A 1-1 mapping to the guest memory (as defined in board_mem.c) writable
+	 * 	  and readable by the user.
+	 * TODO: THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE 
+	 * INTO ITS ‌WHOLE‌ MEMORY */
+
+	do {
+		/* Create a copy of the master page table for the guest in the physical
+		 * address pa_initial_l1. */
 		uint32_t *guest_pt_va;
 		addr_t guest_pt_pa;
 
@@ -185,15 +174,13 @@ void guests_init_multicore(){
 		//dump_mmu(guest_pt_va); //DEBUG
 		
 		/* Activate the guest page table. */
-		//TODO: Also needs to be done once for each guest.
 		memory_commit();
 		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
 		isb();
 		memory_commit();
 
-	   	//Calling the create_L1_pt API to check the correctness of the L1 content and
-		//to change the page table type to 1.
-		//TODO: Also needs to be done once for each guest.
+	   	/* Calling the create_L1_pt API to check the correctness of the L1
+		 * content and to change the page table type to 1. */
 		uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
 		if (res != SUCCESS_MMU){
 			printf("Error: Failed to create the initial PT with error code %d.\n",
@@ -211,18 +198,17 @@ void guests_init_multicore(){
 		}
 	#endif
 
-		//Initialize the datastructures with the type for the initial L1.
-		//Create the attribute that allow the guest to read/write/execute.
+		/* Initialize the datastructures with the type for the initial L1.
+		 * Create the attribute that allow the guest to read/write/execute. */
 		uint32_t attrs;
 		attrs = 0x12; // 0b1--10
 		attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
 		attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-		//As default the guest has a 1-to-1 mapping to all its memory
-		//TODO: This loop needs to be done for all the guests.
+		/* As default the guest has a 1-to-1 mapping to all its memory
+		 * TODO: This loop needs to be done for all the guests. */
 		uint32_t offset;
 		for (offset = 0;
-			//TODO: This loop really does leave 1 MiB at end, unlike the loop above.
 			offset + SECTION_SIZE <= guest_psize;
 			offset += SECTION_SIZE){
 			printf("   Creating initial mapping of %x to %x...\n",
@@ -247,7 +233,7 @@ void guests_init_multicore(){
 		}
 	#endif
 
-		// switch back to the master-pagetable
+		/* Switch back to the master page table */
 		memory_commit();
 		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)GET_PHYS(__hyper_pt_start__)); //Set TTB0
 		isb();
@@ -256,22 +242,12 @@ void guests_init_multicore(){
 
 		/* END GUANCIO CHANGES */
 		/* END KTH CHANGES */
-	}
-
-	//TODO: This should only be done once.
-#ifdef TRUSTED
-	//Gets the second guest, then increments guest counter by one.
-    get_guest(guest++);
-    curr_vm->mode_states[HC_GM_TRUSTED].ctx.sp = curr_vm->config->rpc_handlers->sp;
-    curr_vm->mode_states[HC_GM_TRUSTED].ctx.psr= ARM_INTERRUPT_MASK | ARM_MODE_USER;
-#endif
+		curr_vm = curr_vm->next;
+	} while (curr_vm.id != 0);
     
     guest = 0;
 
     //Initialize the context with the physical addresses.
-	//TODO: This should only be done once.
-	//TODO: This appears to be the only part of this function which is already
-	//written for several VMs.
     do{
     	/* Initialize default values */
         for(i = 0; i < HC_NGUESTMODES;i++){
@@ -296,18 +272,19 @@ void guests_init_multicore(){
 								 //that this entire loops works for several VMs.
     } while(curr_vm != &vm_0);
     
-	//TODO: This obviously needs to be done once for every VM.
     memory_commit();
 
     
-    // defines the active vm for each core
+    //Define the active virtual machine for each core
     vms[0] = &vm_0;
     vms[1] = &vm_1;
     vms[2] = &vm_2;
     vms[3] = &vm_3;
 
-    // set-up for each core current_context to point to the context of the active virtual machine
-    cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
+    //Set-up for each core current_context to point to the context of the active virtual machine
+	do{
+    	cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
+	} while(curr_vm != &vm_0);
 }
 
 
@@ -316,12 +293,6 @@ void slave_start_(){
 	 * core/hw/cpu/family/model/cpu_init.c. Since caches are separate among
 	 * cores, this should be run once for each core. */
     cpu_init();
-
-    /* Initialize hypervisor guest modes and data structures according to config
-	 * file in guest - defined in init.c. */
-    //guests_init(); //TODO: This should be run by the main core, and initialize
-					 //		 all secondary cores.
     
-	start_guest(); //TODO: Currently we have a shared curr_vm, which includes
-				   //	   among other things the state of processor registers. 
+	start_guest(); 
 }

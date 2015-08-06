@@ -40,7 +40,6 @@ arm_move_guest_blob:
      
 foreach_guest:
     /* Get size & padr. make sure size is 4-aligned. */
-
     ldr r4, [r1], #-4      @@ VADR
     ldr r5, [r1], #-4      @@ PSIZE
     ldr r6, [r1], #-4      @@ FWSIZE

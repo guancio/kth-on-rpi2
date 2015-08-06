@@ -7,7 +7,7 @@
 //TODO: Note: Added these to avoid warnings.
 extern void dmmu_init();
 extern uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs);
-extern void debug_inf(void); //TODO. Remove after debugging
+extern void debug_inf(void); //TODO: Remove after debugging
 
 //#define DEBUG_PG_CONTENT
 //#define DEBUG_L1_PG_TYPE
