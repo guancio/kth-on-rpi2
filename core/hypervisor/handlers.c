@@ -39,7 +39,7 @@ virtual_machine* get_curr_vm(){
 
 	//4. Return curr_vm, which is a pointer to the current machine on this
 	//particular core.
-	return &vms[temp_stack_pointer ^ curr_vm->id]; //TODO: Entirely cricket?
+	return &vms[temp_stack_pointer]; //TODO: Entirely cricket?
 }
 
 #define USE_DMMU
