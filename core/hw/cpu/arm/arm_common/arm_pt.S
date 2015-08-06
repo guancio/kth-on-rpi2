@@ -61,8 +61,8 @@ arm_setup_initial_pt_slave:
 
 	/* Place zero in r1 for later usage, and store the physical starting address
 	 * of the secondary page table with an offset of 0x4000 in r2. */
-	mov r1, #0
-	add r2, r0, #0x4000
+	//mov r1, #0
+	//add r2, r0, #0x4000
 
 	/* First, clean the memory used to make all pages invalid. */
 	/* TODO: No need to do this again? mov r1, #0 is be removable in that case
@@ -81,13 +81,13 @@ arm_setup_initial_pt_slave:
 
 	/* Then, map us from HAL_VIR_START to HAL_PHY_START in L1. 
 	 * TODO: Changes needed here? */
-	add r0, r4, #(HAL_VIRT_START & 0xff000000) >> 18
-	str r7, [r0, #(HAL_VIRT_START & 0x00f00000) >> 18]! @ Map phys to HAL_VIRT_START
+	//add r0, r4, #(HAL_VIRT_START & 0xff000000) >> 18
+	//str r7, [r0, #(HAL_VIRT_START & 0x00f00000) >> 18]! @ Map phys to HAL_VIRT_START
 
 	/* Enable MMU
 	 * TODO: Do everything again? */
 	mov r0, #0
-	mcr p15, 0, r0, c7, c10, 4 	@ drain write buffer
+	//mcr p15, 0, r0, c7, c10, 4 	@ drain write buffer
 	mcr p15, 0, r0, c8, c7, 0  	@ flush I, D, TLB
 
 	mcr p15, 0, r0, c1, c0, 0	@ read control register
@@ -106,6 +106,11 @@ arm_setup_initial_pt_slave:
 
     nop     @ For PC jump above
     nop     @ For PC jump above
+
+	//ldr r4, =__hyper_pt_start__
+	//ldr r1, =HAL_OFFSET
+	//add r4, r4, r1
+	//mcr p15, 0, r4, c2, c0, 0	@ load page table pointer
 
 	sub pc, lr, r1				@ correct lr to virt space
 
@@ -167,7 +172,7 @@ arm_setup_initial_pt:
     sub pc, pc, r1
 
     nop     @ For PC jump above
-    nop     @ For PC jump above
+    nop     @ For PC jump abovez
 
 	/* Now running in virt space, we can remove 1:1 mapping now - or NOT.
 	 * TODO: Current version should not remove the temporary mapping.

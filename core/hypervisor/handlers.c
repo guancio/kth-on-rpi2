@@ -9,10 +9,9 @@ extern void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pt
 extern int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2);
 
 //TODO: Fix this...
-extern virtual_machine *curr_vm;
 extern int __hyper_stack_bottom__;
 
-extern virtual_machine vms[4];
+extern virtual_machine* vms[4];
 
 //This function returns a pointer to the VM currently running on this core,
 //getting the ID of the processor from the stack pointer (good because it is
@@ -38,7 +37,7 @@ virtual_machine* get_curr_vm(){
 
 	//4. Return curr_vm, which is a pointer to the current machine on this
 	//particular core.
-	return &vms[temp_stack_pointer]; //TODO: Entirely cricket?
+	return vms[temp_stack_pointer]; //TODO: Entirely cricket?
 }
 
 #define USE_DMMU

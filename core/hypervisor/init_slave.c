@@ -49,10 +49,7 @@ void guests_init_multicore(){
 	vm_1.next = &vm_2;
 	vm_2.next = &vm_3;
 	vm_3.next = &vm_0;
-	vms[0] = &vm_0;
-	vms[1] = &vm_1;
-	vms[2] = &vm_2;
-	vms[3] = &vm_3;
+	
 
     //printf("HV pagetable before guests initialization:\n"); //DEBUG
 	//dump_mmu(flpt_va); //DEBUG
@@ -107,8 +104,8 @@ void guests_init_multicore(){
 	for (guest_number = 0; guest_number < 4; guest_number++){
 
 		addr_t guest_psize =  curr_vm->config->firmware->psize;
-		addr_t guest_vstart = curr_vm->config->firmware->vstart + guest_number*guest_psize;
-		addr_t guest_pstart = curr_vm->config->firmware->pstart + guest_number*guest_psize;
+		addr_t guest_vstart = curr_vm->config->firmware->vstart;
+		addr_t guest_pstart = curr_vm->config->firmware->pstart;
 
 		/* KTH CHANGES
 		 * The hypervisor must always be able to read from/write to the guest page
@@ -249,6 +246,14 @@ void guests_init_multicore(){
 			}
 		}
 	#endif
+
+		// switch back to the master-pagetable
+		memory_commit();
+		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, (uint32_t)GET_PHYS(__hyper_pt_start__)); //Set TTB0
+		isb();
+		memory_commit();
+		
+
 		/* END GUANCIO CHANGES */
 		/* END KTH CHANGES */
 	}
@@ -293,8 +298,16 @@ void guests_init_multicore(){
     
 	//TODO: This obviously needs to be done once for every VM.
     memory_commit();
-    cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
 
+    
+    // defines the active vm for each core
+    vms[0] = &vm_0;
+    vms[1] = &vm_1;
+    vms[2] = &vm_2;
+    vms[3] = &vm_3;
+
+    // set-up for each core current_context to point to the context of the active virtual machine
+    cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
 }
 
 
