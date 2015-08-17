@@ -273,7 +273,6 @@ void guests_init_multicore(){
     } while(curr_vm != &vm_0);
     
     memory_commit();
-
     
     //Define the active virtual machine for each core
     vms[0] = &vm_0;
@@ -281,9 +280,10 @@ void guests_init_multicore(){
     vms[2] = &vm_2;
     vms[3] = &vm_3;
 
-    //Set-up for each core current_context to point to the context of the active virtual machine
+    //Set-up for each core current_context to point to the context of the active
+	//virtual machine.
 	do{
-    	cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
+    	cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx, curr_vm->id);
 	} while(curr_vm != &vm_0);
 }
 

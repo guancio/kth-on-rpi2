@@ -139,29 +139,29 @@ arm_setup_initial_pt:
     nop     @ For PC jump above
     nop     @ For PC jump abovez
 
-	/* Now running in virt space, we can remove 1:1 mapping now - or NOT.
-	 * TODO: Current version should not remove the temporary mapping.
-	 * 		 We should instead copy it to */
+	/* Now running in virt space, we can remove 1:1 mapping now - but we copy
+	 * it to another location for later usage first. */
 
-/* TODO: Copy multiple words at a time? Which registers are used?
-LDMCopy:
-      push {r4-r10}
-LDMloop:
-      ldmia r1!, {r3 - r10}
-      stmia r0!, {r3 - r10}
-      subs r2, r2, #32
-      bge LDMloop
-*/
-
+	/* The starting address of the secondary page table. */
 	ldr r0, =__hyper_pt_start_slave__
-	ldr r0, =__hyper_pt_start__
-	ldr r2, r6
+	ldr r1, =HAL_OFFSET
+	add r0, r0, r1
+
+	/* The starting address of the primary page table. */
+	ldr r1, =__hyper_pt_start__
+
+	/* r2 should hold the size of the secondary page table, in bytes. */
+	ldr r2, #0x4000
+
+	/* The temporary page table is copied onto the secondary page table memory
+	 * TODO: There are more efficient ways to do this... */
 copy_loop:
 	ldr r3, [r1], #4
 	str r3, [r0], #4
 	subs r2, r2, #4
 	bge copy_loop
 
+	/* Deletion of temporary page table from primary page table memory addresses */
 	mov r0, #0
 	ldr r3, =(HAL_PHYS_START >> 20)
 	str r0, [r4, r3, lsl #2]

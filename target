@@ -8,11 +8,10 @@
 PLATFORM=raspberrypi2
 
 #SOFTWARE=minimal
-
 #SOFTWARE = trusted linux
 #SOFTWARE = linux
-
-SOFTWARE = dtest trusted
+#SOFTWARE = dtest trusted
+SOFTWARE = dtest trusted dtest1 dtest2 dtest3
 
 #Enable this if you want to compile for OVP 
 #SIMULATION_OVP = 1
