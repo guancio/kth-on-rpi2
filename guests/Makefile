@@ -1,5 +1,5 @@
 
-SUBDIRS = minimal trusted dtest
+SUBDIRS = minimal trusted dtest testguest
 
 all:
 	 set -e; for d in $(SUBDIRS); do $(MAKE) -C $$d ; done

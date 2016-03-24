@@ -59,7 +59,9 @@ extern uint32_t _interrupt_vector_table;
 #ifdef DTEST
 	extern hc_config minimal_config;
 #endif
-
+#ifdef TESTGUEST
+        extern hc_config minimal_config;
+#endif
 /*****************************/
 /* DEBUG */
 void dump_mmu(addr_t adr)
