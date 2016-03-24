@@ -1,0 +1,15 @@
+symbol-file core/build/sth_raspberrypi2.elf 
+target extended-remote localhost:3333
+monitor cortex_a smp_gdb
+b *0x010026cc
+set loop=1
+b *0xf0002cb8
+b init.c:414
+
+b init.c:412
+
+
+
+
+targets bcm2836.cpu0
+halt

@@ -86,8 +86,8 @@ arm_setup_initial_pt:
     nop     @ for PC jump above
 
 	/*Now running in virt space, we can remove 1:1 mapping now*/
-	mov r0, #0
-	ldr r3, =(HAL_PHYS_START >> 20)
-	str r0, [r4, r3, lsl #2]
+//	mov r0, #0
+//	ldr r3, =(HAL_PHYS_START >> 20)
+//	str r0, [r4, r3, lsl #2]
 
 	sub pc, lr, r1				@ correct lr to virt space

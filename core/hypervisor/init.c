@@ -147,6 +147,7 @@ void memory_init()
 	}
     /*map 0xffff0000 to Vector table, interrupt have been relocated to this address */
     pt_map(0xFFFF0000, (uint32_t)GET_PHYS(&_interrupt_vector_table),0x1000, MLT_USER_ROM);
+    pt_map(0x40000000, 0x40000000,0x1000, MLT_IO_RW_REG);
     memory_commit();
     mem_cache_set_enable(TRUE);
     mem_mmu_set_domain(0x55555555); //Start with access to all domains
@@ -315,7 +316,7 @@ void guests_init()
 
 #endif
     printf("vm_0 pagetable after initialization:\n"); // DEBUG
-//    dump_mmu(guest_pt_va); // DEBUG
+    dump_mmu(guest_pt_va); // DEBUG
 
     mem_mmu_tlb_invalidate_all(TRUE, TRUE);
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
@@ -379,6 +380,14 @@ void start_guest()
 
 }
 
+
+void start_slave()
+{
+        printf("SLAVE C CODE\n");
+        asm("b .");
+}
+
+uint32_t loop=0;
 void start_()
 {
     cpu_init();
@@ -398,9 +407,14 @@ void start_()
 
     /* Initialize hypervisor guest modes and data structures
      * according to config file in guest*/
-    guests_init();
+    
+   while(loop==0){
+      printf("hej\n"); 
+   } 
+    *((uint32_t*)(0x4000009C))=start_slave-0xF0000000+0x01000000;
 
+    guests_init();
     printf("Hypervisor initialized.\n Entering Guest...\n");
-    start_guest();
+//    start_guest();
 	//TODO: ALl clear until end!
 }
