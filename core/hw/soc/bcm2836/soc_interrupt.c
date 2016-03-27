@@ -19,7 +19,7 @@
 #define IRQ_COUNT 72
 
 typedef struct {
-	uint32_t irq_pending[3]; //The three entries are:
+    uint32_t irq_pending[3]; //The three entries are:
     //							Basic IRQs pending
     //							IRQs pending 1
     //							IRQs pending 2

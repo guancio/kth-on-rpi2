@@ -26,6 +26,10 @@ extern uint32_t *slpt_va;
  * */
 uint32_t l2_index_p = 0;
 
+void pt_clear_l1_entry(uint32_t page_dir, uint32_t va)
+{
+    *(uint32_t*)( page_dir | (va>>18))=0;
+}
 void map_section(void *page_dir, uint32_t va, uint32_t pa, BOOL cache)
 {
 	uint32_t page_attr = 0;

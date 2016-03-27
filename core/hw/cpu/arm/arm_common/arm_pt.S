@@ -3,7 +3,7 @@
  */
 
     .global arm_setup_initial_pt
-
+    .global arm_setup_initial_pt_slave
     .code 32
     .align  0
 
@@ -35,6 +35,60 @@
 /*
  * set the initial page table
  */
+
+.global boot_slave
+boot_slave:
+    msr CPSR_c, #ARM_MODE_SUPERVISOR | ARM_INTERRUPT_MASK
+    
+    ldr sp, =(__hyper_stack_top_core_1__ + HAL_OFFSET)
+    bl arm_setup_initial_pt_slave
+    
+    ldr r0, = __hyper_stack_top_core_1__
+    bl arm_setup_initial_stack
+    
+    bl start_slave
+
+
+
+arm_setup_initial_pt_slave:
+
+	/*Start with simplest possible needed to get sth running
+ 	  in virtual address
+ 	  */
+
+	ldr r4, = (__hyper_pt_start_core_1__ + HAL_OFFSET)
+
+	mov r0, r4
+	mov r1, #0
+	add r2, r0, #0x4000
+	/*Enable MMU*/
+	mov r0, #0
+	mcr p15, 0, r0, c7, c10, 4 	@ drain write buffer
+	mcr p15, 0, r0, c8, c7, 0  	@ flush I, D, TLB
+
+	mcr p15, 0, r0, c1, c0, 0	@ read control register
+	orr r0, r0 , #1				@ enable MMU bit
+	mov r1, #-1					@ sets manager to all domains
+	mcr p15, 0, r1, c3, c0, 0	@ load domain access control
+	mcr p15, 0, r4, c2, c0, 0	@ load page table pointer
+
+	mcr p15, 0, r0, c1, c0, 0	@ write control reg
+
+        /* adjust stack and jump to our virtual address */
+        ldr r1, =HAL_OFFSET
+        sub sp, sp, r1
+        sub pc, pc, r1
+
+        nop     @ for PC jump above
+        nop     @ for PC jump above
+
+	/*Now running in virt space, we can remove 1:1 mapping now*/
+//	mov r0, #0
+//	ldr r3, =(HAL_PHYS_START >> 20)
+//	str r0, [r4, r3, lsl #2]
+
+	sub pc, lr, r1				@ correct lr to virt space
+        bx lr
 
 arm_setup_initial_pt:
 

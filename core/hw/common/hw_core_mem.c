@@ -12,7 +12,7 @@ extern addr_t __hyper_heap_start__, __hyper_heap_end__;
 static heap_ctxt_t heap;
 
 
-void *malloc(size_t size)
+void* malloc(size_t size)
 {
     return heap_alloc(&heap, size);
 }

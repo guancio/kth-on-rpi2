@@ -74,7 +74,7 @@ SECTIONS
  
     /* heap: up to 104K */    
     __hyper_heap_start__ = .;    
-    . = 0xf0100000 - 1024 * (64 + 32 + 8);
+    . = 0xf0100000 - 1024 * (64+64 + 32 + 8 + 8);
     __hyper_heap_end__ = .;
     
     /* stack */
@@ -82,11 +82,11 @@ SECTIONS
     . += 1024 * 8;
     __hyper_stack_top__ = .;
 
-   /* __hyper_stack_bottom_core_1__ = .;
+    __hyper_stack_bottom_core_1__ = .;
     . += 1024 * 8;
     __hyper_stack_top_core_1__ = .;
 
-    __hyper_stack_bottom_core_2__ = .;
+/*    __hyper_stack_bottom_core_2__ = .;
     . += 1024 * 8;
     __hyper_stack_top_core_2__ = .;
 
@@ -105,6 +105,11 @@ SECTIONS
     __hyper_pt_start__ = .;
     . += 1024 * 64;    
     __hyper_pt_end__ = .;
+    
+    __hyper_pt_start_core_1__ = .;
+    . += 1024 * 64;    
+    __hyper_pt_end_core_1__ = .;
+
 
     __hyper_end__ = .;    
     

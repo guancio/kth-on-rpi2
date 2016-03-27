@@ -33,11 +33,13 @@ void linux_init();
 
 
 extern int __hyper_pt_start__;
+extern int __hyper_pt_start_core_1__;
 extern uint32_t l2_index_p;
 
 /*Pointers to start of  first and second level Page tables
  *Defined in linker script  */
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
+uint32_t *flpt_va_core_1 = (uint32_t *)(&__hyper_pt_start_core_1__);
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
 extern memory_layout_entry * memory_padr_layout;
@@ -48,6 +50,7 @@ virtual_machine vm_0;
 virtual_machine *curr_vm;
 
 extern void start_();
+extern void boot_slave();
 extern uint32_t _interrupt_vector_table;
 
 #ifdef LINUX //TODO remove ifdefs for something nicer
@@ -175,7 +178,7 @@ void guests_init()
   
 
     printf("HV pagetable before guests initialization:\n"); // DEBUG
-//    dump_mmu(flpt_va); // DEBUG
+    //dump_mmu(flpt_va); // DEBUG
   
     
     /* show guest information */
@@ -270,7 +273,7 @@ void guests_init()
     memcpy(guest_pt_va, flpt_va, 1024 * 16);
 
     printf("vm_0 pagetable:\n"); // DEBUG    
-//    dump_mmu(guest_pt_va); // DEBUG
+    //dump_mmu(guest_pt_va); // DEBUG
     
     /* activate the guest page table */
     memory_commit();
@@ -316,7 +319,7 @@ void guests_init()
 
 #endif
     printf("vm_0 pagetable after initialization:\n"); // DEBUG
-    dump_mmu(guest_pt_va); // DEBUG
+    //dump_mmu(guest_pt_va); // DEBUG
 
     mem_mmu_tlb_invalidate_all(TRUE, TRUE);
     mem_cache_invalidate(TRUE,TRUE,TRUE); //instr, data, writeback
@@ -326,7 +329,7 @@ void guests_init()
 #ifdef DEBUG_PG_CONTENT
     for (index=0; index<4096; index++) {
     	if(*(guest_pt_va + index) != 0x0)
-         printf("add %x %x \n", index , *(guest_pt_va + index)); //(flpt_va + index)
+            printf("add %x %x \n", index , *(guest_pt_va + index)); //(flpt_va + index)
     }
 #endif
     /* END GUANCIO CHANGES */
@@ -346,7 +349,6 @@ void guests_init()
         for(i = 0; i < HC_NGUESTMODES;i++){
             curr_vm->mode_states[i].mode_config = (curr_vm->config->guest_modes[i]);
             curr_vm->mode_states[i].rpc_for = MODE_NONE;
-            curr_vm->mode_states[i].rpc_to  = MODE_NONE;
         }
         curr_vm->current_guest_mode = MODE_NONE;
         curr_vm->interrupted_mode = MODE_NONE;
@@ -367,6 +369,22 @@ void guests_init()
 
 }
 
+void dump_mem(uint32_t addr, uint32_t range)
+{
+    uint32_t* p = (uint32_t *) addr;
+    int i;
+    for(i=0; i< range; i++)
+    {
+        printf("0x%x : 0x%x\n", &p[i], p[i]);
+    }
+}
+void slave_memory_init()
+{
+    //TODO: why is the page table area 64 megabytes?
+    memcpy(flpt_va_core_1, flpt_va, 1024 * 16);
+   // dump_mem(flpt_va_core_1, 3);
+    //dump_mmu(flpt_va_core_1); 
+}
 
 
 void start_guest()
@@ -380,11 +398,29 @@ void start_guest()
 
 }
 
+extern void soc_gpio_init();
+extern void soc_interrupt_init();
+extern void soc_timer_init();
+extern void soc_uart_init();
+
 
 void start_slave()
 {
-        printf("SLAVE C CODE\n");
-        asm("b .");
+    pt_clear_l1_entry(flpt_va_core_1, 0x01000000);
+    soc_interrupt_init();
+    soc_timer_init();
+    soc_uart_init();
+    board_init();
+    setup_handlers();
+    printf("ASOEUTHONEUTHAOSEUH!\n");
+
+    dump_mmu(flpt_va_core_1);
+    //change_guest_mode(HC_GM_KERNEL);
+    //printf("SLAVE C CODE\n");
+    for(;;){
+     //   printf("HEJHEj!");
+    }
+    asm("b .");
 }
 
 uint32_t loop=0;
@@ -405,13 +441,19 @@ void start_()
     /* DMMU initialization. */
     dmmu_init();
 
+    slave_memory_init();
+    pt_clear_l1_entry(flpt_va, 0x01000000); 
+    // arm_clear_initial_pt_one_to_one(flpt_va);
+    dump_mmu(flpt_va);
     /* Initialize hypervisor guest modes and data structures
      * according to config file in guest*/
-    
-   while(loop==0){
-      printf("hej\n"); 
-   } 
-    *((uint32_t*)(0x4000009C))=start_slave-0xF0000000+0x01000000;
+    //printf("lelwhat\n");
+    printf("%x\n", *flpt_va_core_1);
+    *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
+    //change_guest_mode(HC_GM_KERNEL);
+    while(loop==0){
+       // printf("hej snyging!\n"); 
+    } 
 
     guests_init();
     printf("Hypervisor initialized.\n Entering Guest...\n");
