@@ -36,6 +36,7 @@ extern int __hyper_pt_start__;
 extern int __hyper_pt_start_core_1__;
 extern uint32_t l2_index_p;
 
+extern int get_pid();
 /*Pointers to start of  first and second level Page tables
  *Defined in linker script  */
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
@@ -47,6 +48,10 @@ extern memory_layout_entry * memory_padr_layout;
 
 //Static VM - May change to dynamic in future
 virtual_machine vm_0;
+virtual_machine vm_1;
+virtual_machine vm_2;
+virtual_machine vm_3;
+virtual_machine* vms[4];
 virtual_machine *curr_vm;
 
 extern void start_();
@@ -166,7 +171,48 @@ void setup_handlers()
     /* Start the timer and direct interrupts to hypervisor irq handler */
     timer_tick_start((cpu_callback)irq_handler);
 }
+void multicore_guest_init(){
+    uint32_t i, guest=0;
+    vm_0.id=0;
+    vm_1.id=1;
 
+    vm_0.next=&vm_0;
+    vm_1.next=&vm_1;
+
+    curr_vm = &vm_0;
+    vms[0]=&vm_0;
+    vms[1]=&vm_1;
+
+    printf("HV pagetable before guests initialization:\n"); // DEBUG
+    //dump_mmu(flpt_va); // DEBUG
+  
+    
+    /* show guest information */
+    printf("We have %d guests in physical memory area %x %x\n", 
+        guests_db.count, guests_db.pstart, guests_db.pend);
+
+    for(i = 0; i < guests_db.count; i++) {
+        printf("Guest_%d: PA=%x+%x VA=%x FWSIZE=%x\n",
+            i,
+            // initial physical address of the guest
+
+            guests_db.guests[i].pstart,
+            // size in bytes of the guest
+            guests_db.guests[i].psize,
+            // initial virtual address of the 1-to-1 mapping
+            guests_db.guests[i].vstart,
+            // size in byte of the binary that has been copied
+            guests_db.guests[i].fwsize);            
+    }
+
+    vm_0.config = &minimal_config;
+    vm_1.config = &minimal_config;
+    
+    vm_0.config->firmware = get_guest(1 + guest++);
+    vm_1.config->firmware = get_guest(1 + guest++);
+
+
+}
 void guests_init()
 {
     uint32_t i, guest = 0;
@@ -175,7 +221,10 @@ void guests_init()
 
     /*Start with VM_0 as the current VM */
     curr_vm = &vm_0;
-  
+    vms[0]=&vm_0;
+    vms[1]=&vm_1;
+    vms[2]=&vm_2;
+    vms[3]=&vm_3;
 
     printf("HV pagetable before guests initialization:\n"); // DEBUG
     //dump_mmu(flpt_va); // DEBUG
@@ -412,7 +461,7 @@ void start_slave()
     soc_uart_init();
     board_init();
     setup_handlers();
-    printf("ASOEUTHONEUTHAOSEUH!\n");
+    printf("this core %x!\n", get_pid());
 
     dump_mmu(flpt_va_core_1);
     //change_guest_mode(HC_GM_KERNEL);
@@ -449,13 +498,21 @@ void start_()
      * according to config file in guest*/
     //printf("lelwhat\n");
     printf("%x\n", *flpt_va_core_1);
+    printf("core: %x\n", get_pid());
+
+    printf("guests in memory: %x\n", guests_db.count);
+    int i;
+    for( i=0; i <100; i++){
+        printf(" ");
+    }
     *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
     //change_guest_mode(HC_GM_KERNEL);
+   // guests_init();
+    
     while(loop==0){
        // printf("hej snyging!\n"); 
     } 
 
-    guests_init();
     printf("Hypervisor initialized.\n Entering Guest...\n");
 //    start_guest();
 	//TODO: ALl clear until end!
