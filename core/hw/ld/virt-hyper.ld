@@ -78,6 +78,7 @@ SECTIONS
     __hyper_heap_end__ = .;
     
     /* stack */
+    
     __hyper_stack_bottom__ = .;
     . += 1024 * 8;
     __hyper_stack_top__ = .;
@@ -102,6 +103,10 @@ SECTIONS
     
      /* PT memory */    
     . = ALIGN(__page_size__);
+
+    __hyper_pt_boot__ = .;
+    . += 1024*16;
+
     __hyper_pt_start__ = .;
     . += 1024 * 64;    
     __hyper_pt_end__ = .;

@@ -56,7 +56,7 @@ arm_setup_initial_pt_slave:
  	  in virtual address
  	  */
 
-	ldr r4, = (__hyper_pt_start_core_1__ + HAL_OFFSET)
+	ldr r4, = (__hyper_pt_boot__ + HAL_OFFSET)
 
 	mov r0, r4
 	mov r1, #0
