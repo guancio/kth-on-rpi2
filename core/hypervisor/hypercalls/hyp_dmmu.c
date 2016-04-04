@@ -3,16 +3,17 @@
 #include "dmmu.h"
 #include "mmu.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine *curr_vms[4];
+extern get_pid();
 
 #if 0
 #define DEBUG_MMU
 #endif
 
 /*Get physical address from Linux virtual address*/
-#define LINUX_PA(va) ((va) - (addr_t)(curr_vm->config->firmware->vstart) + (addr_t)(curr_vm->config->firmware->pstart))
+#define LINUX_PA(va) ((va) - (addr_t)(curr_vms[get_pid()]->config->firmware->vstart) + (addr_t)(curr_vms[get_pid()]->config->firmware->pstart))
 /*Get virtual address from Linux physical address*/
-#define LINUX_VA(pa) ((pa) - (addr_t)(curr_vm->config->firmware->pstart) + (addr_t)(curr_vm->config->firmware->vstart))
+#define LINUX_VA(pa) ((pa) - (addr_t)(curr_vms[get_pid()]->config->firmware->pstart) + (addr_t)(curr_vms[get_pid()]->config->firmware->vstart))
 
 addr_t linux_pt_get_empty_l2();
 
@@ -41,6 +42,7 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
 #endif
 	uint32_t i, clean_va;
 
+        virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t page_offset = curr_vm->guest_info.page_offset;
 
 	/*First get the physical address of the lvl 2 page by
@@ -101,8 +103,9 @@ void hypercall_dyn_free_pgd(addr_t *pgd_va)
 void hypercall_dyn_new_pgd(addr_t *pgd_va)
 {
 #ifdef DEBUG_MMU
-	printf("\n\t\t\tHypercall new PGD\n\t\t pgd:%x ", pgd_va);
+        printf("\n\t\t\tHypercall new PGD\n\t\t pgd:%x ", pgd_va);
 #endif
+        virtual_machine * curr_vm = curr_vms[get_pid()];
 
 	/*If the requested page is in a section page, we need to modify it to lvl 2 pages
 	 *so we can modify the access control granularity */
@@ -226,6 +229,7 @@ void hypercall_dyn_set_pmd(addr_t *pmd, uint32_t desc)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, desc);
 #endif
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t switch_back = 0;
 	addr_t l1_entry, *l1_pt_entry_for_desc;
 	addr_t curr_pgd_pa, *pgd_va, attrs;
@@ -446,6 +450,7 @@ void hypercall_dyn_set_pte(addr_t *l2pt_linux_entry_va, uint32_t linux_pte, uint
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PTE\n\t\t va:%x linux_pte:%x phys_pte:%x ", l2pt_linux_entry_va, phys_pte, linux_pte);
 #endif
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	addr_t phys_start = curr_vm->config->firmware->pstart;
 	uint32_t page_offset = curr_vm->guest_info.page_offset;
 	uint32_t guest_size = curr_vm->config->firmware->psize;

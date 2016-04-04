@@ -1,13 +1,15 @@
 #include "hw.h"
 #include "hyper.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
 
 /* Change hypervisor guest mode. Domain AP and page AP will change .*/
 void change_guest_mode (uint32_t mode)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	if(mode >= HC_NGUESTMODES)
 		hyper_panic("Trying to switch to unknown guest mode", 1);
 	uint32_t domac;
@@ -32,6 +34,7 @@ uint32_t boot =0;
 void hypercall_guest_init(boot_info *info)
 {
 	uint32_t size = sizeof(boot_info);
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	if(boot != 0 )
 		hyper_panic("Guest tried to set boot info twice\n", 1);
 	if(((uint32_t)info < 0xC0000000) || ((uint32_t)info  > (uint32_t)(HAL_VIRT_START - size)))
@@ -64,6 +67,7 @@ void hypercall_guest_init(boot_info *info)
 
 void hypercall_restore_regs(uint32_t *regs)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t size = sizeof(uint32_t)*17; //17 registers to be restored from pointer
 	if(((uint32_t)regs < 0xC0000000) || ((uint32_t)regs  > (uint32_t)(HAL_VIRT_START - size)))
 		hyper_panic("Pointer does not reside in kernel space\n", 1);
@@ -87,6 +91,7 @@ void hypercall_restore_regs(uint32_t *regs)
  * Not portable to other guest OS */
 void hypercall_restore_linux_regs(uint32_t return_value, BOOL syscall)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t offset = 0, mode, i, kernel_space = 0, stack_pc;
 	uint32_t *sp, *context;
 	if(syscall)
@@ -176,6 +181,7 @@ void terminate(int number){
 
 void hypercall_num_error (uint32_t hypercall_num)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t addr = (curr_vm->current_mode_state->ctx.pc -4);
 	printf ("Unknown hypercall %d originated at 0x%x, aborting",
 	   hypercall_num, addr);

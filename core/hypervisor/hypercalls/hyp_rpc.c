@@ -2,9 +2,11 @@
 #include "hyper_config.h"
 #include "hyper.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 
 void hypercall_rpc(uint32_t rpc_op, void *arg){
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	const hc_rpc_handler *handler;
 
 	handler = curr_vm->config->rpc_handlers;
@@ -40,6 +42,7 @@ void hypercall_rpc(uint32_t rpc_op, void *arg){
 
 void hypercall_end_rpc(){
 
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t calling_mode = curr_vm->current_mode_state->rpc_for;
 
 	if(calling_mode == MODE_NONE )

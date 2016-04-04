@@ -56,8 +56,7 @@ virtual_machine vm_0;
 virtual_machine vm_1;
 virtual_machine vm_2;
 virtual_machine vm_3;
-virtual_machine* vms[4];
-virtual_machine *curr_vm;
+virtual_machine* curr_vms[4];
 
 extern void start_();
 extern void boot_slave();
@@ -182,224 +181,210 @@ void multicore_guest_init(){
     vm_0.id=0;
     vm_1.id=1;
 
-    vm_0.next=&vm_1;
+    vm_0.next=&vm_0;
     vm_1.next=&vm_0;
 
-    curr_vm = &vm_0;
-    vms[0]=&vm_0;
-    vms[1]=&vm_1;
-
+    virtual_machine * curr_vm = &vm_0;
+  
     printf("HV pagetable before guests initialization:\n"); // DEBUG
     //dump_mmu(flpt_va); // DEBUG
   
     
     /* show guest information */
     printf("We have %d guests in physical memory area %x %x\n", 
-        guests_db.count, guests_db.pstart, guests_db.pend);
+    guests_db.count, guests_db.pstart, guests_db.pend);
 
     for(i = 0; i < guests_db.count; i++) {
         printf("Guest_%d: PA=%x+%x VA=%x FWSIZE=%x\n",
-            i,
-            // initial physical address of the guest
+        i,
+        // initial physical address of the guest
 
-            guests_db.guests[i].pstart,
-            // size in bytes of the guest
-            guests_db.guests[i].psize,
-            // initial virtual address of the 1-to-1 mapping
-            guests_db.guests[i].vstart,
-            // size in byte of the binary that has been copied
-            guests_db.guests[i].fwsize);            
+        guests_db.guests[i].pstart,
+        // size in bytes of the guest
+        guests_db.guests[i].psize,
+        // initial virtual address of the 1-to-1 mapping
+        guests_db.guests[i].vstart,
+        // size in byte of the binary that has been copied
+        guests_db.guests[i].fwsize);            
     }
 
     vm_0.config = &minimal_config;
-    vm_1.config = &minimal_config_1;
+   // vm_1.config = &minimal_config_1;
     
     vm_0.config->firmware = get_guest(1 + guest++);
-    vm_1.config->firmware = get_guest(1 + guest++);
+  //  vm_1.config->firmware = get_guest(1 + guest++);
 
 
      /* We start with vm_0 as the current virtual machine. */
     curr_vm = &vm_0;
-	do {
-            addr_t curr_ptva;
-            if(0==curr_vm->id)
-                curr_ptva = flpt_va;
-            if(1==curr_vm->id)
-               curr_ptva = flpt_va_core_1;
-           else
-              printf("PANIC\n");
+    do {
+        addr_t curr_ptva;
+        if(0==curr_vm->id) { curr_ptva = flpt_va; }
+        else
+        if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
+        else
+        { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
+        curr_vms[0]=curr_vm;
+        addr_t guest_psize  =  curr_vm->config->firmware->psize;
+        addr_t guest_vstart = curr_vm->config->firmware->vstart;
+        addr_t guest_pstart = curr_vm->config->firmware->pstart;
+        /* KTH CHANGES
+        * The hypervisor must always be able to read from/write to the guest page
+        * tables. For now, the guest page tables can be written into the guest
+        * memory anywhere. In the future we probably need more master page tables,
+        * one for each guest that uses the memory management unit, so that the
+        * virtual reserved addresses can be different. 
+        * We place the constraint that for the minimal guests, the page tables 
+        * are between physical addresses 0x01000000 and 0x014FFFFF (those are the
+        * five MiBs of the guest) of memory reserved to the guest. These
+        * addresses are mapped by the virtual addresses 0x00000000 to 0x004FFFFF.
+        * TODO: This memory sub-space must be accessible only to the hypervisor. */
+        uint32_t va_offset;
+        for (va_offset = 0;
+            //TODO: Mathematically speaking, there is no reason to add section_size
+            //		on both sides on the below row. Is this a bug?
+            //		va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /* +1 MiB at end for L1PT */
+            //		Changed preliminarily to the below:
+            va_offset + SECTION_SIZE <= guest_psize;
+            va_offset += SECTION_SIZE)
+        {
+            uint32_t offset, pmd;
+            uint32_t va = curr_vm->config->reserved_va_for_pt_access_start + va_offset;
+            uint32_t pa = guest_pstart + va_offset;
+            pt_create_section(curr_ptva, va, pa, MLT_HYPER_RAM);
+            /* Invalidate the newly created entries. */
+            offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
+            pmd = (uint32_t *)((uint32_t)curr_ptva + offset);
+            COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, pmd);
+        }
+        //Invalidate cache.
+        memory_commit();
+        curr_vm = curr_vm->next;
+    } while (curr_vm->id != 0);
+
+    //printf("HV pagetable after guests initialization:\n"); //DEBUG
+    //dump_mmu(flpt_va); //DEBUG
+
+    //We pin the L2s that can be created in the 32 KiB area of slpt_va.
+    //TODO: This should only be done once.
+    
+    dmmu_entry_t * bft = (dmmu_entry_t *)DMMU_BFT_BASE_VA;
+    for (i=0; i*4096<0x8000; i++)
+    {
+        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
+        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 2;
+    }
+
+       /* At this point we are finished initializing the master page table, and can
+        * start initializing the first guest page table. 
+        * The master page table now contains
+        * 1) The virtual mapping to the hypervisor code and data.
+        * 2) A fixed virtual mapping to the guest PT.
+        * 3) Some reserved mapping that we ignore for now, e.g. IO‌REGS.
+        * 4) A 1-1 mapping to the guest memory (as defined in board_mem.c) writable
+        * 	  and readable by the user.
+        * TODO: THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE 
+        * INTO ITS ‌WHOLE‌ MEMORY */
+
+    curr_vm=&vm_0;
+    do {
+        addr_t curr_ptva;
+        if(0==curr_vm->id) { curr_ptva = flpt_va; }
+        else
+        if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
+        else
+        { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
+
+        curr_vms[0]=curr_vm;
+ 
+        memory_commit();
+        COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, HYPERVA_TA_PA(curr_ptva)); //Set TTB0
+        isb();
+        memory_commit();
 
 
-		addr_t guest_psize =  curr_vm->config->firmware->psize;
-		addr_t guest_vstart = curr_vm->config->firmware->vstart;
-		addr_t guest_pstart = curr_vm->config->firmware->pstart;
+        addr_t guest_psize =  curr_vm->config->firmware->psize;
+        addr_t guest_vstart = curr_vm->config->firmware->vstart;
+        addr_t guest_pstart = curr_vm->config->firmware->pstart;
 
-		/* KTH CHANGES
-		 * The hypervisor must always be able to read from/write to the guest page
-		 * tables. For now, the guest page tables can be written into the guest
-		 * memory anywhere. In the future we probably need more master page tables,
-		 * one for each guest that uses the memory management unit, so that the
-		 * virtual reserved addresses can be different. 
-		 * We place the constraint that for the minimal guests, the page tables 
-		 * are between physical addresses 0x01000000 and 0x014FFFFF (those are the
-		 * five MiBs of the guest) of memory reserved to the guest. These
-		 * addresses are mapped by the virtual addresses 0x00000000 to 0x004FFFFF.
-		 * TODO: This memory sub-space must be accessible only to the hypervisor. */
+        /* Create a copy of the master page table for the guest in the physical
+         * address pa_initial_l1. */
+        uint32_t *guest_pt_va;
+        addr_t guest_pt_pa;
 
-		uint32_t va_offset;
-		for (va_offset = 0;
-			//TODO: Mathematically speaking, there is no reason to add section_size
-			//		on both sides on the below row. Is this a bug?
-		    //		va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /* +1 MiB at end for L1PT */
-			//		Changed preliminarily to the below:
-			va_offset + SECTION_SIZE <= guest_psize;
-		    va_offset += SECTION_SIZE){
-			uint32_t offset, pmd;
-			uint32_t va = curr_vm->config->reserved_va_for_pt_access_start + va_offset;
-			uint32_t pa = guest_pstart + va_offset;
-			pt_create_section(curr_ptva, va, pa, MLT_HYPER_RAM);
+        guest_pt_pa = guest_pstart + curr_vm->config->pa_initial_l1_offset;
+        curr_vm->master_pt_pa=guest_pt_pa;
+        guest_pt_va = mmu_guest_pa_to_va(guest_pt_pa, curr_vm->config);
+        curr_vm->master_pt_va=guest_pt_va;
+        printf("COPY %x %x\n", guest_pt_va, curr_ptva);
+        memcpy(guest_pt_va, curr_ptva, 1024 * 16);
 
-			/* Invalidate the newly created entries. */
-			offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
-			pmd = (uint32_t *)((uint32_t)curr_ptva + offset);
-			COP_WRITE(COP_SYSTEM, COP_DCACHE_INVALIDATE_MVA, pmd);
-		}
-
-		//Invalidate cache.
-		memory_commit();
-
-		curr_vm = curr_vm->next;
-	} while (curr_vm->id != 0);
-
-	//printf("HV pagetable after guests initialization:\n"); //DEBUG
-	//dump_mmu(flpt_va); //DEBUG
-
-	//We pin the L2s that can be created in the 32 KiB area of slpt_va.
-	//TODO: This should only be done once.
+        //printf("vms[%d] pagetable:\n", guest_number); //DEBUG    
+        //dump_mmu(guest_pt_va); //DEBUG
         
-	dmmu_entry_t * bft = (dmmu_entry_t *)DMMU_BFT_BASE_VA;
-	for (i=0; i*4096<0x8000; i++) {
-		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
-		bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 2;
-	}
+        /* Activate the guest page table. */
+        memory_commit();
+        COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
+        isb();
+        memory_commit();
 
-	/* At this point we are finished initializing the master page table, and can
-	 * start initializing the first guest page table. 
-	 * The master page table now contains
-	 * 1) The virtual mapping to the hypervisor code and data.
-	 * 2) A fixed virtual mapping to the guest PT.
-	 * 3) Some reserved mapping that we ignore for now, e.g. IO‌REGS.
-	 * 4) A 1-1 mapping to the guest memory (as defined in board_mem.c) writable
-	 * 	  and readable by the user.
-	 * TODO: THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE 
-	 * INTO ITS ‌WHOLE‌ MEMORY */
+        /* Calling the create_L1_pt API to check the correctness of the L1
+        * content and to change the page table type to 1. */
+        uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
+        if (res != SUCCESS_MMU){
+            printf("Error: Failed to create the initial PT with error code %d.\n", res);
+            while (1) {
+            }
+        }
 
-        curr_vm=&vm_0;
-	do {
-                addr_t curr_ptva;
-                if(0==curr_vm->id)
-                    curr_ptva = flpt_va;
-                if(1==curr_vm->id)
-                    curr_ptva = flpt_va_core_1;
-                else
-                    printf("PANIC\n");
-               
-                memory_commit();
-		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, HYPERVA_TA_PA(curr_ptva)); //Set TTB0
-		isb();
-		memory_commit();
+#ifdef DEBUG_L1_PG_TYPE
+        uint32_t index;
+        for(index=0; index < 4; index++){
+            printf("Initial L1 page table's page type:%x \n", bft[PA_TO_PH_BLOCK(guest_pt_pa) + index].type);
+        }
+#endif
 
+        /* Initialize the datastructures with the type for the initial L1.
+         * Create the attribute that allow the guest to read/write/execute. */
+        uint32_t attrs;
+        attrs = 0x12; // 0b1--10
+        attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
+        attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
 
-	        addr_t guest_psize =  curr_vm->config->firmware->psize;
-		addr_t guest_vstart = curr_vm->config->firmware->vstart;
-		addr_t guest_pstart = curr_vm->config->firmware->pstart;
+        /* As default the guest has a 1-to-1 mapping to all its memory
+         * TODO: This loop needs to be done for all the guests. */
+        uint32_t offset;
+        for (offset = 0;
+            offset + SECTION_SIZE <= guest_psize;
+            offset += SECTION_SIZE){
+            printf("   Creating initial mapping of %x to %x...\n",
+                guest_vstart+offset, guest_pstart+offset);
+            res = dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, attrs);
+            printf("    Result: %d\n", res);
+        }
 
-		/* Create a copy of the master page table for the guest in the physical
-		 * address pa_initial_l1. */
-		uint32_t *guest_pt_va;
-		addr_t guest_pt_pa;
+        mem_mmu_tlb_invalidate_all(TRUE, TRUE);
+        mem_cache_invalidate(TRUE, TRUE, TRUE); //Instruction, data, writeback
+        mem_cache_set_enable(TRUE);
 
-		guest_pt_pa = guest_pstart + curr_vm->config->pa_initial_l1_offset;
-		guest_pt_va = mmu_guest_pa_to_va(guest_pt_pa, curr_vm->config);
-		printf("COPY %x %x\n", guest_pt_va, curr_ptva);
-		memcpy(guest_pt_va, curr_ptva, 1024 * 16);
-
-		//printf("vms[%d] pagetable:\n", guest_number); //DEBUG    
-		//dump_mmu(guest_pt_va); //DEBUG
-		
-		/* Activate the guest page table. */
-		memory_commit();
-		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
-		isb();
-		memory_commit();
-
-	   	/* Calling the create_L1_pt API to check the correctness of the L1
-		 * content and to change the page table type to 1. */
-		uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
-		if (res != SUCCESS_MMU){
-			printf("Error: Failed to create the initial PT with error code %d.\n",
-				res);
-			while (1) {
-
-			}
-		}
-
-	#ifdef DEBUG_L1_PG_TYPE
-		uint32_t index;
-		for(index=0; index < 4; index++){
-			printf("Initial L1 page table's page type:%x \n",
-				bft[PA_TO_PH_BLOCK(guest_pt_pa) + index].type);
-		}
-	#endif
-
-		/* Initialize the datastructures with the type for the initial L1.
-		 * Create the attribute that allow the guest to read/write/execute. */
-		uint32_t attrs;
-		attrs = 0x12; // 0b1--10
-		attrs |= MMU_AP_USER_RW << MMU_SECTION_AP_SHIFT;
-		attrs = (attrs & (~0x10)) | 0xC | (HC_DOM_KERNEL << MMU_L1_DOMAIN_SHIFT);
-
-		/* As default the guest has a 1-to-1 mapping to all its memory
-		 * TODO: This loop needs to be done for all the guests. */
-		uint32_t offset;
-		for (offset = 0;
-			offset + SECTION_SIZE <= guest_psize;
-			offset += SECTION_SIZE){
-			printf("   Creating initial mapping of %x to %x...\n",
-				guest_vstart+offset, guest_pstart+offset);
-			res = dmmu_map_L1_section(guest_vstart+offset, guest_pstart+offset, attrs);
-			printf("    Result: %d\n", res);
-		}
-
-		//printf("vms[%d] pagetable after initialization:\n", guest_number); //DEBUG
-		//dump_mmu(guest_pt_va); //DEBUG
-
-		mem_mmu_tlb_invalidate_all(TRUE, TRUE);
-		mem_cache_invalidate(TRUE, TRUE, TRUE); //Instruction, data, writeback
-		mem_cache_set_enable(TRUE);
-
-
-	#ifdef DEBUG_PG_CONTENT
-		for (index=0; index<4096; index++){
-			if(*(guest_pt_va + index) != 0x0){
-				printf("add %x %x \n", index , *(guest_pt_va + index)); //(flpt_va + index)
-			}
-		}
-	#endif
+#ifdef DEBUG_PG_CONTENT
+        for (index=0; index<4096; index++){
+            if(*(guest_pt_va + index) != 0x0){
+                printf("add %x %x \n", index , *(guest_pt_va + index)); //(flpt_va + index)
+            }
+        }
+#endif
 
 		
         
-		/* END GUANCIO CHANGES */
-		/* END KTH CHANGES */
-                printf("guest:");
-		curr_vm = curr_vm->next;
-	} while (curr_vm->id != 0);
-	        addr_t guest_pstart = curr_vm->config->firmware->pstart;
-	        addr_t guest_pt_pa = guest_pstart + curr_vm->config->pa_initial_l1_offset;
-		memory_commit();
-		COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
-		isb();
-		memory_commit();
+        /* END GUANCIO CHANGES */
+        /* END KTH CHANGES */
+        curr_vm = curr_vm->next;
+    } while (curr_vm->id != 0);
+    memory_commit();
+    COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, curr_vm->master_pt_pa); //Set TTB0
+    isb();
+    memory_commit();
 
     
     guest = 0;
@@ -418,29 +403,31 @@ void multicore_guest_init(){
         curr_vm->mode_states[HC_GM_INTERRUPT].ctx.psr= ARM_MODE_USER;
         
         //Let the guest know where it is located - write to the third and fourth
-		//registers in the context of that guest for physical and virtual
-		//address, respectively.
+        //registers in the context of that guest for physical and virtual
+        //address, respectively.
         curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[3] =
-              curr_vm->config->firmware->pstart;              
+            curr_vm->config->firmware->pstart;              
         curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[4] =
-              curr_vm->config->firmware->vstart;
-		
-        
-        curr_vm = curr_vm->next; //TODO: Moved this line from above the previous								 //two. Should have no other effect apart from							 
+            curr_vm->config->firmware->vstart;
+        curr_vm = curr_vm->next; 
+        //TODO: Moved this line from above the previous
+        //two. Should have no other ect apart from							 
         //that this entire loops works for several VMs.
     } while(curr_vm != &vm_0);
     
     memory_commit();
-    
-   
 
     //Set-up for each core current_context to point to the context of the active
-	//virtual machine.
+    //virtual machine.
     cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx);
+    curr_vms[0]=&vm_0;
+    curr_vms[1]=&vm_1;
 
-/*	do{
-    	    cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx, curr_vm->id);
-	} while(curr_vm != &vm_0);
+  /*  curr_vm= &vm_0;
+    do{
+        cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx, curr_vm->id);
+        curr_vm=curr_vm->next;
+    } while(curr_vm != &vm_0);
 */
 }
 void guests_init()
@@ -450,11 +437,11 @@ void guests_init()
     vm_0.next = &vm_0; //Only one VM
 
     /*Start with VM_0 as the current VM */
-    curr_vm = &vm_0;
-    vms[0]=&vm_0;
-    vms[1]=&vm_1;
-    vms[2]=&vm_2;
-    vms[3]=&vm_3;
+    virtual_machine* curr_vm = &vm_0;
+    curr_vms[0]=&vm_0;
+    curr_vms[1]=&vm_1;
+    curr_vms[2]=&vm_2;
+    curr_vms[3]=&vm_3;
 
     printf("HV pagetable before guests initialization:\n"); // DEBUG
     //dump_mmu(flpt_va); // DEBUG
@@ -690,7 +677,15 @@ void start_slave()
     soc_timer_init();
     soc_uart_init();
     board_init();
-    printf("this core %x!\n", get_pid());
+
+    addr_t guest_pstart = vm_1.config->firmware->pstart;
+    addr_t guest_pt_pa = guest_pstart + vm_1.config->pa_initial_l1_offset;
+    memory_commit();
+    COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
+    isb();
+    memory_commit();
+
+    printf("\nthis core %x!\n", get_pid());
 
     dump_mmu(flpt_va_core_1);
     //change_guest_mode(HC_GM_KERNEL);
@@ -728,22 +723,16 @@ void start_()
     //printf("lelwhat\n");
 
     //guests_init();
-    dump_mmu(flpt_boot);
-    dump_mmu(flpt_va);
-    dump_mmu(flpt_va_core_1);
-
+   
     multicore_guest_init();
 
-    dump_mmu(flpt_boot);
-    dump_mmu(flpt_va);
-    dump_mmu(flpt_va_core_1);
-    *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
+//    *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
 
-    while(loop==0){
+ /*   while(loop==0){
        // printf("hej snyging!\n");  
-    } 
-
-    //*((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
+    }
+*/
+  //  *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
     printf("Hypervisor initialized.\n Entering Guest...\n");
     start_guest();
 	//TODO: ALl clear until end!

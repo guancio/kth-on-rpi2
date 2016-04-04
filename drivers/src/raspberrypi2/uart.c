@@ -70,5 +70,7 @@ int stdio_can_read(){
 
 //This wrapper function writes one character on the UART via stdio_write_char.
 void printf_putchar(char c){
+    if(c=='\n')
+        stdio_write_char('\r');
     stdio_write_char(c);
 }
