@@ -9,6 +9,7 @@
 extern virtual_machine *curr_vms[4];
 extern int get_pid();
 extern uint32_t *flpt_va;
+extern uint32_t *curr_flpt_va[4];
 
 #if 1
 #define mem_mmu_tlb_invalidate_all(a, b)
@@ -315,7 +316,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add){
     // copies  the reserved virtual addresses from the master page table
     // each virtual page non-unmapped in the master page table is considered reserved
     for (l1_idx = 0; l1_idx < 4096; l1_idx++){
-    	l1_desc = *(flpt_va + l1_idx);
+    	l1_desc = *(curr_flpt_va[get_pid()] + l1_idx);
     	if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY){
         	l1_desc_pa_add = L1_IDX_TO_PA(l1_base_pa_add, l1_idx); // base address is 16KB aligned
         	l1_desc_va_add = mmu_guest_pa_to_va(l1_desc_pa_add, curr_vm->config);
@@ -461,7 +462,7 @@ uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs)
   // user the master page table to discover if the va is reserved
   // WARNING: we can currently reserve only blocks of 1MB and non single blocks
   l1_idx = VA_TO_L1_IDX(va);
-  l1_desc = *(flpt_va + l1_idx);
+  l1_desc = *(curr_flpt_va[get_pid()] + l1_idx);
   if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
     return ERR_MMU_RESERVED_VA;
   }
@@ -542,7 +543,7 @@ int dmmu_l1_pt_map(addr_t va, addr_t l2_base_pa_add, uint32_t attrs)
   // user the master page table to discover if the va is reserved
   // WARNING: we can currently reserve only blocks of 1MB and non single blocks
   l1_idx = VA_TO_L1_IDX(va);
-  l1_desc = *(flpt_va + l1_idx);
+  l1_desc = *(curr_flpt_va[get_pid()] + l1_idx);
   if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
 	  return ERR_MMU_RESERVED_VA;
   }
@@ -599,7 +600,7 @@ uint32_t dmmu_unmap_L1_pageTable_entry (addr_t  va)
   // user the master page table to discover if the va is reserved
   // WARNING: we can currently reserve only blocks of 1MB and non single blocks
   l1_idx = VA_TO_L1_IDX(va);
-  l1_desc = *(flpt_va + l1_idx);
+  l1_desc = *(curr_flpt_va[get_pid()] + l1_idx);
   if (L1_TYPE(l1_desc) != UNMAPPED_ENTRY) {
 	  return ERR_MMU_RESERVED_VA;
   }

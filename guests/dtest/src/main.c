@@ -5,7 +5,7 @@
 #include "dtest.h"
 
 //#ifdef ALLTESTS
-//#define TEST_DMMU_MAP_L1_SECTION
+#define TEST_DMMU_MAP_L1_SECTION
 //#define TEST_DMMU_UNMAP_L1_ENTRY
 //#define TEST_DMMU_CREATE_L1
 //#define TEST_DMMU_CREATE_L1_EMPTY_L1

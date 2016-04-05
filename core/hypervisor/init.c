@@ -46,6 +46,7 @@ extern int get_pid();
 uint32_t *flpt_boot = (uint32_t *)(&__hyper_pt_boot__);
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
 uint32_t *flpt_va_core_1 = (uint32_t *)(&__hyper_pt_start_core_1__);
+uint32_t *curr_flpt_va[4];
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
 extern memory_layout_entry * memory_padr_layout;
@@ -70,6 +71,7 @@ extern uint32_t _interrupt_vector_table;
 #endif
 #ifdef DTEST
 	extern hc_config minimal_config;
+        extern hc_config minimal_config_1;
 #endif
 #ifdef TESTGUEST
         extern hc_config minimal_config_1;
@@ -181,7 +183,7 @@ void multicore_guest_init(){
     vm_0.id=0;
     vm_1.id=1;
 
-    vm_0.next=&vm_0;
+    vm_0.next=&vm_1;
     vm_1.next=&vm_0;
 
     virtual_machine * curr_vm = &vm_0;
@@ -209,10 +211,13 @@ void multicore_guest_init(){
     }
 
     vm_0.config = &minimal_config;
-   // vm_1.config = &minimal_config_1;
-    
-    vm_0.config->firmware = get_guest(1 + guest++);
-  //  vm_1.config->firmware = get_guest(1 + guest++);
+    vm_1.config = &minimal_config_1;
+    /*
+     * used to be get_guest(1+guest++); but this seams to be an of by one Error
+     * so i changed to the thing bellow
+     */
+    vm_0.config->firmware = get_guest(guest++);
+    vm_1.config->firmware = get_guest(guest++);
 
 
      /* We start with vm_0 as the current virtual machine. */
@@ -224,10 +229,12 @@ void multicore_guest_init(){
         if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
         else
         { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
+        curr_flpt_va[0]=curr_ptva;
         curr_vms[0]=curr_vm;
         addr_t guest_psize  =  curr_vm->config->firmware->psize;
         addr_t guest_vstart = curr_vm->config->firmware->vstart;
         addr_t guest_pstart = curr_vm->config->firmware->pstart;
+        printf("this guest pstart:\t%x\nthis guest psize:\t%x\nthis guest vstart:\t%x\n", guest_pstart, guest_psize, guest_vstart);
         /* KTH CHANGES
         * The hypervisor must always be able to read from/write to the guest page
         * tables. For now, the guest page tables can be written into the guest
@@ -241,16 +248,13 @@ void multicore_guest_init(){
         * TODO: This memory sub-space must be accessible only to the hypervisor. */
         uint32_t va_offset;
         for (va_offset = 0;
-            //TODO: Mathematically speaking, there is no reason to add section_size
-            //		on both sides on the below row. Is this a bug?
-            //		va_offset + SECTION_SIZE <= guest_psize + SECTION_SIZE; /* +1 MiB at end for L1PT */
-            //		Changed preliminarily to the below:
-            va_offset + SECTION_SIZE <= guest_psize;
+            va_offset  < guest_psize;
             va_offset += SECTION_SIZE)
         {
             uint32_t offset, pmd;
             uint32_t va = curr_vm->config->reserved_va_for_pt_access_start + va_offset;
             uint32_t pa = guest_pstart + va_offset;
+            printf("(pt: %x, va: %x, pa: %x)\n", curr_ptva, va, pa);
             pt_create_section(curr_ptva, va, pa, MLT_HYPER_RAM);
             /* Invalidate the newly created entries. */
             offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
@@ -262,7 +266,7 @@ void multicore_guest_init(){
         curr_vm = curr_vm->next;
     } while (curr_vm->id != 0);
 
-    //printf("HV pagetable after guests initialization:\n"); //DEBUG
+    printf("HV pagetable after guests initialization:\n"); //DEBUG
     //dump_mmu(flpt_va); //DEBUG
 
     //We pin the L2s that can be created in the 32 KiB area of slpt_va.
@@ -295,6 +299,7 @@ void multicore_guest_init(){
         else
         { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
 
+        curr_flpt_va[0] = curr_ptva; 
         curr_vms[0]=curr_vm;
  
         memory_commit();
@@ -375,6 +380,8 @@ void multicore_guest_init(){
         }
 #endif
 
+        curr_flpt_va[0]=flpt_va;
+        curr_flpt_va[1]=flpt_va_core_1;
 		
         
         /* END GUANCIO CHANGES */
@@ -646,7 +653,6 @@ void dump_mem(uint32_t addr, uint32_t range)
 }
 void slave_memory_init()
 {
-    //TODO: why is the page table area 64 megabytes?
     memcpy(flpt_boot, flpt_va, 1024 * 16);
     pt_clear_l1_entry(flpt_va, 0x01000000); 
     memcpy(flpt_va_core_1, flpt_va, 1024 * 16);
