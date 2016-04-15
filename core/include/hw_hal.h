@@ -26,8 +26,12 @@ void cpu_set_abort_handler(cpu_callback inst, cpu_callback data);
 /* context */
 extern void cpu_context_current_set(context *curr);
 extern context *cpu_context_current_get();
-extern void cpu_context_initial_set(context *curr);
+extern void cpu_context_initial_set(context *curr, uint32_t pid);
 extern int cpu_context_depth_get();
+
+
+/* cpu */
+extern uint32_t get_pid();
 
 /* caches */
 extern void mem_cache_set_enable(BOOL enable);

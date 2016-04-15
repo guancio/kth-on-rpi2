@@ -224,7 +224,7 @@ impl_swi:
 	//////////////////
 	//Call store_context_keep_lr.
     store_context_keep_lr
-
+impl_swi_after:
     //2. Get current interrupt.
 	///////////////////////////////////////
 	//Store address to interrupt data in r3.

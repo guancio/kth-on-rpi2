@@ -9,15 +9,22 @@ extern uint32_t *slpt_va;
 /* Change hypervisor guest mode. Domain AP and page AP will change .*/
 void change_guest_mode (uint32_t mode)
 {
+        
     virtual_machine * curr_vm = curr_vms[get_pid()];
-	if(mode >= HC_NGUESTMODES)
+    printf("vm: %x\n", curr_vm);
+   	if(mode >= HC_NGUESTMODES)
 		hyper_panic("Trying to switch to unknown guest mode", 1);
 	uint32_t domac;
+
 	curr_vm->current_mode_state = &curr_vm->mode_states[mode];
+    printf("curr mode state: %x\n", curr_vm->current_mode_state);
 	cpu_context_current_set(&(curr_vm->current_mode_state->ctx));
+    printf("ctx: %x\n",&(curr_vm->current_mode_state->ctx)) ;
 	curr_vm->current_guest_mode = mode;
+        printf("curr guest mode:%x\n", curr_vm->current_guest_mode);
 	domac = curr_vm->current_mode_state->mode_config->domain_ac;
-	COP_WRITE(COP_SYSTEM, COP_SYSTEM_DOMAIN, domac);
+        printf("domain ac: %x1\n", domac);
+        	COP_WRITE(COP_SYSTEM, COP_SYSTEM_DOMAIN, domac);
 }
 /*
 void hypercall_register_handler(uint32_t handler)

@@ -7,7 +7,6 @@
 #define DEBUG_DMMU_MMU_LEVEL 1
 
 extern virtual_machine *curr_vms[4];
-extern int get_pid();
 extern uint32_t *flpt_va;
 extern uint32_t *curr_flpt_va[4];
 

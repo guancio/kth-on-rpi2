@@ -143,20 +143,6 @@ void cpu_irq_acknowledge(int number){
 void soc_interrupt_set_configuration(int number, int priority, 
                                      BOOL polarity,
                                      BOOL level_sensitive){
-	/*
-	uint32_t tmp;
-    
-	//Check for invalid IRQ number and return function call if one is found.
-    if(number < 0 || number >= IRQ_COUNT){
-		return;
-	}
-
-    tmp = priority & 7;
-    if(polarity) tmp |= (1UL << 6);
-    if(!level_sensitive) tmp |= (1UL << 5);
-    
-    aic->smr[number] = tmp;
-	*/
 
 	//Do nothing then return function call.
 	return;
@@ -171,64 +157,38 @@ void cpu_irq_get_current(){
 //UART IRQ.
 void soc_interrupt_init(){
     /*Needs to be rewritten*/
-#if 0
-    int i;
-    memspace_t * ms_expv, *ms_aic;
-    
-    /* allocate the relocated exception page */
-    /* TODO: mark zero page ro, supervisor and remove it from available from */
-    ms_expv = env_memspace_create_physical(PROC_TYPE_HYPERVISOR, "__soc_expv",
-                                           GET_PHYS(_interrupt_vector_table), 
-                                           0, PAGE_SIZE, TRUE);
-    
-    /* configure the AIC */
-    ms_aic = env_map_from(PROC_TYPE_HYPERVISOR, PROC_TYPE_HYPERVISOR,
-                           "__soc_aic", AIC_BASE, sizeof(aic_registers) , TRUE);
-    aic = (aic_registers *)ms_aic->vadr;
-    
-    /* disable and clear interrupts */
-    aic->idcr = -1; /* disable all */
-    aic->iccr = -1; /* clear all */
-    
-    /* disable each individual interrupt and set the default handler */
-    for(i = 0; i < cpu_irq_get_count(); i++) {
-        cpu_irq_set_enable(i, FALSE);
-        cpu_irq_set_handler(i, (cpu_callback)default_handler);
-    }
-#endif
-
 
     int i; //Loop index
     interrupt_handler = (cpu_callback)irq_handler;
     ireg = (interrupt_registers *)IO_VA_ADDRESS(INTC_BASE);
 
     //TODO: This performs a software reset of the module. Since the 
-	//BCM2836 has no control register for interrupts, I'll just 
-	//comment it out.
-	/*
+    //BCM2836 has no control register for interrupts, I'll just 
+    //comment it out.
+    /*
     intc->intc_sysconfig = INTC_SYSCONFIG_RESET;
     while(!(intc->intc_sysstatus & INTC_SYSSTATUS_RESET_DONE)){
     	//Do nothing
     }
-	*/
+    */
 
     //Turn off all interrupts for now.
-	for(i = 0; i < (int)((IRQ_COUNT/32.0) + 0.5); ++i){
-		ireg->disable_irq[i] = 0xFFFFFFFF;
-	}
+    for(i = 0; i < (int)((IRQ_COUNT/32.0) + 0.5); ++i){
+            ireg->disable_irq[i] = 0xFFFFFFFF;
+    }
     for(i = 0; i < IRQ_COUNT; ++i) {
         //cpu_irq_set_enable(i, FALSE); <-- added loop above which 
-		//is probably faster
+	//is probably faster
         cpu_irq_set_handler(i, default_handler);
     }
 
-	//I think I have identified IRQ 74 as the UART3 of the 
-	//Beagleboard. IRQ 57 is UART on the BCM2836.
+    //I think I have identified IRQ 74 as the UART3 of the 
+    //Beagleboard. IRQ 57 is UART on the BCM2836.
     cpu_irq_set_enable(57, TRUE);
     
-	//TODO: Resets IRQ output and enables new IRQ generation. Since 
-	//the BCM2836 has no control register for interrupts, I'll just 
-	//comment it out.
+    //TODO: Resets IRQ output and enables new IRQ generation. Since 
+    //the BCM2836 has no control register for interrupts, I'll just 
+    //comment it out.
     //intc->intc_control = INTC_CONTROL_NEWIRQAGR;
 }
 

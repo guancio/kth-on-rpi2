@@ -4,7 +4,6 @@
 #include "mmu.h"
 
 extern virtual_machine *curr_vms[4];
-extern get_pid();
 
 #if 0
 #define DEBUG_MMU
