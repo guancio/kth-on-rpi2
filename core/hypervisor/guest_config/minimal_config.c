@@ -101,3 +101,25 @@ hc_config minimal_config_1 = {
 		.always_cached_offset = 0x00200000,
 		.always_cached_size = 0x00200000
 };
+
+hc_config minimal_config_2 = {
+		// offset in the VA respect to the initial va of the guest
+		.guest_entry_offset = 0,
+		.guest_modes = {&gm_trusted, &gm_kernel,&gm_task, &gm_interrupt},
+		.reserved_va_for_pt_access_start = 0x0,
+		// Offset respect the initial pa of the guest
+		.pa_initial_l1_offset = 0x00200000, // Initial address + 2MB
+		.always_cached_offset = 0x00200000,
+		.always_cached_size = 0x00200000
+};
+
+hc_config minimal_config_3 = {
+		// offset in the VA respect to the initial va of the guest
+		.guest_entry_offset = 0,
+		.guest_modes = {&gm_trusted, &gm_kernel,&gm_task, &gm_interrupt},
+		.reserved_va_for_pt_access_start = 0x0,
+		// Offset respect the initial pa of the guest
+		.pa_initial_l1_offset = 0x00200000, // Initial address + 2MB
+		.always_cached_offset = 0x00200000,
+		.always_cached_size = 0x00200000
+};

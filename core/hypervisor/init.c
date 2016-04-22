@@ -6,7 +6,7 @@
 #include "dmmu.h"
 
 //TODO: use excisting macro
-#define HYPERVA_TA_PA(addr) (addr - 0xF0000000+0x01000000) 
+#define HYPERVA_TA_PA(addr) (addr - 0xF0000000 + 0x01000000) 
 //TODO: Note: Added these to avoid warnings.
 extern void dmmu_init();
 extern uint32_t dmmu_map_L1_section(addr_t va, addr_t sec_base_add, uint32_t attrs);
@@ -34,9 +34,10 @@ void linux_init();
  * Globals
  */
 
-
 extern int __hyper_pt_start__;
 extern int __hyper_pt_start_core_1__;
+extern int __hyper_pt_start_core_2__;
+extern int __hyper_pt_start_core_3__;
 extern int __hyper_pt_boot__;
 extern uint32_t l2_index_p;
 
@@ -45,6 +46,8 @@ extern uint32_t l2_index_p;
 uint32_t *flpt_boot = (uint32_t *)(&__hyper_pt_boot__);
 uint32_t *flpt_va = (uint32_t *)(&__hyper_pt_start__);
 uint32_t *flpt_va_core_1 = (uint32_t *)(&__hyper_pt_start_core_1__);
+uint32_t *flpt_va_core_2 = (uint32_t *)(&__hyper_pt_start_core_2__);
+uint32_t *flpt_va_core_3 = (uint32_t *)(&__hyper_pt_start_core_3__);
 uint32_t *curr_flpt_va[4];
 uint32_t *slpt_va = (uint32_t *)((uint32_t)&__hyper_pt_start__ + 0x4000); //16k Page offset
 
@@ -59,7 +62,9 @@ virtual_machine vm_3;
 virtual_machine* curr_vms[4];
 
 extern void start_();
-extern void boot_slave();
+extern void boot_slave1();
+extern void boot_slave2();
+extern void boot_slave3();
 extern uint32_t _interrupt_vector_table;
 
 #ifdef LINUX //TODO remove ifdefs for something nicer
@@ -69,10 +74,14 @@ extern uint32_t _interrupt_vector_table;
 	extern hc_config minimal_config;
 #endif
 #ifdef DTEST
-	extern hc_config minimal_config;
+	extern hc_config minimal_config_3;
+        extern hc_config minimal_config_2;
         extern hc_config minimal_config_1;
+        extern hc_config minimal_config;
 #endif
 #ifdef TESTGUEST
+        extern hc_config minimal_config_3;
+        extern hc_config minimal_config_2;
         extern hc_config minimal_config_1;
         extern hc_config minimal_config;
 #endif
@@ -188,12 +197,17 @@ void multicore_guest_init(){
     uint32_t i, guest=0;
     vm_0.id=0;
     vm_1.id=1;
-
+    vm_2.id=2;
+    vm_3.id=3;
+    
+ 
     vm_0.next=&vm_1;
-    vm_1.next=&vm_0;
-
+    vm_1.next=&vm_2;
+    vm_2.next=&vm_3;
+    vm_3.next=&vm_0;
+ 
     virtual_machine * curr_vm = &vm_0;
-  
+    
     printf("HV pagetable before guests initialization:\n"); // DEBUG
     //dump_mmu(flpt_va); // DEBUG
   
@@ -215,16 +229,22 @@ void multicore_guest_init(){
         // size in byte of the binary that has been copied
         guests_db.guests[i].fwsize);            
     }
+   
+   
 
     vm_0.config = &minimal_config;
     vm_1.config = &minimal_config_1;
+    vm_2.config = &minimal_config_2;
+    vm_3.config = &minimal_config_3;
     /*
      * used to be get_guest(1+guest++); but this seams to be an of by one Error
      * so i changed to the thing bellow
      */
+   
     vm_0.config->firmware = get_guest(guest++);
     vm_1.config->firmware = get_guest(guest++);
-
+    vm_2.config->firmware = get_guest(guest++);
+    vm_3.config->firmware = get_guest(guest++);
 
      /* We start with vm_0 as the current virtual machine. */
     curr_vm = &vm_0;
@@ -234,10 +254,17 @@ void multicore_guest_init(){
         else
         if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
         else
-        { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
+        if(2==curr_vm->id) { curr_ptva = flpt_va_core_2; }
+        else
+        if(3==curr_vm->id) { curr_ptva = flpt_va_core_3; }
+        else
+        {
+            printf ("No master page table for guest %i", curr_vm->id); 
+            hyper_panic("There is no master page table for this guest", 1);
+        }
         curr_flpt_va[0]=curr_ptva;
         curr_vms[0]=curr_vm;
-        addr_t guest_psize  =  curr_vm->config->firmware->psize;
+        addr_t guest_psize  = curr_vm->config->firmware->psize;
         addr_t guest_vstart = curr_vm->config->firmware->vstart;
         addr_t guest_pstart = curr_vm->config->firmware->pstart;
         printf("this guest pstart:\t%x\nthis guest psize:\t%x\nthis guest vstart:\t%x\n", guest_pstart, guest_psize, guest_vstart);
@@ -282,7 +309,7 @@ void multicore_guest_init(){
     for (i=0; i*4096<0x8000; i++)
     {
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
-        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 2;
+        bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 3;
     }
 
        /* At this point we are finished initializing the master page table, and can
@@ -295,6 +322,7 @@ void multicore_guest_init(){
         * 	  and readable by the user.
         * TODO: THIS‌ SETUP ‌MUST ‌BE ‌FIXED, SINCE ‌THE ‌GUEST ‌IS ‌NOT ‌ALLOWED ‌TO ‌WRITE 
         * INTO ITS ‌WHOLE‌ MEMORY */
+   
 
     curr_vm=&vm_0;
     do {
@@ -303,15 +331,28 @@ void multicore_guest_init(){
         else
         if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
         else
-        { printf("PANIC: no hypervisor pagetable defined for guest %i\n", curr_vm->id); }
-
+        if(2==curr_vm->id) { curr_ptva = flpt_va_core_2;
+           curr_vm=curr_vm->next; 
+            continue;
+        }
+        else
+        if(3==curr_vm->id) { curr_ptva = flpt_va_core_3; }
+        else
+        {
+            printf ("No master page table for guest %i", curr_vm->id); 
+            hyper_panic("There is no master page table for this guest", 1);
+        }
+       
+        printf("seting up pagetable of guest:%i\n", curr_vm->id);
         curr_flpt_va[0] = curr_ptva; 
         curr_vms[0]=curr_vm;
- 
+
         memory_commit();
         COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, HYPERVA_TA_PA(curr_ptva)); //Set TTB0
         isb();
+
         memory_commit();
+	printf("********Memory of guest %x\n", *((int*)0x4));    
 
 
         addr_t guest_psize =  curr_vm->config->firmware->psize;
@@ -332,15 +373,18 @@ void multicore_guest_init(){
 
         //printf("vms[%d] pagetable:\n", guest_number); //DEBUG    
         //dump_mmu(guest_pt_va); //DEBUG
-        
+        printf("********ptaddress %x\n", guest_pt_pa);    
+
         /* Activate the guest page table. */
         memory_commit();
         COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
         isb();
         memory_commit();
-
+     
         /* Calling the create_L1_pt API to check the correctness of the L1
         * content and to change the page table type to 1. */
+        
+        //TODO: this for sume reason messes up the flpt_va_core_2, are the datastructures overlapping? going to disable boot of core 2 for now 
         uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
         if (res != SUCCESS_MMU){
             printf("Error: Failed to create the initial PT with error code %d.\n", res);
@@ -385,21 +429,21 @@ void multicore_guest_init(){
             }
         }
 #endif
-
-        curr_flpt_va[0]=flpt_va;
-        curr_flpt_va[1]=flpt_va_core_1;
-		
+   
         
         /* END GUANCIO CHANGES */
         /* END KTH CHANGES */
         curr_vm = curr_vm->next;
     } while (curr_vm->id != 0);
     memory_commit();
-    COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, curr_vm->master_pt_pa); //Set TTB0
+    addr_t guest_pstart =  vm_0.config->firmware->pstart;
+    addr_t guest_pt_pa = guest_pstart + vm_0.config->pa_initial_l1_offset;
+    COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
     isb();
     memory_commit();
 
-    
+    printf("********Memory of guest %x\n", *((int*)0x4));    
+
     guest = 0;
 
     //Initialize the context with the physical addresses.
@@ -449,6 +493,9 @@ void multicore_guest_init(){
 
     cpu_context_initial_set(&vm_0.mode_states[HC_GM_KERNEL].ctx, 0); 
     cpu_context_initial_set(&vm_1.mode_states[HC_GM_KERNEL].ctx, 1);
+    cpu_context_initial_set(&vm_2.mode_states[HC_GM_KERNEL].ctx, 2);
+    cpu_context_initial_set(&vm_3.mode_states[HC_GM_KERNEL].ctx, 3);
+
  printf("--------------");
 
     printf("%x: %x\n", vm_0.mode_states[HC_GM_KERNEL].ctx, &vm_0.mode_states[HC_GM_KERNEL].ctx);
@@ -466,6 +513,13 @@ void multicore_guest_init(){
 
     curr_vms[0]=&vm_0;
     curr_vms[1]=&vm_1;
+    curr_vms[2]=&vm_1;
+    curr_vms[3]=&vm_1;
+    
+    curr_flpt_va[0]=flpt_va;
+    curr_flpt_va[1]=flpt_va_core_1;
+    curr_flpt_va[2]=flpt_va_core_2;
+    curr_flpt_va[3]=flpt_va_core_3;
 
   /*  curr_vm= &vm_0;
     do{
@@ -484,11 +538,16 @@ void dump_mem(uint32_t addr, uint32_t range)
         printf("0x%x : 0x%x\n", &p[i], p[i]);
     }
 }
+
 void slave_memory_init()
 {
     memcpy(flpt_boot, flpt_va, 1024 * 16);
     pt_clear_l1_entry(flpt_va, 0x01000000); 
     memcpy(flpt_va_core_1, flpt_va, 1024 * 16);
+    memcpy(flpt_va_core_2, flpt_va, 1024 * 16);
+    memcpy(flpt_va_core_3, flpt_va, 1024 * 16);
+    
+
 }
 
 
@@ -496,9 +555,7 @@ void start_guest()
 {
 
     /*Change guest mode to KERNEL before going into guest*/
-    printf("11111\n");
     change_guest_mode(HC_GM_KERNEL);
-    printf("2222222\n");
     /*Starting Guest*/
     start();
 
@@ -520,22 +577,25 @@ void start_slave()
     board_init();
     setup_handlers();
 
-    addr_t guest_pstart = vm_1.config->firmware->pstart;
-    addr_t guest_pt_pa = guest_pstart + vm_1.config->pa_initial_l1_offset;
+
+    memory_commit();
+    addr_t guest_pstart = curr_vms[get_pid()]->config->firmware->pstart;
+    addr_t guest_pt_pa = guest_pstart + curr_vms[get_pid()]->config->pa_initial_l1_offset;
     memory_commit();
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_TRANSLATION_TABLE0, guest_pt_pa); //Set TTB0
     isb();
     memory_commit();
-
-    printf("\nthis core %x!\n", get_pid());
+    
+    //enable high interupt vector
     int sysrg;
-
     COP_READ(COP_SYSTEM, COP_SYSTEM_CONTROL, sysrg);
     sysrg=sysrg|0x2000;
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_CONTROL, sysrg);  
     
 
     printf("SLAVE C CODE\n");
+    printf("This is Core%i\n", get_pid());
+    asm("b .");
     start_guest();
   }
 
@@ -571,8 +631,12 @@ void start_()
 
     //dump_mmu(curr_flpt_va[1]);
     //dump_mmu(vm_1.master_pt_va);
-    *((uint32_t*)(0x4000009C))=boot_slave-0xF0000000+0x01000000;
-    printf("Hypervisor initialized.\n Entering Guest...\n");
-     start_guest();
+   // *((uint32_t*)(0x4000009C))=boot_slave1-0xF0000000+0x01000000;
+    //*((uint32_t*)(0x400000AC))=boot_slave2-0xF0000000+0x01000000;
+    *((uint32_t*)(0x400000BC))=boot_slave3-0xF0000000+0x01000000;
+
+  //  printf("Hypervisor initialized.\n Entering Guest...\n");
+    asm("b .");
+    start_guest();
     asm("b .");	//TODO: ALl clear until end!
 }

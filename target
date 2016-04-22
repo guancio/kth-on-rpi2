@@ -12,7 +12,8 @@ PLATFORM=raspberrypi2
 #SOFTWARE = trusted linux
 #SOFTWARE = linux
 
-SOFTWARE = dtest testguest testguest
+# seems they are inverted
+SOFTWARE = dtest dtest dtest dtest
 
 #Enable this if you want to compile for OVP 
 #SIMULATION_OVP = 1

@@ -347,6 +347,7 @@ int dmmu_create_L1_pt(addr_t l1_base_pa_add){
 	    sanity_checker = current_check;
         }
     }
+
     if(sanity_checker != SUCCESS_MMU)
     	return sanity_checker;
 

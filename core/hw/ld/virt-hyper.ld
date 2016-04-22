@@ -87,14 +87,14 @@ SECTIONS
     . += 1024 * 8;
     __hyper_stack_top_core_1__ = .;
 
-/*    __hyper_stack_bottom_core_2__ = .;
+    __hyper_stack_bottom_core_2__ = .;
     . += 1024 * 8;
     __hyper_stack_top_core_2__ = .;
 
     __hyper_stack_bottom_core_3__ = .;
     . += 1024 * 8;
     __hyper_stack_top_core_3__ = .;
-*/
+
 
     /* guest */
     __hyper_guest_start__ = .;
@@ -115,6 +115,14 @@ SECTIONS
     __hyper_pt_start_core_1__ = .;
     . += 1024 * 16;    
     __hyper_pt_end_core_1__ = .;
+    
+    __hyper_pt_start_core_2__ = .;
+    . += 1024 * 16;    
+    __hyper_pt_end_core_2__ = .;
+
+    __hyper_pt_start_core_3__ = .;
+    . += 1024 * 16;    
+    __hyper_pt_end_core_3__ = .;
 
 
     __hyper_end__ = .;    

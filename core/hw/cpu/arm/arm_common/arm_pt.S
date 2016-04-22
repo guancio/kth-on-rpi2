@@ -36,20 +36,6 @@
  * set the initial page table
  */
 
-.global boot_slave
-boot_slave:
-    msr CPSR_c, #ARM_MODE_SUPERVISOR | ARM_INTERRUPT_MASK
-    
-    ldr sp, =(__hyper_stack_top_core_1__ + HAL_OFFSET)
-    bl arm_setup_initial_pt_slave
-    
-    ldr r0, = __hyper_stack_top_core_1__
-    bl arm_setup_initial_stack
-    
-    bl start_slave
-
-
-
 arm_setup_initial_pt_slave:
 
 	/*Start with simplest possible needed to get sth running
@@ -82,10 +68,6 @@ arm_setup_initial_pt_slave:
         nop     @ for PC jump above
         nop     @ for PC jump above
 
-	/*Now running in virt space, we can remove 1:1 mapping now*/
-//	mov r0, #0
-//	ldr r3, =(HAL_PHYS_START >> 20)
-//	str r0, [r4, r3, lsl #2]
 
 	sub pc, lr, r1				@ correct lr to virt space
         bx lr
