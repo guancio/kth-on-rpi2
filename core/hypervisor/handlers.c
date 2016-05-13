@@ -14,9 +14,9 @@ extern virtual_machine *curr_vms[4];
 
 void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hypercall_number)
 {
-    printf("swi_handler \n");
+    //printf("swi_handler \n");
     virtual_machine * curr_vm = curr_vms[get_pid()];
-    printf("curr_vm pstart %x\n", curr_vm->config->firmware->pstart);
+    //printf("curr_vm pstart %x\n", curr_vm->config->firmware->pstart);
 	/*TODO Added check that controls if it comes from user space, makes it pretty inefficient, remake later*/
 	/*Testing RPC from user space, remove later*/
 	if(curr_vm->current_guest_mode == HC_GM_TASK){
@@ -84,7 +84,7 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
 		}
 	}
 	else if(curr_vm->current_guest_mode != HC_GM_TASK){
-	  printf("\tHypercall number: %d (%x, %x) called\n", hypercall_number, param0, param1);
+	  //printf("\tHypercall number: %d (%x, %x) called\n", hypercall_number, param0, param1);
 	  uint32_t res;
 	    switch(hypercall_number){		 
 	    /* TEMP: DMMU TEST */
@@ -92,11 +92,6 @@ void swi_handler(uint32_t param0, uint32_t param1, uint32_t param2, uint32_t hyp
                     printf("This is test hypercall!\n");
                     return;
   	        case 666:
-                        printf("curent vm register: %x %x", curr_vm->current_mode_state->ctx.reg[0], curr_vm->current_mode_state->ctx.reg[1]);
-                        printf("curent vm0 register: %x %x", curr_vms[0]->current_mode_state->ctx.reg[0], curr_vm->current_mode_state->ctx.reg[1]);
-                        printf("curent vm1 register: %x %x", curr_vms[1]->current_mode_state->ctx.reg[0], curr_vm->current_mode_state->ctx.reg[1]);
-                        printf("curent vm3 register: %x %x", curr_vms[3]->current_mode_state->ctx.reg[0], curr_vm->current_mode_state->ctx.reg[1]);
-
 		        //res = dmmu_handler(param0, param1, param2, curr_vm->current_mode_state->ctx.reg[3]);
   	        	res = dmmu_handler(param0, param1, param2);
 		        curr_vm->current_mode_state->ctx.reg[0] = res;

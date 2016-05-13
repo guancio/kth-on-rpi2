@@ -267,7 +267,7 @@ void multicore_guest_init(){
         addr_t guest_psize  = curr_vm->config->firmware->psize;
         addr_t guest_vstart = curr_vm->config->firmware->vstart;
         addr_t guest_pstart = curr_vm->config->firmware->pstart;
-        printf("this guest pstart:\t%x\nthis guest psize:\t%x\nthis guest vstart:\t%x\n", guest_pstart, guest_psize, guest_vstart);
+        //printf("this guest pstart:\t%x\nthis guest psize:\t%x\nthis guest vstart:\t%x\n", guest_pstart, guest_psize, guest_vstart);
         /* KTH CHANGES
         * The hypervisor must always be able to read from/write to the guest page
         * tables. For now, the guest page tables can be written into the guest
@@ -287,7 +287,6 @@ void multicore_guest_init(){
             uint32_t offset, pmd;
             uint32_t va = curr_vm->config->reserved_va_for_pt_access_start + va_offset;
             uint32_t pa = guest_pstart + va_offset;
-            printf("(pt: %x, va: %x, pa: %x)\n", curr_ptva, va, pa);
             pt_create_section(curr_ptva, va, pa, MLT_HYPER_RAM);
             /* Invalidate the newly created entries. */
             offset = ((va >> MMU_L1_SECTION_SHIFT)*4);
@@ -299,11 +298,8 @@ void multicore_guest_init(){
         curr_vm = curr_vm->next;
     } while (curr_vm->id != 0);
 
-    printf("HV pagetable after guests initialization:\n"); //DEBUG
-    dump_mmu(flpt_va); //DEBUG
-    dump_mmu(flpt_va_core_1);
-    dump_mmu(flpt_va_core_2);
-    dump_mmu(flpt_va_core_3);
+    //printf("HV pagetable after guests initialization:\n"); //DEBUG
+
     //We pin the L2s that can be created in the 32 KiB area of slpt_va.
     //TODO: This should only be done once.
     
@@ -313,11 +309,6 @@ void multicore_guest_init(){
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 3;
     }
-printf("316 ##########################\n");
-    dump_mmu(flpt_va); //DEBUG
-    dump_mmu(flpt_va_core_1);
-    dump_mmu(flpt_va_core_2);
-    dump_mmu(flpt_va_core_3);
 
        /* At this point we are finished initializing the master page table, and can
         * start initializing the first guest page table. 
@@ -367,11 +358,6 @@ printf("316 ##########################\n");
          * address pa_initial_l1. */
         uint32_t *guest_pt_va;
         addr_t guest_pt_pa;
-printf("365 ##########################\n");
-    dump_mmu(flpt_va); //DEBUG
-    dump_mmu(flpt_va_core_1);
-    dump_mmu(flpt_va_core_2);
-    dump_mmu(flpt_va_core_3);
 
         guest_pt_pa = guest_pstart + curr_vm->config->pa_initial_l1_offset;
         curr_vm->master_pt_pa=guest_pt_pa;
@@ -380,8 +366,6 @@ printf("365 ##########################\n");
         printf("COPY %x %x\n", guest_pt_va, curr_ptva);
         memcpy(guest_pt_va, curr_ptva, 1024 * 16);
 
-        //printf("vms[%d] pagetable:\n", guest_number); //DEBUG    
-        //dump_mmu(guest_pt_va); //DEBUG
         printf("********ptaddress %x\n", guest_pt_pa);    
 
         /* Activate the guest page table. */
@@ -392,11 +376,6 @@ printf("365 ##########################\n");
      
         /* Calling the create_L1_pt API to check the correctness of the L1
         * content and to change the page table type to 1. */
-    dump_mmu(flpt_va); //DEBUG
-    dump_mmu(flpt_va_core_1);
-    dump_mmu(flpt_va_core_2);
-    dump_mmu(flpt_va_core_3);
-
         
         //TODO: this for sume reason messes up the flpt_va_core_2, are the datastructures overlapping? going to disable boot of core 2 for now 
         uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
@@ -405,12 +384,6 @@ printf("365 ##########################\n");
             while (1) {
             }
         }
-    printf("398 ##############################################\n");
-    dump_mmu(flpt_va); //DEBUG
-    dump_mmu(flpt_va_core_1);
-    dump_mmu(flpt_va_core_2);
-    dump_mmu(flpt_va_core_3);
-
 
 #ifdef DEBUG_L1_PG_TYPE
         uint32_t index;
@@ -462,8 +435,6 @@ printf("365 ##########################\n");
     isb();
     memory_commit();
 
-    printf("********Memory of guest %x\n", *((int*)0x4));    
-
     guest = 0;
 
     //Initialize the context with the physical addresses.
@@ -510,12 +481,6 @@ printf("365 ##########################\n");
     curr_flpt_va[2]=flpt_va_core_2;
     curr_flpt_va[3]=flpt_va_core_3;
 
-  /*  curr_vm= &vm_0;
-    do{
-        cpu_context_initial_set(&curr_vm->mode_states[HC_GM_KERNEL].ctx, curr_vm->id);
-        curr_vm=curr_vm->next;
-    } while(curr_vm != &vm_0);
-*/
 }
 
 void dump_mem(uint32_t addr, uint32_t range)
@@ -582,8 +547,7 @@ void start_slave()
     COP_WRITE(COP_SYSTEM, COP_SYSTEM_CONTROL, sysrg);  
     
 
-    printf("SLAVE C CODE\n");
-    printf("This is Core%i\n", get_pid());
+    printf("Starting Guest %i on Core %i\n",  curr_vms[get_pid()]->id, get_pid());
     start_guest();
     asm("b .");
   }
@@ -600,31 +564,19 @@ void start_()
     soc_init();
     board_init();
 
-        /* Set up exception handlers and starting timer. */
+    /* Set up exception handlers and starting timer. */
     setup_handlers();
 
     /* DMMU initialization. */
     dmmu_init();
-
     slave_memory_init();
-   
-    // arm_clear_initial_pt_one_to_one(flpt_va);
-    /* Initialize hypervisor guest modes and data structures
-     * according to config file in guest*/
-
-   /* while(loop==0){
-        printf("");
-    }*/
-
     multicore_guest_init();
 
-    //dump_mmu(curr_flpt_va[1]);
-    //dump_mmu(vm_1.master_pt_va);
-   *((uint32_t*)(0x4000009C))=boot_slave1-0xF0000000+0x01000000;
+    *((uint32_t*)(0x4000009C))=boot_slave1-0xF0000000+0x01000000;
     *((uint32_t*)(0x400000AC))=boot_slave2-0xF0000000+0x01000000;
     *((uint32_t*)(0x400000BC))=boot_slave3-0xF0000000+0x01000000;
 
-    printf("Hypervisor initialized.\n Entering Guest...\n");
+    printf("Hypervisor initialized.\nEntering Guest...\n");
     start_guest();
     asm("b .");	//TODO: ALl clear until end!
 }
