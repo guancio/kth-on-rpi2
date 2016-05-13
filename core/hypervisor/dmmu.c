@@ -4,7 +4,7 @@
 #include "guest_blob.h"
 
 // DEBUG FLAGS
-#define DEBUG_DMMU_MMU_LEVEL 1
+#define DEBUG_DMMU_MMU_LEVEL 4
 
 extern virtual_machine *curr_vms[4];
 extern uint32_t *flpt_va;
@@ -1015,7 +1015,7 @@ int dmmu_handler(uint32_t p03, uint32_t p1, uint32_t p2)
 	uint32_t p3 = p03 >> 4;
 
 #if DEBUG_DMMU_MMU_LEVEL > 1
-    printf("dmmu_handler: DMMU %x %x %x\n", p1, p2, p3);
+    printf("dmmu_handler: DMMU %x %x %x %x\n", p1, p2, p3, p0);
 #endif
     
     switch(p0) {

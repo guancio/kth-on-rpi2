@@ -300,8 +300,10 @@ void multicore_guest_init(){
     } while (curr_vm->id != 0);
 
     printf("HV pagetable after guests initialization:\n"); //DEBUG
-    //dump_mmu(flpt_va); //DEBUG
-
+    dump_mmu(flpt_va); //DEBUG
+    dump_mmu(flpt_va_core_1);
+    dump_mmu(flpt_va_core_2);
+    dump_mmu(flpt_va_core_3);
     //We pin the L2s that can be created in the 32 KiB area of slpt_va.
     //TODO: This should only be done once.
     
@@ -311,6 +313,11 @@ void multicore_guest_init(){
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].type = PAGE_INFO_TYPE_L2PT;
         bft[PA_TO_PH_BLOCK((uint32_t)GET_PHYS(slpt_va) + i*4096)].refcnt = 3;
     }
+printf("316 ##########################\n");
+    dump_mmu(flpt_va); //DEBUG
+    dump_mmu(flpt_va_core_1);
+    dump_mmu(flpt_va_core_2);
+    dump_mmu(flpt_va_core_3);
 
        /* At this point we are finished initializing the master page table, and can
         * start initializing the first guest page table. 
@@ -331,10 +338,7 @@ void multicore_guest_init(){
         else
         if(1==curr_vm->id) { curr_ptva = flpt_va_core_1; }
         else
-        if(2==curr_vm->id) { curr_ptva = flpt_va_core_2;
-           curr_vm=curr_vm->next; 
-            continue;
-        }
+        if(2==curr_vm->id) { curr_ptva = flpt_va_core_2; }
         else
         if(3==curr_vm->id) { curr_ptva = flpt_va_core_3; }
         else
@@ -363,6 +367,11 @@ void multicore_guest_init(){
          * address pa_initial_l1. */
         uint32_t *guest_pt_va;
         addr_t guest_pt_pa;
+printf("365 ##########################\n");
+    dump_mmu(flpt_va); //DEBUG
+    dump_mmu(flpt_va_core_1);
+    dump_mmu(flpt_va_core_2);
+    dump_mmu(flpt_va_core_3);
 
         guest_pt_pa = guest_pstart + curr_vm->config->pa_initial_l1_offset;
         curr_vm->master_pt_pa=guest_pt_pa;
@@ -383,6 +392,11 @@ void multicore_guest_init(){
      
         /* Calling the create_L1_pt API to check the correctness of the L1
         * content and to change the page table type to 1. */
+    dump_mmu(flpt_va); //DEBUG
+    dump_mmu(flpt_va_core_1);
+    dump_mmu(flpt_va_core_2);
+    dump_mmu(flpt_va_core_3);
+
         
         //TODO: this for sume reason messes up the flpt_va_core_2, are the datastructures overlapping? going to disable boot of core 2 for now 
         uint32_t res = dmmu_create_L1_pt(guest_pt_pa);
@@ -391,6 +405,12 @@ void multicore_guest_init(){
             while (1) {
             }
         }
+    printf("398 ##############################################\n");
+    dump_mmu(flpt_va); //DEBUG
+    dump_mmu(flpt_va_core_1);
+    dump_mmu(flpt_va_core_2);
+    dump_mmu(flpt_va_core_3);
+
 
 #ifdef DEBUG_L1_PG_TYPE
         uint32_t index;
@@ -474,47 +494,16 @@ void multicore_guest_init(){
     
     memory_commit();
 
-    //Set-up for each core current_context to point to the context of the active
-    //virtual machine.
-    printf("--------------");
-    printf("%x: %x\n", vm_0.mode_states[HC_GM_KERNEL].ctx, &vm_0.mode_states[HC_GM_KERNEL].ctx);
-    printf("context pointer:\n");
-    printf("%x:%x\n", context_stack_curr, &context_stack_curr);
-    printf("%x:%x\n", context_stack, &context_stack);
-    printf("%x:%x\n", *(&(context_stack)+1), (&(context_stack)+1));
- printf("--------------");
-
-    printf("%x: %x\n", vm_1.mode_states[HC_GM_KERNEL].ctx, &vm_1.mode_states[HC_GM_KERNEL].ctx);
-    printf("context pointer:\n");
-    printf("%x:%x\n", context_stack_curr_1, &context_stack_curr_1);
-    printf("%x:%x\n", context_stack_1, &context_stack_1);
-    printf("%x:%x\n", *(&(context_stack_1)+1), (&(context_stack_1)+1));
- printf("--------------");
-
     cpu_context_initial_set(&vm_0.mode_states[HC_GM_KERNEL].ctx, 0); 
     cpu_context_initial_set(&vm_1.mode_states[HC_GM_KERNEL].ctx, 1);
     cpu_context_initial_set(&vm_2.mode_states[HC_GM_KERNEL].ctx, 2);
     cpu_context_initial_set(&vm_3.mode_states[HC_GM_KERNEL].ctx, 3);
 
- printf("--------------");
-
-    printf("%x: %x\n", vm_0.mode_states[HC_GM_KERNEL].ctx, &vm_0.mode_states[HC_GM_KERNEL].ctx);
-    printf("context pointer:\n");
-    printf("%x:%x\n", context_stack_curr, &context_stack_curr);
-    printf("%x:%x\n", context_stack, &context_stack);
-    printf("%x:%x\n", *(&(context_stack)+1), (&(context_stack)+1));
- printf("--------------");
-
-    printf("%x: %x\n", vm_1.mode_states[HC_GM_KERNEL].ctx, &vm_1.mode_states[HC_GM_KERNEL].ctx);
-    printf("context pointer:\n");
-    printf("%x:%x\n", context_stack_curr_1, &context_stack_curr_1);
-    printf("%x:%x\n", context_stack_1, &context_stack_1);
-    printf("%x:%x\n", *(&(context_stack_1)+1), (&(context_stack_1)+1));
 
     curr_vms[0]=&vm_0;
     curr_vms[1]=&vm_1;
-    curr_vms[2]=&vm_1;
-    curr_vms[3]=&vm_1;
+    curr_vms[2]=&vm_2;
+    curr_vms[3]=&vm_3;
     
     curr_flpt_va[0]=flpt_va;
     curr_flpt_va[1]=flpt_va_core_1;
@@ -595,8 +584,8 @@ void start_slave()
 
     printf("SLAVE C CODE\n");
     printf("This is Core%i\n", get_pid());
-    asm("b .");
     start_guest();
+    asm("b .");
   }
 
 void start_()
@@ -631,12 +620,11 @@ void start_()
 
     //dump_mmu(curr_flpt_va[1]);
     //dump_mmu(vm_1.master_pt_va);
-   // *((uint32_t*)(0x4000009C))=boot_slave1-0xF0000000+0x01000000;
-    //*((uint32_t*)(0x400000AC))=boot_slave2-0xF0000000+0x01000000;
+   *((uint32_t*)(0x4000009C))=boot_slave1-0xF0000000+0x01000000;
+    *((uint32_t*)(0x400000AC))=boot_slave2-0xF0000000+0x01000000;
     *((uint32_t*)(0x400000BC))=boot_slave3-0xF0000000+0x01000000;
 
-  //  printf("Hypervisor initialized.\n Entering Guest...\n");
-    asm("b .");
+    printf("Hypervisor initialized.\n Entering Guest...\n");
     start_guest();
     asm("b .");	//TODO: ALl clear until end!
 }
