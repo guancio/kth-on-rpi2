@@ -9,7 +9,7 @@
     .global impl_reset
     .global _interrupt_vector_table
 
-	.extern arm_move_guest_blob
+    .extern arm_move_guest_blob
 
     .extern start_
     .extern impl_undef
@@ -60,7 +60,7 @@ impl_reset:
 	//TODO: TEST:
 	/* Enables pins for writing and configures them for JTAG functionality.
 	 * This is best put at the start so that you can debug the entire program. */
-	bl debug_gpio_init
+    bl debug_gpio_init
 
 	//TODO: Currently we have no smartLoader or OVP, so what does the below line mean?
     /* Guest is now loaded by smartLoader peripheral (OVP bootloader). */
@@ -75,6 +75,7 @@ impl_reset:
 	 * you are in virtual memory! */
 
     /* Setup real stacks now, run core init and reclaim the initial stacks. */
+        ldr r0, = __hyper_stack_top__
 	bl arm_setup_initial_stack
 
 	//TEST

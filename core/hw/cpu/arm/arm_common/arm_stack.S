@@ -10,7 +10,6 @@
 
 
 arm_setup_initial_stack:
-    ldr r0, = __hyper_stack_top__
 
     msr CPSR_c, #ARM_MODE_IRQ | ARM_INTERRUPT_MASK
     mov sp, r0

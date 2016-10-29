@@ -2,9 +2,10 @@
 #include "guest_blob.h"
 #include<cache.h>
 
-extern virtual_machine *curr_vm;
-
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 void start(){
+    virtual_machine * curr_vm = curr_vms[get_pid()];
     uint32_t r3 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[3];
     uint32_t r4 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[4];    
     uint32_t r5 = curr_vm->mode_states[HC_GM_KERNEL].ctx.reg[5];    

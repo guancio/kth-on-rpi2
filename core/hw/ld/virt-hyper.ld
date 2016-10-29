@@ -74,13 +74,27 @@ SECTIONS
  
     /* heap: up to 104K */    
     __hyper_heap_start__ = .;    
-    . = 0xf0100000 - 1024 * (64 + 32 + 8);
+    . = 0xf0100000 - 1024 * ((4 * 8) + 32 + 16 + 64 + (3 * 16) );
     __hyper_heap_end__ = .;
     
     /* stack */
+    
     __hyper_stack_bottom__ = .;
     . += 1024 * 8;
-    __hyper_stack_top__ = .;         
+    __hyper_stack_top__ = .;
+
+    __hyper_stack_bottom_core_1__ = .;
+    . += 1024 * 8;
+    __hyper_stack_top_core_1__ = .;
+
+    __hyper_stack_bottom_core_2__ = .;
+    . += 1024 * 8;
+    __hyper_stack_top_core_2__ = .;
+
+    __hyper_stack_bottom_core_3__ = .;
+    . += 1024 * 8;
+    __hyper_stack_top_core_3__ = .;
+
 
     /* guest */
     __hyper_guest_start__ = .;
@@ -89,10 +103,29 @@ SECTIONS
     
      /* PT memory */    
     . = ALIGN(__page_size__);
+
+    __hyper_pt_boot__ = .;
+    . += 1024*16;
+    __hyper_pt_boot_end__ = .;
+
     __hyper_pt_start__ = .;
     . += 1024 * 64;    
     __hyper_pt_end__ = .;
+    
+    __hyper_pt_start_core_1__ = .;
+    . += 1024 * 16;    
+    __hyper_pt_end_core_1__ = .;
+    
+    __hyper_pt_start_core_2__ = .;
+    . += 1024 * 16;    
+    __hyper_pt_end_core_2__ = .;
 
-    __hyper_end__ = .;    
+    __hyper_pt_start_core_3__ = .;
+    . += 1024 * 16;    
+    __hyper_pt_end_core_3__ = .;
+
+
+    __hyper_end__ = .; 
+    . = 0xF0100000;
     
 }

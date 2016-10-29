@@ -55,6 +55,8 @@ typedef struct virtual_machine_{
 	uint32_t *exception_vector;
 	hyper_mode_state mode_states[HC_NGUESTMODES];
 	hyper_mode_state *current_mode_state;
+        addr_t master_pt_pa;
+        addr_t master_pt_va;
 	struct hc_config_ *config;
 	struct virtual_machine_ *next;
 } virtual_machine;

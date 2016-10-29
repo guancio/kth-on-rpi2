@@ -3,7 +3,8 @@
 #include "hyper.h"
 #include "hyp_cache.h"
 
-extern virtual_machine *curr_vm;
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 
 extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
@@ -158,6 +159,7 @@ uint32_t hypercall_map_l1_section(addr_t va, addr_t sec_base_add, uint32_t attrs
  */
 void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall create section\n\t\t va:%x pa:%x page_attr:%x  ", va, pa, page_attr);
 #endif
@@ -200,6 +202,7 @@ void hypercall_create_section(addr_t va, addr_t pa, uint32_t page_attr)
  * TODO Add list of allowed page tables*/
 void hypercall_switch_mm(addr_t table_base, uint32_t context_id)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall switch PGD\n\t\t table_base:%x ", table_base);
 #endif
@@ -242,6 +245,7 @@ void hypercall_switch_mm(addr_t table_base, uint32_t context_id)
  * used by another task (Linux kernel knows not to do this but can be used in an attack)*/
 void hypercall_free_pgd(addr_t *pgd)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall FREE PGD\n\t\t pgd:%x ", pgd);
 #endif
@@ -292,6 +296,7 @@ void hypercall_free_pgd(addr_t *pgd)
  *TODO Add list of used page tables and keep count */
 void hypercall_new_pgd(addr_t *pgd)
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall new PGD\n\t\t pgd:%x ", pgd);
 #endif
@@ -373,6 +378,7 @@ void hypercall_set_pmd(addr_t *pmd, uint32_t val)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PMD\n\t\t pmd:%x val:%x ", pmd, val);
 #endif
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t offset, *l1_pt, slpt_pa, sect_idx;
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
 	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;
@@ -486,6 +492,7 @@ void hypercall_set_pte(addr_t *va, uint32_t linux_pte, uint32_t phys_pte)
 #ifdef DEBUG_MMU
 	printf("\n\t\t\tHypercall set PTE\n\t\t va:%x linux_pte:%x phys_pte:%x ", va, phys_pte, linux_pte);
 #endif
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t *phys_va = (uint32_t *)((uint32_t)va - 0x800);
 	uint32_t PAGE_OFFSET = curr_vm->guest_info.page_offset;
 	uint32_t PHYS_OFFSET = curr_vm->guest_info.phys_offset;

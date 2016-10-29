@@ -101,5 +101,6 @@ enum mmu_flags { MMU_FLAG_C = 1UL << 3, MMU_FLAG_B = 1UL << 2};
 uint32_t pt_create_coarse(addr_t *pt, addr_t va,addr_t pa, uint32_t size, uint32_t mem_type);
 BOOL pt_create_section( addr_t *pt, addr_t va, addr_t pa, uint32_t mem_type);
 BOOL pt_map(addr_t va, addr_t pa, uint32_t size, uint32_t mem_type);
+void pt_clear_l1_entry(uint32_t page_dir, uint32_t va);
 
 #endif /* _ARM_MMU_H_ */

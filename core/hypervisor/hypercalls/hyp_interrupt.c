@@ -1,13 +1,15 @@
 #include "hw.h"
 #include "hyper.h"
-extern virtual_machine *curr_vm;
-
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 /*Interrupt operations*/
 
 /*interrupt specifies the irq&fiq mask and op specifies the operation (disable, enable, restore)
  *restore operation will restore the flags to the interrupt mask */
 void hypercall_interrupt_set(uint32_t interrupt, uint32_t op)
 {
+
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	interrupt &= (ARM_IRQ_MASK | ARM_FIQ_MASK);
 	if(op==1) /*Enable*/
 		curr_vm->current_mode_state->ctx.psr &= ~(interrupt);
@@ -47,6 +49,7 @@ void hypercall_irq_restore(uint32_t flag)
 #endif
 
 void hypercall_end_interrupt () {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	if (curr_vm->current_guest_mode != HC_GM_INTERRUPT) {
 		hyper_panic("Guest tried to end interrupt but not in interrupt mode.", 1);
 	}

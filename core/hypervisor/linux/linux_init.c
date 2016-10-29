@@ -10,7 +10,8 @@ extern uint32_t *flpt_va;
 extern uint32_t *slpt_va;
 
 extern uint32_t l2_index_p;
-extern virtual_machine *curr_vm;
+extern virtual_machine *curr_vms[4];
+extern uint32_t get_pid();
 
 /*We copy the signal codes to the vector table that Linux uses here */
 
@@ -25,6 +26,7 @@ const unsigned long syscall_restart_code[2] = {
 };
 void clear_linux_mappings()
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	uint32_t PAGE_OFFSET   = curr_vm->guest_info.page_offset;
 	uint32_t VMALLOC_END   = curr_vm->guest_info.vmalloc_end;
 	uint32_t guest_size    = curr_vm->guest_info.guest_size;
@@ -71,6 +73,7 @@ void clear_linux_mappings()
 //return value.
 void dmmu_clear_linux_mappings()
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
 	addr_t guest_vstart = curr_vm->config->firmware->vstart;
 	addr_t guest_psize =  curr_vm->config->firmware->psize;
 	uint32_t address;
@@ -139,6 +142,7 @@ uint32_t linux_l2_index_p = 0;
 
 addr_t linux_pt_get_empty_l2()
 {
+    virtual_machine * curr_vm = curr_vms[get_pid()];
   uint32_t pa_l2_pt = curr_vm->config->firmware->pstart + curr_vm->config->pa_initial_l2_offset;
   uint32_t va_l2_pt = mmu_guest_pa_to_va(pa_l2_pt, curr_vm->config);
   if((linux_l2_index_p * 0x400) > SECTION_SIZE){ // Set max size of L2 pages
@@ -165,6 +169,7 @@ void linux_init_dmmu()
 	uint32_t error;
 	uint32_t sect_attrs, sect_attrs_ro, small_attrs, small_attrs_ro, page_attrs,table2_idx, i;
 	addr_t table2_pa;
+    virtual_machine * curr_vm = curr_vms[get_pid()];
     addr_t guest_vstart = curr_vm->config->firmware->vstart;
     addr_t guest_pstart = curr_vm->config->firmware->pstart;
     addr_t guest_psize =  curr_vm->config->firmware->psize;
